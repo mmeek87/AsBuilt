@@ -8,7 +8,9 @@ import {
   validateExecution,
   type Plan,
 } from "../server/schema.ts";
-import { journeyResourceAllowed } from "../server/safety.ts";
+import {
+  journeyResourceAllowed,
+} from "../server/safety.ts";
 
 export const fixturePlan: Plan = {
   intent:
@@ -174,3 +176,4 @@ test("journey broker allows only reviewed documents/data, safe Next image source
   ])
     assert.equal(allowed(url, type, method), false, url);
 });
+

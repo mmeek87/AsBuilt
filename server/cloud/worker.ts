@@ -1,5 +1,8 @@
 import { journeyResourceAllowed, reviewedDestinations } from "../safety.ts";
-import { recordBlockedResource } from "../resource-evidence.ts";
+import {
+  recordBlockedResource,
+  resourceFailureReason,
+} from "../resource-evidence.ts";
 import type { Sandbox } from "@vercel/sandbox";
 import { put } from "@vercel/blob";
 import { PassThrough, Writable } from "node:stream";
@@ -46,6 +49,7 @@ export async function runCloud(report: Report) {
   async function resource(m: any) {
     const id = z.number().int().positive().parse(m.id);
     let response: any = { type: "resource", id, allowed: false };
+    let deniedReason = "network policy or resource budget";
     try {
       const scope = z
         .string()
@@ -96,15 +100,15 @@ export async function runCloud(report: Report) {
             body: fetched.body.toString("base64"),
           };
       }
-    } catch {
-      /* Deny closed. */
+    } catch (error) {
+      deniedReason = resourceFailureReason(error);
     }
     if (!response.allowed)
       recordBlockedResource(
         report,
         String(m.url),
         String(m.resourceType),
-        "network policy, budget, or safe fetch failure",
+        deniedReason,
       );
     send(response);
   }

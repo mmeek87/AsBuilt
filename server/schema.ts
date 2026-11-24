@@ -1,8 +1,9 @@
 import { z } from "zod";
 export const actionSchema = z
   .object({
-    type: z.enum(["click", "fill", "select", "navigate"]),
+    type: z.enum(["click", "fill", "select", "navigate", "menu"]),
     name: z.string().min(1).max(100),
+    match: z.enum(["exact", "contains"]).optional(),
     within: z
       .object({
         role: z.enum(["region", "dialog", "navigation", "main"]),
@@ -106,7 +107,11 @@ export function validateExecution(plan: Plan) {
   if (
     !plan.journey &&
     plan.criteria.some(
-      (c) => c.expectedUrl || c.actions?.some((a) => a.type === "navigate"),
+      (c) =>
+        c.expectedUrl ||
+        c.actions?.some(
+          (a) => a.type === "navigate" || (a.type === "menu" && !!a.value),
+        ),
     )
   )
     throw Error("Navigation and URL checkpoints require journey mode.");
@@ -119,7 +124,9 @@ export function validateExecution(plan: Plan) {
     ...plan.criteria.flatMap((c) => [
       ...(c.expectedUrl ? [c.expectedUrl] : []),
       ...(c.actions ?? [])
-        .filter((a) => a.type === "navigate")
+        .filter(
+          (a) => a.type === "navigate" || (a.type === "menu" && !!a.value),
+        )
         .map((a) => a.value),
     ]),
   ];

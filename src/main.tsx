@@ -1208,7 +1208,8 @@ function App() {
                                                               | "click"
                                                               | "fill"
                                                               | "select"
-                                                              | "navigate",
+                                                              | "navigate"
+                                                              | "menu",
                                                           }
                                                         : x,
                                                   ),
@@ -1216,9 +1217,14 @@ function App() {
                                               }
                                             >
                                               {journey && (
-                                                <option value="navigate">
-                                                  Follow reviewed link
-                                                </option>
+                                                <>
+                                                  <option value="menu">
+                                                    Choose reviewed menu item
+                                                  </option>
+                                                  <option value="navigate">
+                                                    Follow reviewed link
+                                                  </option>
+                                                </>
                                               )}
                                               <option value="click">
                                                 Click button
@@ -1237,9 +1243,11 @@ function App() {
                                             >
                                               {a.type === "click"
                                                 ? "Button name"
-                                                : a.type === "navigate"
-                                                  ? "Link name"
-                                                  : "Field label"}
+                                                : a.type === "menu"
+                                                  ? "Menu item name"
+                                                  : a.type === "navigate"
+                                                    ? "Link name"
+                                                    : "Field label"}
                                             </label>
                                             <input
                                               id={`action-name-${i}-${ai}`}
@@ -1262,6 +1270,44 @@ function App() {
                                               }
                                             />
                                           </div>
+                                          {(a.type === "click" ||
+                                            a.type === "menu") && (
+                                            <div>
+                                              <label
+                                                htmlFor={`action-match-${i}-${ai}`}
+                                              >
+                                                Action name matching
+                                              </label>
+                                              <select
+                                                id={`action-match-${i}-${ai}`}
+                                                value={a.match ?? "exact"}
+                                                onChange={(e) =>
+                                                  changeCriterion(i, {
+                                                    actions: c.actions!.map(
+                                                      (x, j) =>
+                                                        j === ai
+                                                          ? {
+                                                              ...x,
+                                                              match: e.target
+                                                                .value as
+                                                                | "exact"
+                                                                | "contains",
+                                                            }
+                                                          : x,
+                                                    ),
+                                                  })
+                                                }
+                                              >
+                                                <option value="exact">
+                                                  Exact name
+                                                </option>
+                                                <option value="contains">
+                                                  Contains text (unique target
+                                                  required)
+                                                </option>
+                                              </select>
+                                            </div>
+                                          )}
                                           {journey && (
                                             <div>
                                               <label
@@ -1356,15 +1402,22 @@ function App() {
                                               <label
                                                 htmlFor={`action-value-${i}-${ai}`}
                                               >
-                                                {a.type === "navigate"
+                                                {a.type === "navigate" ||
+                                                a.type === "menu"
                                                   ? "Reviewed destination URL"
                                                   : "Test value"}
                                               </label>
                                               <input
                                                 id={`action-value-${i}-${ai}`}
-                                                required
+                                                required={a.type !== "menu"}
+                                                placeholder={
+                                                  a.type === "menu"
+                                                    ? "Leave empty only to open a submenu"
+                                                    : undefined
+                                                }
                                                 maxLength={
-                                                  a.type === "navigate"
+                                                  a.type === "navigate" ||
+                                                  a.type === "menu"
                                                     ? 2048
                                                     : 200
                                                 }

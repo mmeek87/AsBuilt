@@ -282,6 +282,6 @@ export function journeyResourceAllowed(
 
 export function reviewedDestinations(plan: import("./schema.ts").Plan) {
   return plan.criteria.flatMap((c) =>
-    (c.actions ?? []).filter((a) => a.type === "navigate").map((a) => a.value),
+    (c.actions ?? []).filter((a) => a.type === "navigate" || (a.type === "menu" && !!a.value)).map((a) => a.value),
   );
 }

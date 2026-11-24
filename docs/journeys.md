@@ -26,3 +26,9 @@ Action targeting can be narrowed with `within:{role:"region",name:"Exact section
 ## External trial status
 
 The latest approved eBarrel trial selected Jamaica on desktop and mobile, but the reviewed store navigation timed out on both. Later checkpoints were not attempted. This is an unresolved compatibility limitation, not a passing shopping journey or evidence of an eBarrel defect. No additional API access or mutations were permitted.
+
+## Menu journeys (service 0.3.1)
+
+Use `type:"menu"` with a unique accessible menu-item name. An empty value can only open a submenu (`aria-haspopup="menu"`); a final choice must include its reviewed same-origin destination URL. Form-associated and sensitive controls remain refused. `match:"contains"` is available for button and menu actions, but still requires exactly one visible match. Links retain exact matching. The UI clears approvals after edits. Cookies and authorization remain excluded from the broker.
+
+The eBarrel menu example is in `docs/examples/ebarrel-menu-journey.json`. Country, parish and store names are example data, not engine rules. See `docs/navigation-baseline.md` for both passing and non-passing external evidence; a successful rerun does not resolve an earlier intermittent failure.
