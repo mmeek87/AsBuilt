@@ -1,4 +1,4 @@
-import { Sandbox } from "@vercel/sandbox";
+import type { Sandbox } from "@vercel/sandbox";
 import { put } from "@vercel/blob";
 import { PassThrough, Writable } from "node:stream";
 import { readFile } from "node:fs/promises";
@@ -142,6 +142,8 @@ export async function runCloud(report: Report) {
       throw Error("Online browser execution is not enabled.");
     report.status = "running";
     await save(report);
+    // Keep optional browser SDK dependencies out of API cold starts.
+    const { Sandbox } = await import("@vercel/sandbox");
     sandbox = await Sandbox.create(sandboxOptions(config.snapshot));
     const files = [
       "browser-worker.mjs",
