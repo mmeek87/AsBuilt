@@ -1,0 +1,17 @@
+{
+  "mode": "operate",
+  "colors": {
+    "canvas": "#ffffff",
+    "rail": "#f7f7f4",
+    "ink": "#252522",
+    "muted": "#696962",
+    "accent": "#f8df83",
+    "rule": "#e5e5df",
+    "focus": "#363630"
+  },
+  "type": {
+    "heading": "Public Sans",
+    "body": "Public Sans"
+  },
+  "spacingUnit": 8
+}

@@ -1,0 +1,6 @@
+FROM mcr.microsoft.com/playwright:v1.65.1-noble
+WORKDIR /app
+RUN npm init -y && npm install --omit=dev --ignore-scripts playwright@1.65.1
+COPY server/browser-worker.mjs server/interactive-fixture.mjs server/interaction-policy.mjs ./server/
+USER pwuser
+ENTRYPOINT ["node", "server/browser-worker.mjs"]

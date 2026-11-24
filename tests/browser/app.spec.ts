@@ -1,0 +1,603 @@
+import { test, expect } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+const token = "asbuilt-test-token-not-a-production-secret-123";
+test("auth, origin and approval boundaries", async ({ request }) => {
+  expect((await request.get("/api/config")).status()).toBe(401);
+  expect(
+    (await request.post("/api/session", { data: { token: "wrong" } })).status(),
+  ).toBe(401);
+  expect(
+    (
+      await request.post("/api/session", {
+        data: { token },
+        headers: { Origin: "https://evil.test" },
+      })
+    ).status(),
+  ).toBe(403);
+  expect(
+    (
+      await request.get("/api/config", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    ).status(),
+  ).toBe(200);
+  expect(
+    (
+      await request.post("/api/runs", {
+        headers: { Authorization: `Bearer ${token}` },
+        data: {
+          intent: "Show hello",
+          target: "sample",
+          approved: false,
+          criteria: [
+            { id: "1", expected: "Show hello", kind: "text", value: "hello" },
+          ],
+        },
+      })
+    ).status(),
+  ).toBe(400);
+});
+test("guided sample delivers actual pass, fail and not-verified evidence with accessible responsive UI", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Local access key").fill(token);
+  await page.getByRole("button", { name: "Open workspace" }).click();
+  await expect(page.getByRole("heading", { name: "New review" })).toBeVisible();
+  await page.getByRole("button", { name: "Use an example" }).click();
+  await expect(page.locator("body")).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.screenshot({
+    path: "test-results/asbuilt-desktop.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.screenshot({
+    path: "test-results/asbuilt-mobile.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Create review plan" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Review your checks" }),
+  ).toBeVisible();
+  await expect(page.getByText("Guided draft · no AI analysis")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Run reviewed checks" }),
+  ).toBeDisabled();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.getByLabel("I’ve reviewed these checks", { exact: false }).check();
+  await page.getByRole("button", { name: "Run reviewed checks" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Verification report" }),
+  ).toBeVisible({ timeout: 45000 });
+  const response = await page.request.get("/api/runs");
+  const runs = await response.json();
+  const report = await (
+    await page.request.get(`/api/runs/${runs[0].id}`)
+  ).json();
+  expect(report.mode).toBe("sample");
+  expect(report.results.filter((x: any) => x.status === "pass")).toHaveLength(
+    6,
+  );
+  expect(report.results.filter((x: any) => x.status === "fail")).toHaveLength(
+    2,
+  );
+  expect(
+    report.results.filter((x: any) => x.status === "not_verified"),
+  ).toHaveLength(2);
+  expect(report.browserVersion).toBeTruthy();
+  for (const r of report.results)
+    expect((await page.request.get(r.screenshot)).status()).toBe(200);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "test-results/asbuilt-report-mobile.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({
+    path: "test-results/asbuilt-report-desktop.png",
+    fullPage: true,
+  });
+  await page.reload();
+  await page.getByRole("button", { name: /Past reviews/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "Past reviews" }),
+  ).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page
+    .getByRole("button", { name: /Sample verification/ })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Verification report" }),
+  ).toBeVisible();
+});
+test("MCP initializes, exposes shared tools and returns honest drafts", async () => {
+  const client = new Client({ name: "asbuilt-test", version: "1.0" });
+  await client.connect(
+    new StreamableHTTPClientTransport(new URL("http://127.0.0.1:4320/mcp"), {
+      requestInit: { headers: { Authorization: `Bearer ${token}` } },
+    }),
+  );
+  const tools = await client.listTools();
+  expect(tools.tools.map((t) => t.name).sort()).toEqual([
+    "capture_intent",
+    "check_verification",
+    "generate_criteria",
+    "get_connection_status",
+    "get_report",
+    "start_verification",
+  ]);
+  const r = await client.callTool({
+    name: "generate_criteria",
+    arguments: { intent: 'Show a heading called "Welcome".' },
+  });
+  const parsed = JSON.parse((r.content as any)[0].text);
+  expect(parsed.mode).toBe("guided");
+  expect(parsed.verificationStatus).toBe("not_run");
+  const run = await client.callTool({
+    name: "start_verification",
+    arguments: {
+      intent: "Show Welcome",
+      target: "sample",
+      approved: true,
+      criteria: [
+        {
+          id: "one",
+          expected: "Show Plan your visit",
+          kind: "heading",
+          value: "Plan your visit",
+        },
+      ],
+    },
+  });
+  const runId = JSON.parse((run.content as any)[0].text).id;
+  await expect
+    .poll(
+      async () => {
+        const state = await client.callTool({
+          name: "check_verification",
+          arguments: { id: runId },
+        });
+        return JSON.parse((state.content as any)[0].text).status;
+      },
+      { timeout: 20000 },
+    )
+    .toBe("complete");
+  const report = await client.callTool({
+    name: "get_report",
+    arguments: { id: runId },
+  });
+  expect(JSON.parse((report.content as any)[0].text).results).toHaveLength(2);
+  await client.close();
+});
+test("keyboard can reach the sample action and inputs", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Local access key").fill(token);
+  await page.getByRole("button", { name: "Open workspace" }).click();
+  await page.keyboard.press("Tab");
+  let sawInput = false;
+  for (let i = 0; i < 12; i++) {
+    if (
+      await page
+        .locator("#intent")
+        .evaluate((el) => document.activeElement === el)
+    )
+      sawInput = true;
+    await page.keyboard.press("Tab");
+  }
+  expect(sawInput).toBe(true);
+});
+
+test("workspace navigation preserves the draft and explains connection setup", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Local access key").fill(token);
+  await page.getByRole("button", { name: "Open workspace" }).click();
+  await page
+    .getByLabel("What should happen?", { exact: true })
+    .fill('Show a heading called "Welcome".');
+  await page.getByRole("button", { name: "Connections", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Connections", exact: true }),
+  ).toBeVisible();
+  await page.getByText("Setup steps", { exact: true }).first().click();
+  await expect(
+    page.getByText(
+      "Create a GitHub App with read-only Contents and Pull requests permissions.",
+    ),
+  ).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.screenshot({
+    path: "test-results/asbuilt-connections.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "New review", exact: true }).click();
+  await expect(
+    page.getByLabel("What should happen?", { exact: true }),
+  ).toHaveValue('Show a heading called "Welcome".');
+});
+
+test("editor focus is continuous across the text field and footer", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Local access key").fill(token);
+  await page.getByRole("button", { name: "Open workspace" }).click();
+  await page.getByLabel("What should happen?", { exact: true }).focus();
+  await page
+    .locator(".intent-editor")
+    .screenshot({ path: "test-results/asbuilt-editor-focus.png" });
+  await expect(
+    page.getByLabel("What should happen?", { exact: true }),
+  ).toBeFocused();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test("deleting a review requires confirmation and removes its evidence", async ({
+  page,
+  request,
+}) => {
+  const auth = { Authorization: `Bearer ${token}` };
+  const response = await request.post("/api/runs", {
+    headers: auth,
+    data: {
+      intent: "Delete test fixture",
+      target: "sample",
+      approved: true,
+      criteria: [
+        {
+          id: "delete-test",
+          expected: "Show Plan your visit",
+          kind: "heading",
+          value: "Plan your visit",
+        },
+      ],
+    },
+  });
+  const run = await response.json();
+  await expect
+    .poll(async () => {
+      const r = await request.get(`/api/runs/${run.id}`, { headers: auth });
+      return (await r.json()).status;
+    })
+    .toBe("complete");
+  const saved = await (
+    await request.get(`/api/runs/${run.id}`, { headers: auth })
+  ).json();
+  expect(
+    (
+      await request.delete(`/api/runs/${run.id}`, {
+        headers: auth,
+        data: { confirmed: false },
+      })
+    ).status(),
+  ).toBe(400);
+  expect(
+    (
+      await request.delete(`/api/runs/${run.id}`, { data: { confirmed: true } })
+    ).status(),
+  ).toBe(401);
+  await page.goto("/");
+  await page.getByLabel("Local access key").fill(token);
+  await page.getByRole("button", { name: "Open workspace" }).click();
+  await page.getByRole("button", { name: /Past reviews/ }).click();
+  const row = page.getByTestId(`review-${run.id}`);
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await row.getByRole("button", { name: /Delete sample review/ }).click();
+  await expect(row).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await row.getByRole("button", { name: /Delete sample review/ }).click();
+  await expect(row).toHaveCount(0);
+  await expect(page.getByRole("status")).toContainText(
+    "Review and screenshots deleted.",
+  );
+  expect(
+    (await request.get(`/api/runs/${run.id}`, { headers: auth })).status(),
+  ).toBe(404);
+  expect(
+    (await request.get(saved.results[0].screenshot, { headers: auth })).ok(),
+  ).toBe(false);
+  await page.reload();
+  await page.getByRole("button", { name: /Past reviews/ }).click();
+  await expect(page.getByTestId(`review-${run.id}`)).toHaveCount(0);
+});
+
+test("interactive sample executes reviewed click, fill and select steps on both viewports", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Local access key").fill(token);
+  await page.getByRole("button", { name: "Open workspace" }).click();
+  await page.getByRole("button", { name: "Use an example" }).click();
+  await page.getByRole("button", { name: "Create review plan" }).click();
+  await page
+    .getByLabel("Browser mode", { exact: true })
+    .selectOption("interactive");
+  await page.getByRole("button", { name: "Load interaction example" }).click();
+  await expect(page.getByLabel("Field label", { exact: true })).toHaveCount(3);
+  await page.getByLabel("I’ve reviewed these checks", { exact: false }).check();
+  await expect(
+    page.getByRole("button", { name: "Run reviewed checks" }),
+  ).toBeDisabled();
+  await page
+    .getByLabel("I approve the exact actions", { exact: false })
+    .check();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.screenshot({
+    path: "test-results/asbuilt-interactive-plan.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.screenshot({
+    path: "test-results/asbuilt-interactive-plan-mobile.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await page.getByRole("button", { name: "Run reviewed checks" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Verification report" }),
+  ).toBeVisible({ timeout: 45000 });
+  const runs = await (await page.request.get("/api/runs")).json();
+  const report = await (
+    await page.request.get(`/api/runs/${runs[0].id}`)
+  ).json();
+  expect(report.plan.execution).toBe("interactive");
+  expect(report.status).toBe("complete");
+  expect(report.results).toHaveLength(6);
+  expect(report.results.every((r: any) => r.status === "pass")).toBe(true);
+  expect(new Set(report.results.map((r: any) => r.screenshot)).size).toBe(6);
+  expect(
+    report.results.some((r: any) =>
+      r.steps.some((s: string) => s.includes("Select")),
+    ),
+  ).toBe(true);
+  for (const r of report.results)
+    expect((await page.request.get(r.screenshot)).status()).toBe(200);
+  await page.screenshot({
+    path: "test-results/asbuilt-interactive-report.png",
+    fullPage: true,
+  });
+});
+test("interactive failures and policy refusals never become passes; checks start fresh", async ({
+  request,
+}) => {
+  const headers = { Authorization: `Bearer ${token}` };
+  const body = {
+    intent: "Phase 2 isolation test",
+    target: "sample",
+    approved: true,
+    execution: "interactive",
+    actionsApproved: true,
+    criteria: [
+      {
+        id: "fill",
+        expected: "Preview Alex",
+        kind: "text",
+        value: "Studio tour for Alex",
+        actions: [
+          { type: "fill", name: "First name", value: "Alex" },
+          { type: "click", name: "Preview visit", value: "" },
+        ],
+      },
+      {
+        id: "fresh",
+        expected: "A fresh session has no name",
+        kind: "text",
+        value: "Studio tour for a guest",
+        actions: [{ type: "click", name: "Preview visit", value: "" }],
+      },
+      {
+        id: "missing",
+        expected: "An intentionally incorrect outcome",
+        kind: "text",
+        value: "This text is intentionally missing",
+        actions: [],
+      },
+      {
+        id: "blocked",
+        expected: "A prohibited booking must not run",
+        kind: "text",
+        value: "Booked",
+        actions: [{ type: "click", name: "Book a visit", value: "" }],
+      },
+    ],
+  };
+  expect(
+    (
+      await request.post("/api/runs", {
+        headers,
+        data: { ...body, actionsApproved: false },
+      })
+    ).status(),
+  ).toBe(400);
+  const created = await (
+    await request.post("/api/runs", { headers, data: body })
+  ).json();
+  await expect
+    .poll(
+      async () => {
+        const r = await request.get(`/api/runs/${created.id}`, { headers });
+        return (await r.json()).status;
+      },
+      { timeout: 45000 },
+    )
+    .toBe("complete");
+  const report = await (
+    await request.get(`/api/runs/${created.id}`, { headers })
+  ).json();
+  expect(report.results.filter((r: any) => r.status === "pass")).toHaveLength(
+    4,
+  );
+  expect(report.results.filter((r: any) => r.status === "fail")).toHaveLength(
+    2,
+  );
+  expect(
+    report.results.filter((r: any) => r.status === "not_verified"),
+  ).toHaveLength(2);
+  expect(
+    report.results
+      .filter((r: any) => r.criterion.id === "blocked")
+      .every((r: any) => r.observed.includes("policy")),
+  ).toBe(true);
+});
+
+test("interaction policy refuses submit controls, password fields, and ambiguous buttons", async ({
+  page,
+}) => {
+  const { perform } = await import("../../server/interaction-policy.mjs");
+  await page.setContent(
+    '<form><button>Continue</button></form><label for="access">Access code</label><input id="access" type="password"><button type="button">Show details</button><button type="button">Show details</button>',
+  );
+  await expect(
+    perform(page, { type: "click", name: "Continue", value: "" }),
+  ).rejects.toThrow(/permitted/);
+  await expect(
+    perform(page, { type: "fill", name: "Access code", value: "synthetic" }),
+  ).rejects.toThrow(/permitted/);
+  await expect(
+    perform(page, { type: "click", name: "Show details", value: "" }),
+  ).rejects.toThrow(/ambiguous/);
+  await expect(page.getByLabel("Access code")).toHaveValue("");
+});
+
+test("remember device uses a protected persistent cookie and sign out revokes it", async ({
+  page,
+  context,
+  request,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Local access key").fill(token);
+  await expect(
+    page.getByLabel("Remember this device for 30 days"),
+  ).toBeChecked();
+  await page.getByRole("button", { name: "Open workspace" }).click();
+  await expect(
+    page.getByRole("button", { name: "Sign out", exact: true }),
+  ).toBeVisible();
+  const cookie = (await context.cookies()).find((c) => c.name === "asbuilt")!;
+  expect(cookie.httpOnly).toBe(true);
+  expect(cookie.sameSite).toBe("Strict");
+  expect(cookie.expires).toBeGreaterThan(Date.now() / 1000 + 29 * 86400);
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Sign out", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(page.getByLabel("Local access key")).toBeVisible();
+  expect(
+    (
+      await request.get("/api/config", {
+        headers: { Cookie: `asbuilt=${cookie.value}` },
+      })
+    ).status(),
+  ).toBe(401);
+  await page.getByLabel("Local access key").fill(token);
+  await page.getByLabel("Remember this device for 30 days").uncheck();
+  await page.getByRole("button", { name: "Open workspace" }).click();
+  await expect(
+    page.getByRole("button", { name: "Sign out", exact: true }),
+  ).toBeVisible();
+  expect(
+    (await context.cookies()).find((c) => c.name === "asbuilt")!.expires,
+  ).toBe(-1);
+});
+
+test("stdio MCP bridge works from another directory and shares HTTP reports", async () => {
+  const { StdioClientTransport } =
+    await import("@modelcontextprotocol/sdk/client/stdio.js");
+  const { resolve } = await import("node:path");
+  const client = new Client({ name: "asbuilt-stdio-test", version: "1.0" });
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [
+      "--import",
+      resolve("node_modules/tsx/dist/loader.mjs"),
+      resolve("server/stdio.ts"),
+    ],
+    cwd: "/tmp",
+    env: {
+      PATH: process.env.PATH!,
+      ASBUILT_URL: "http://127.0.0.1:4320",
+      ASBUILT_TOKEN: token,
+    },
+    stderr: "pipe",
+  });
+  try {
+    await client.connect(transport);
+    expect((await client.listTools()).tools).toHaveLength(6);
+    const status = await client.callTool({
+      name: "get_connection_status",
+      arguments: {},
+    });
+    expect(status.isError).not.toBe(true);
+    expect(JSON.parse((status.content as any)[0].text).scope).toBe(
+      "local single operator",
+    );
+    const run = await client.callTool({
+      name: "start_verification",
+      arguments: {
+        intent: "Verify sample heading",
+        target: "sample",
+        approved: true,
+        criteria: [
+          {
+            id: "heading",
+            kind: "heading",
+            expected: "Sample heading appears",
+            value: "Plan your visit",
+          },
+        ],
+      },
+    });
+    const id = JSON.parse((run.content as any)[0].text).id;
+    expect(id).toBeTruthy();
+    await expect
+      .poll(
+        async () =>
+          JSON.parse(
+            (
+              (
+                await client.callTool({
+                  name: "check_verification",
+                  arguments: { id },
+                })
+              ).content as any
+            )[0].text,
+          ).status,
+        { timeout: 20000 },
+      )
+      .toBe("complete");
+    const result = await client.callTool({
+      name: "get_report",
+      arguments: { id },
+    });
+    expect(JSON.parse((result.content as any)[0].text).results).toHaveLength(2);
+    const response = await fetch(`http://127.0.0.1:4320/api/runs/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect((await response.json()).id).toBe(id);
+  } finally {
+    await client.close();
+  }
+});
