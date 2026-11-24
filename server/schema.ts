@@ -10,8 +10,10 @@ export const criterionSchema = z
   .object({
     id: z.string().max(80),
     expected: z.string().min(1).max(1000),
-    kind: z.enum(["text", "heading", "button", "required", "manual"]),
+    kind: z.enum(["text", "heading", "button", "link", "required", "manual"]),
     value: z.string().max(200),
+    match: z.enum(["exact", "contains"]).optional(),
+    occurrence: z.enum(["unique", "at_least_one"]).optional(),
     actions: z.array(actionSchema).max(6).optional(),
   })
   .strict();
@@ -54,6 +56,12 @@ export type Report = {
   plan: Plan;
   results: Result[];
   blockedRequests: number;
+  blockedResources?: {
+    origin: string;
+    resourceType: string;
+    reason: string;
+    count: number;
+  }[];
   error?: string;
   browserVersion?: string;
   limitations: string[];
@@ -70,6 +78,7 @@ export function generateCriteria(intent: string): Criterion[] {
     if (quoted && /\brequired\b/i.test(expected)) kind = "required";
     else if (quoted && /\bheading\b/i.test(expected)) kind = "heading";
     else if (quoted && /\bbutton\b/i.test(expected)) kind = "button";
+    else if (quoted && /\blink\b/i.test(expected)) kind = "link";
     else if (quoted && /\b(see|show|display|visible|text)\b/i.test(expected))
       kind = "text";
     return { id: `criterion-${i + 1}`, expected, kind, value: quoted };

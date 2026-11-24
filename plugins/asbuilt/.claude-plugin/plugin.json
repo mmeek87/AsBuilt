@@ -1,6 +1,6 @@
 {
   "name": "asbuilt",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Compare a website’s observable behavior with your intent, then review evidence and honest limitations.",
   "repository": "https://github.com/mmeek87/AsBuilt",
   "license": "MIT",
