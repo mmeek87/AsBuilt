@@ -1,0 +1,12 @@
+{
+  "name": "asbuilt",
+  "owner": { "name": "AsBuilt contributors" },
+  "plugins": [
+    {
+      "name": "asbuilt",
+      "source": "./plugins/asbuilt",
+      "description": "Review your intent, run approved local checks, and inspect website evidence.",
+      "version": "0.1.0"
+    }
+  ]
+}

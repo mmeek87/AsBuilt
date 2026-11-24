@@ -1,0 +1,20 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "asbuilt",
+  "version": "0.1.0",
+  "description": "Compare a website’s observable behavior with your intent, then review evidence and honest limitations.",
+  "repository": "https://github.com/mmeek87/AsBuilt",
+  "license": "MIT",
+  "extensions": {
+    "com.openai": {
+      "requires_local_executor": true,
+      "interface": {
+        "displayName": "AsBuilt",
+        "shortDescription": "Check what your website actually does",
+        "longDescription": "Turn your intent into reviewable checks, run approved checks through your local AsBuilt installation, and inspect evidence. Requires Node.js 24 and a running local AsBuilt service. No hosted account is required. Browser checks never start just by installing the plugin.",
+        "logo": "./assets/icon.svg",
+        "defaultPrompt": "Use AsBuilt to turn my intended website behavior into checks. Show me the target and plan before running anything."
+      }
+    }
+  }
+}
