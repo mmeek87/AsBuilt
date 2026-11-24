@@ -11,6 +11,7 @@ type Config = {
   origins: string[];
   sampleIntent: string;
   interactiveSampleCriteria: Criterion[];
+  journeySampleCriteria: Criterion[];
   interactivePreviews: boolean;
   installUrl: string | null;
 };
@@ -130,6 +131,8 @@ function App() {
   const [execution, setExecution] = useState<"static" | "interactive">(
     "static",
   );
+  const [journey, setJourney] = useState(false);
+  const [readUrls, setReadUrls] = useState("");
   const [actionsApproved, setActionsApproved] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   async function load() {
@@ -898,7 +901,14 @@ function App() {
                                   approved,
                                   execution,
                                   ...(execution === "interactive"
-                                    ? { actionsApproved }
+                                    ? {
+                                        actionsApproved,
+                                        journey,
+                                        readUrls: readUrls
+                                          .split("\n")
+                                          .map((x) => x.trim())
+                                          .filter(Boolean),
+                                      }
                                     : {}),
                                   ...(source ? { source } : {}),
                                 });
@@ -934,9 +944,49 @@ function App() {
                                 Interactive checks
                               </option>
                             </select>
+                            {execution === "interactive" && (
+                              <>
+                                <label className="check">
+                                  <input
+                                    type="checkbox"
+                                    checked={journey}
+                                    onChange={(e) => {
+                                      setJourney(e.target.checked);
+                                      setApproved(false);
+                                      setActionsApproved(false);
+                                    }}
+                                  />
+                                  Keep one session for this journey
+                                </label>
+                                {journey && (
+                                  <>
+                                    <label htmlFor="read-urls">
+                                      Reviewed read-only data URLs (one exact
+                                      URL per line)
+                                    </label>
+                                    <textarea
+                                      id="read-urls"
+                                      value={readUrls}
+                                      onChange={(e) => {
+                                        setReadUrls(e.target.value);
+                                        setApproved(false);
+                                        setActionsApproved(false);
+                                      }}
+                                    />
+                                    <p>
+                                      Only same-origin GET requests to these
+                                      exact URLs are allowed. Do not include
+                                      credentials or personal data.
+                                    </p>
+                                  </>
+                                )}
+                              </>
+                            )}
                             <p className="hint">
                               {execution === "interactive"
-                                ? "Each check starts fresh. Add the clicks, typing, or selections needed before checking the result."
+                                ? journey
+                                  ? "Checkpoints run in order in one session per screen size. Later actions stop if a checkpoint does not pass."
+                                  : "Each check starts fresh. Add the clicks, typing, or selections needed before checking the result."
                                 : "Checks visible content with JavaScript disabled. Remove actions to return to this mode."}
                             </p>
                             {execution === "interactive" &&
@@ -945,6 +995,35 @@ function App() {
                                   type="button"
                                   className="secondary small"
                                   onClick={() => {
+                                    setJourney(true);
+                                    setReadUrls("");
+                                    setIntent(
+                                      "Choose Jamaica, open Island Market, then view its product while preserving location.",
+                                    );
+                                    setDraft({
+                                      ...draft,
+                                      criteria: config.journeySampleCriteria,
+                                      summary:
+                                        "Fictional location-to-store-to-product journey.",
+                                      gaps: [
+                                        "This fixture contains no real stores, customers or purchases.",
+                                      ],
+                                    });
+                                    setApproved(false);
+                                    setActionsApproved(false);
+                                  }}
+                                >
+                                  Load journey example
+                                </button>
+                              )}
+                            {execution === "interactive" &&
+                              mode === "sample" && (
+                                <button
+                                  type="button"
+                                  className="secondary small"
+                                  onClick={() => {
+                                    setJourney(false);
+                                    setReadUrls("");
                                     setIntent(
                                       "Reveal visit details and preview visits using synthetic names and visit types.",
                                     );
@@ -1017,6 +1096,24 @@ function App() {
                                       )}
                                     </select>
                                   </div>
+                                  {journey && execution === "interactive" && (
+                                    <div>
+                                      <label htmlFor={`url-${c.id}`}>
+                                        Expected page URL (optional)
+                                      </label>
+                                      <input
+                                        id={`url-${c.id}`}
+                                        type="url"
+                                        value={c.expectedUrl ?? ""}
+                                        onChange={(e) =>
+                                          changeCriterion(i, {
+                                            expectedUrl:
+                                              e.target.value || undefined,
+                                          })
+                                        }
+                                      />
+                                    </div>
+                                  )}
                                   {c.kind !== "manual" && (
                                     <div>
                                       <label htmlFor={`value-${c.id}`}>
@@ -1110,13 +1207,19 @@ function App() {
                                                               .value as
                                                               | "click"
                                                               | "fill"
-                                                              | "select",
+                                                              | "select"
+                                                              | "navigate",
                                                           }
                                                         : x,
                                                   ),
                                                 })
                                               }
                                             >
+                                              {journey && (
+                                                <option value="navigate">
+                                                  Follow reviewed link
+                                                </option>
+                                              )}
                                               <option value="click">
                                                 Click button
                                               </option>
@@ -1134,7 +1237,9 @@ function App() {
                                             >
                                               {a.type === "click"
                                                 ? "Button name"
-                                                : "Field label"}
+                                                : a.type === "navigate"
+                                                  ? "Link name"
+                                                  : "Field label"}
                                             </label>
                                             <input
                                               id={`action-name-${i}-${ai}`}
@@ -1157,17 +1262,112 @@ function App() {
                                               }
                                             />
                                           </div>
+                                          {journey && (
+                                            <div>
+                                              <label
+                                                htmlFor={`scope-role-${i}-${ai}`}
+                                              >
+                                                Within section (optional)
+                                              </label>
+                                              <select
+                                                id={`scope-role-${i}-${ai}`}
+                                                value={a.within?.role ?? ""}
+                                                onChange={(e) =>
+                                                  changeCriterion(i, {
+                                                    actions: c.actions!.map(
+                                                      (x, j) =>
+                                                        j === ai
+                                                          ? {
+                                                              ...x,
+                                                              within: e.target
+                                                                .value
+                                                                ? {
+                                                                    role: e
+                                                                      .target
+                                                                      .value as
+                                                                      | "region"
+                                                                      | "dialog"
+                                                                      | "navigation"
+                                                                      | "main",
+                                                                    name:
+                                                                      x.within
+                                                                        ?.name ??
+                                                                      "",
+                                                                  }
+                                                                : undefined,
+                                                            }
+                                                          : x,
+                                                    ),
+                                                  })
+                                                }
+                                              >
+                                                <option value="">
+                                                  Whole page
+                                                </option>
+                                                <option value="region">
+                                                  Named region
+                                                </option>
+                                                <option value="dialog">
+                                                  Dialog
+                                                </option>
+                                                <option value="navigation">
+                                                  Navigation
+                                                </option>
+                                                <option value="main">
+                                                  Main content
+                                                </option>
+                                              </select>
+                                              {a.within && (
+                                                <>
+                                                  <label
+                                                    htmlFor={`scope-name-${i}-${ai}`}
+                                                  >
+                                                    Exact section name
+                                                  </label>
+                                                  <input
+                                                    id={`scope-name-${i}-${ai}`}
+                                                    maxLength={100}
+                                                    value={a.within.name}
+                                                    onChange={(e) =>
+                                                      changeCriterion(i, {
+                                                        actions: c.actions!.map(
+                                                          (x, j) =>
+                                                            j === ai
+                                                              ? {
+                                                                  ...x,
+                                                                  within: {
+                                                                    ...x.within!,
+                                                                    name: e
+                                                                      .target
+                                                                      .value,
+                                                                  },
+                                                                }
+                                                              : x,
+                                                        ),
+                                                      })
+                                                    }
+                                                  />
+                                                </>
+                                              )}
+                                            </div>
+                                          )}
                                           {a.type !== "click" && (
                                             <div>
                                               <label
                                                 htmlFor={`action-value-${i}-${ai}`}
                                               >
-                                                Test value
+                                                {a.type === "navigate"
+                                                  ? "Reviewed destination URL"
+                                                  : "Test value"}
                                               </label>
                                               <input
                                                 id={`action-value-${i}-${ai}`}
                                                 required
-                                                maxLength={200}
+                                                maxLength={
+                                                  a.type === "navigate"
+                                                    ? 2048
+                                                    : 200
+                                                }
                                                 value={a.value}
                                                 onChange={(e) =>
                                                   changeCriterion(i, {
@@ -1275,7 +1475,9 @@ function App() {
                             <h2>What this run covers</h2>
                             <p>
                               {execution === "interactive"
-                                ? "Reviewed actions run with JavaScript enabled in a fresh browser for each check, on desktop and mobile. Only synthetic test data should be entered."
+                                ? journey
+                                  ? "Reviewed checkpoints share one JavaScript-enabled session per viewport. Link destinations and data URLs above are part of your approval."
+                                  : "Reviewed actions run with JavaScript enabled in a fresh browser for each check, on desktop and mobile. Only synthetic test data should be entered."
                                 : "Desktop and mobile, in a fresh browser. Static checks run with JavaScript disabled."}
                             </p>
                             <p>
@@ -1543,6 +1745,8 @@ function App() {
                           <summary>Scope, source, and limitations</summary>
                           <p>
                             <strong>Target:</strong> {report.plan.target}
+                            {report.plan.journey &&
+                              " · Continuous journey (one session per viewport)"}
                           </p>
                           <p>
                             <strong>Commit:</strong>{" "}

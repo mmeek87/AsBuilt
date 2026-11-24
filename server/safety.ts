@@ -41,6 +41,7 @@ export function validateTarget(raw: string, allowed: string[]): URL {
 export async function pinnedGet(
   url: URL,
   lookup = dns.lookup,
+  navigationHeaders: Record<string, string> = {},
 ): Promise<{ status: number; headers: Record<string, string>; body: Buffer }> {
   const addresses = await lookup(url.hostname, { all: true });
   if (!addresses.length || addresses.some((a) => !publicAddress(a.address)))
@@ -60,6 +61,21 @@ export async function pinnedGet(
         headers: {
           "User-Agent": "AsBuilt/0.1 preview-verifier",
           "Accept-Encoding": "identity",
+          ...Object.fromEntries(
+            Object.entries(navigationHeaders).filter(
+              ([key, value]) =>
+                [
+                  "rsc",
+                  "next-router-state-tree",
+                  "next-router-prefetch",
+                  "next-router-segment-prefetch",
+                  "x-deployment-id",
+                  "next-url",
+                ].includes(key) &&
+                value.length <= 12000 &&
+                !/[\r\n]/.test(value),
+            ),
+          ),
         },
         timeout: 8000,
       },
@@ -77,7 +93,16 @@ export async function pinnedGet(
         res.on("error", reject);
         res.on("end", () => {
           const headers: Record<string, string> = {};
-          for (const k of ["content-type", "location"]) {
+          for (const k of [
+            "content-type",
+            "location",
+            "vary",
+            "x-nextjs-postponed",
+            "x-nextjs-stale-time",
+            "x-nextjs-prerender",
+            "x-nextjs-rewritten-path",
+            "x-nextjs-rewritten-query",
+          ]) {
             const v = res.headers[k];
             if (typeof v === "string") headers[k] = v;
           }
@@ -174,4 +199,89 @@ export function interactiveResourceAllowed(
   } catch {
     return false;
   }
+}
+
+// Each document/data URL is part of the reviewed plan; never an origin-wide API grant.
+export function journeyResourceAllowed(
+  raw: string,
+  target: URL,
+  method: string,
+  resourceType: string,
+  destinations: string[],
+  readUrls: string[],
+  imagePrefixes: string[] = [],
+) {
+  try {
+    const url = new URL(raw);
+    if (
+      method !== "GET" ||
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      url.hash
+    )
+      return false;
+    const clean = new URL(url);
+    // Next.js client navigation adds this cache-busting key to a reviewed page URL.
+    const rsc = clean.searchParams.get("_rsc");
+    if (
+      rsc !== null &&
+      (!/^[a-zA-Z0-9_-]{1,100}$/.test(rsc) ||
+        clean.searchParams.getAll("_rsc").length !== 1)
+    )
+      return false;
+    clean.searchParams.delete("_rsc");
+    const approvedPage =
+      url.origin === target.origin &&
+      [target.href, ...destinations].some(
+        (raw) => new URL(raw).href === clean.href,
+      );
+    if (resourceType === "document") return rsc === null && approvedPage;
+    if (["fetch", "xhr"].includes(resourceType))
+      return (
+        url.origin === target.origin &&
+        (approvedPage || readUrls.includes(url.href))
+      );
+    if (
+      resourceType === "image" &&
+      url.origin === target.origin &&
+      url.pathname === "/_next/image"
+    ) {
+      if (
+        [...url.searchParams.keys()].some(
+          (k) => !["url", "w", "q"].includes(k),
+        ) ||
+        ["url", "w", "q"].some((k) => url.searchParams.getAll(k).length !== 1)
+      )
+        return false;
+      if (
+        !/^[1-9][0-9]{0,3}$/.test(url.searchParams.get("w") ?? "") ||
+        !/^(?:[1-9][0-9]?|100)$/.test(url.searchParams.get("q") ?? "")
+      )
+        return false;
+      const source = new URL(url.searchParams.get("url")!, target);
+      return interactiveResourceAllowed(
+        source.href,
+        target,
+        "GET",
+        "image",
+        imagePrefixes,
+      );
+    }
+    return interactiveResourceAllowed(
+      raw,
+      target,
+      method,
+      resourceType,
+      imagePrefixes,
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function reviewedDestinations(plan: import("./schema.ts").Plan) {
+  return plan.criteria.flatMap((c) =>
+    (c.actions ?? []).filter((a) => a.type === "navigate").map((a) => a.value),
+  );
 }

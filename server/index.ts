@@ -11,6 +11,7 @@ import {
   sampleIntent,
   planSchema,
   interactiveSampleCriteria,
+  journeySampleCriteria,
 } from "./schema.ts";
 import {
   githubConfigured,
@@ -105,6 +106,7 @@ app.get("/api/config", (_req, res) =>
     origins: allowedOrigins(),
     sampleIntent,
     interactiveSampleCriteria,
+    journeySampleCriteria,
     interactivePreviews: process.env.ASBUILT_INTERACTIVE_PREVIEWS === "true",
     installUrl: process.env.GITHUB_APP_SLUG
       ? `https://github.com/apps/${encodeURIComponent(process.env.GITHUB_APP_SLUG)}/installations/new`

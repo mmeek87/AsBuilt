@@ -1,3 +1,4 @@
+import { journeyResourceAllowed, reviewedDestinations } from "./safety.ts";
 import { recordBlockedResource } from "./resource-evidence.ts";
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -56,6 +57,13 @@ export async function runInteractive(report: Report) {
     "External previews require a network-isolated Docker worker. Resource requests pass through a read-only, origin-restricted broker.",
     "Blocked resources or script errors make a check Not verified. The observed preview is not proven to match its attached commit.",
   ];
+  if (report.plan.journey)
+    report.limitations = [
+      "One fresh browser session per viewport; checkpoints share location and navigation state only within this run.",
+      "Only reviewed links, controls, document destinations and exact read-only data URLs are permitted. No credentials, submissions, cart changes or purchases.",
+      "A failed or uncertain checkpoint stops subsequent actions. Screenshots are captured at each checkpoint.",
+      "Positive observations describe only their exact checkpoint; blocked resources and script errors remain coverage limits. Missing outcomes with functional blockers are Not verified.",
+    ];
   save(report);
   const directory = join(dataDir, report.id);
   mkdirSync(directory, { mode: 0o700 });
@@ -122,15 +130,31 @@ export async function runInteractive(report: Report) {
           ++budget.requests <= 200 &&
           totalBytes < 100_000_000 &&
           budget.bytes < 20_000_000 &&
-          interactiveResourceAllowed(
-            url,
-            target,
-            method,
-            resourceType,
-            imagePrefixes,
-          )
+          (report.plan.journey
+            ? journeyResourceAllowed(
+                url,
+                target,
+                method,
+                resourceType,
+                reviewedDestinations(report.plan),
+                report.plan.readUrls ?? [],
+                imagePrefixes,
+              )
+            : interactiveResourceAllowed(
+                url,
+                target,
+                method,
+                resourceType,
+                imagePrefixes,
+              ))
         ) {
-          const fetched = await pinnedGet(new URL(url));
+          const fetched = await pinnedGet(
+            new URL(url),
+            undefined,
+            report.plan.journey
+              ? z.record(z.string().max(12000)).parse(message.headers ?? {})
+              : {},
+          );
           totalBytes += fetched.body.length;
           budget.bytes += fetched.body.length;
           if (totalBytes <= 100_000_000 && budget.bytes <= 20_000_000)
@@ -157,6 +181,8 @@ export async function runInteractive(report: Report) {
       return;
     }
     if (message.type === "browser") {
+      if (report.plan.journey && message.journeyVersion !== 1)
+        throw Error("Rebuild the browser worker for journeys.");
       if (message.matchingVersion !== 1)
         throw Error(
           "Rebuild the browser worker: matching capabilities are outdated.",

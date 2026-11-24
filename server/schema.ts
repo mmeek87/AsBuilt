@@ -1,9 +1,16 @@
 import { z } from "zod";
 export const actionSchema = z
   .object({
-    type: z.enum(["click", "fill", "select"]),
+    type: z.enum(["click", "fill", "select", "navigate"]),
     name: z.string().min(1).max(100),
-    value: z.string().max(200),
+    within: z
+      .object({
+        role: z.enum(["region", "dialog", "navigation", "main"]),
+        name: z.string().max(100),
+      })
+      .strict()
+      .optional(),
+    value: z.string().max(2048),
   })
   .strict();
 export const criterionSchema = z
@@ -12,6 +19,7 @@ export const criterionSchema = z
     expected: z.string().min(1).max(1000),
     kind: z.enum(["text", "heading", "button", "link", "required", "manual"]),
     value: z.string().max(200),
+    expectedUrl: z.string().url().max(2048).optional(),
     match: z.enum(["exact", "contains"]).optional(),
     occurrence: z.enum(["unique", "at_least_one"]).optional(),
     actions: z.array(actionSchema).max(6).optional(),
@@ -25,6 +33,8 @@ export const planSchema = z
     approved: z.literal(true),
     execution: z.enum(["static", "interactive"]).optional(),
     actionsApproved: z.literal(true).optional(),
+    journey: z.boolean().optional(),
+    readUrls: z.array(z.string().url().max(2048)).max(20).optional(),
     source: z
       .object({
         url: z.string().url(),
@@ -88,6 +98,48 @@ export const sampleIntent =
   'Show a heading called "Plan your visit". The "Email address" field is required. Show a button called "Book a visit". Show the text "Free cancellation". Send a confirmation email after booking.';
 
 export function validateExecution(plan: Plan) {
+  if (
+    (plan.journey || plan.readUrls?.length) &&
+    plan.execution !== "interactive"
+  )
+    throw Error("Journeys and data reads require interactive verification.");
+  if (
+    !plan.journey &&
+    plan.criteria.some(
+      (c) => c.expectedUrl || c.actions?.some((a) => a.type === "navigate"),
+    )
+  )
+    throw Error("Navigation and URL checkpoints require journey mode.");
+  const origin =
+    plan.target === "sample"
+      ? "https://sample.asbuilt.invalid"
+      : new URL(plan.target).origin;
+  const urls = [
+    ...(plan.readUrls ?? []),
+    ...plan.criteria.flatMap((c) => [
+      ...(c.expectedUrl ? [c.expectedUrl] : []),
+      ...(c.actions ?? [])
+        .filter((a) => a.type === "navigate")
+        .map((a) => a.value),
+    ]),
+  ];
+  for (const raw of urls) {
+    const url = new URL(raw);
+    if (
+      url.origin !== origin ||
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      url.hash ||
+      /(?:delete|logout|checkout|payment|purchase|submit|admin|auth)(?:\b|_)/i.test(
+        url.pathname,
+      )
+    )
+      throw Error(
+        "Journey URLs must be reviewed same-origin HTTPS destinations without credentials or sensitive operations.",
+      );
+  }
+
   const count = plan.criteria.reduce((n, c) => n + (c.actions?.length || 0), 0);
   if (count > 20) throw Error("Limit each run to 20 actions in total.");
   if (count && plan.execution !== "interactive")
@@ -122,6 +174,44 @@ export const interactiveSampleCriteria: Criterion[] = [
       { type: "fill", name: "First name", value: "Sam" },
       { type: "select", name: "Visit type", value: "Trial class" },
       { type: "click", name: "Preview visit", value: "" },
+    ],
+  },
+];
+
+export const journeySampleCriteria: Criterion[] = [
+  {
+    id: "location",
+    expected: "Jamaica is selected",
+    kind: "text",
+    value: "Sending to Jamaica",
+    actions: [{ type: "click", name: "Jamaica", value: "" }],
+  },
+  {
+    id: "store",
+    expected: "Location persists on the store page",
+    kind: "text",
+    value: "Sending to Jamaica",
+    expectedUrl: "https://sample.asbuilt.invalid/store",
+    actions: [
+      {
+        type: "navigate",
+        name: "Island Market",
+        value: "https://sample.asbuilt.invalid/store",
+      },
+    ],
+  },
+  {
+    id: "product",
+    expected: "The product belongs to Island Market",
+    kind: "text",
+    value: "Sold by Island Market",
+    expectedUrl: "https://sample.asbuilt.invalid/product",
+    actions: [
+      {
+        type: "navigate",
+        name: "Test mango",
+        value: "https://sample.asbuilt.invalid/product",
+      },
     ],
   },
 ];

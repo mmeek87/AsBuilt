@@ -27,6 +27,21 @@ export async function observe(
   const count = await visible.count();
   if (!count) {
     const hidden = await locator.count();
+    if (exact && !hidden) {
+      const partial = (
+        c.kind === "text"
+          ? page.getByText(c.value, { exact: false })
+          : c.kind === "required"
+            ? page.getByLabel(c.value, { exact: false })
+            : page.getByRole(c.kind, { name: c.value, exact: false })
+      ).filter({ visible: true });
+      const partialCount = await partial.count();
+      if (partialCount)
+        return {
+          status: "not_verified",
+          observed: `No visible exact ${c.kind} match for “${c.value}”. Found ${partialCount} visible containing match(es). Review whether the plan should use contains-text matching; the exact check was not verified.`,
+        };
+    }
     // A role mismatch is a check-definition issue, not proof that the UI is broken.
     if (["heading", "button", "link"].includes(c.kind)) {
       const alternatives = [];
@@ -48,21 +63,6 @@ export async function observe(
         return {
           status: "not_verified",
           observed: `No visible ${c.kind} with ${mode} name “${c.value}”. Found ${alternatives.length ? "matching " + alternatives.join("/") + " role" : "matching visible text"} instead. Review the check type; the requested role was not verified.`,
-        };
-    }
-    if (exact && !hidden) {
-      const partial = (
-        c.kind === "text"
-          ? page.getByText(c.value, { exact: false })
-          : c.kind === "required"
-            ? page.getByLabel(c.value, { exact: false })
-            : page.getByRole(c.kind, { name: c.value, exact: false })
-      ).filter({ visible: true });
-      const partialCount = await partial.count();
-      if (partialCount)
-        return {
-          status: "not_verified",
-          observed: `No visible exact ${c.kind} match for “${c.value}”. Found ${partialCount} visible containing match(es). Review whether the plan should use contains-text matching; the exact check was not verified.`,
         };
     }
     return {

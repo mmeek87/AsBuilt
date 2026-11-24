@@ -1,3 +1,4 @@
+import { journeyResourceAllowed, reviewedDestinations } from "../safety.ts";
 import { recordBlockedResource } from "../resource-evidence.ts";
 import type { Sandbox } from "@vercel/sandbox";
 import { put } from "@vercel/blob";
@@ -59,15 +60,31 @@ export async function runCloud(report: Report) {
         ++budget.requests <= 200 &&
         bytes < 100000000 &&
         budget.bytes < 20000000 &&
-        interactiveResourceAllowed(
-          url,
-          new URL(report.plan.target),
-          m.method,
-          m.resourceType,
-          config.imagePrefixes,
-        )
+        (report.plan.journey
+          ? journeyResourceAllowed(
+              url,
+              new URL(report.plan.target),
+              m.method,
+              m.resourceType,
+              reviewedDestinations(report.plan),
+              report.plan.readUrls ?? [],
+              config.imagePrefixes,
+            )
+          : interactiveResourceAllowed(
+              url,
+              new URL(report.plan.target),
+              m.method,
+              m.resourceType,
+              config.imagePrefixes,
+            ))
       ) {
-        const fetched = await pinnedGet(new URL(url));
+        const fetched = await pinnedGet(
+          new URL(url),
+          undefined,
+          report.plan.journey
+            ? z.record(z.string().max(12000)).parse(m.headers ?? {})
+            : {},
+        );
         bytes += fetched.body.length;
         budget.bytes += fetched.body.length;
         if (bytes <= 100000000 && budget.bytes <= 20000000)
@@ -93,6 +110,8 @@ export async function runCloud(report: Report) {
   }
   async function message(m: any) {
     if (m.type === "browser") {
+      if (report.plan.journey && m.journeyVersion !== 1)
+        throw Error("Rebuild the browser worker for journeys.");
       if (m.matchingVersion !== 1)
         throw Error(
           "Rebuild the browser worker: matching capabilities are outdated.",
@@ -160,6 +179,8 @@ export async function runCloud(report: Report) {
     const files = [
       "browser-worker.mjs",
       "observation.mjs",
+      "journey-worker.mjs",
+      "journey-fixture.mjs",
       "interaction-policy.mjs",
       "interactive-fixture.mjs",
       "static-fixture.mjs",

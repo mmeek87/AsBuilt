@@ -1,0 +1,86 @@
+{
+  "intent": "Choose Jamaica, find Mandeville Fresh Mart and view Bottled water (24), retaining the selected country and seller identity.",
+  "target": "https://shopebarrel.tech",
+  "execution": "interactive",
+  "journey": true,
+  "readUrls": [],
+  "criteria": [
+    {
+      "id": "country",
+      "expected": "The sending-to control shows Jamaica after selecting it.",
+      "kind": "button",
+      "value": "Sending to Jamaica",
+      "match": "contains",
+      "occurrence": "at_least_one",
+      "actions": [
+        {
+          "type": "click",
+          "name": "Essential Only",
+          "value": ""
+        },
+        {
+          "type": "click",
+          "name": "Jamaica",
+          "value": "",
+          "within": {
+            "role": "region",
+            "name": "Where's your family?"
+          }
+        }
+      ]
+    },
+    {
+      "id": "store",
+      "expected": "The selected store opens at its reviewed URL.",
+      "kind": "heading",
+      "value": "Mandeville Fresh Mart",
+      "expectedUrl": "https://shopebarrel.tech/stores/31020340-a983-40d2-8051-fb01ebf1aac2",
+      "actions": [
+        {
+          "type": "navigate",
+          "name": "Mandeville Fresh Mart Manchester",
+          "value": "https://shopebarrel.tech/stores/31020340-a983-40d2-8051-fb01ebf1aac2"
+        }
+      ],
+      "match": "contains"
+    },
+    {
+      "id": "store-country",
+      "expected": "Jamaica remains selected on the store page.",
+      "kind": "button",
+      "value": "Sending to Jamaica",
+      "match": "contains",
+      "occurrence": "at_least_one"
+    },
+    {
+      "id": "product",
+      "expected": "The selected product opens at its reviewed URL.",
+      "kind": "heading",
+      "value": "Bottled water (24)",
+      "expectedUrl": "https://shopebarrel.tech/products/aa417056-199d-47dd-aa68-0d81a50cd714",
+      "actions": [
+        {
+          "type": "navigate",
+          "name": "Bottled water (24)",
+          "value": "https://shopebarrel.tech/products/aa417056-199d-47dd-aa68-0d81a50cd714"
+        }
+      ]
+    },
+    {
+      "id": "seller",
+      "expected": "The product identifies Mandeville Fresh Mart as its seller.",
+      "kind": "link",
+      "value": "Mandeville Fresh Mart",
+      "match": "contains",
+      "occurrence": "at_least_one"
+    },
+    {
+      "id": "product-country",
+      "expected": "Jamaica remains selected on the product page.",
+      "kind": "button",
+      "value": "Sending to Jamaica",
+      "match": "contains",
+      "occurrence": "at_least_one"
+    }
+  ]
+}
