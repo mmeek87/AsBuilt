@@ -8,12 +8,19 @@ AsBuilt starts with what you meant to build, examines a GitHub snapshot, and pro
 
 A standalone TypeScript project. It does not import, modify, or test eBarrel. No live eBarrel requests or orders were made during development.
 
+## Open-source plugin
+
+AsBuilt is MIT-licensed. The primary distribution is a local skill-and-script plugin for hosts with local execution; the existing MCP interfaces and optional private hosting remain available for developers.
+
+See [plugin installation](plugins/asbuilt/README.md) and the [Claude / ChatGPT release checklist](docs/open-source-release.md). Build the submission archives with `python3 scripts/package-plugin.py`. The package does not enable paid runs or require the maintainer's hosted account. It has not yet been submitted or accepted by either directory.
+
 ## Run locally
 
 Requirements: Node 24 LTS and pnpm 11.25 or later in the 11.x line.
 
 ```sh
-cd /Users/mel/Documents/ChatGPT/AsBuilt
+git clone https://github.com/mmeek87/AsBuilt.git
+cd AsBuilt
 pnpm install --frozen-lockfile
 pnpm exec playwright install chromium
 pnpm build
@@ -213,3 +220,4 @@ Instrument Serif and Public Sans are self-hosted; their SIL Open Font License fi
 ## Fully online hosting
 
 Use the Vite preset on Vercel. See [the deployment guide](docs/vercel.md) for the dedicated database, private evidence storage, browser setup, costs, and current validation limits. Cloud browser execution is disabled by default.
+

@@ -10,13 +10,15 @@
     "dev": "node --env-file-if-exists=.env --import tsx --watch server/index.ts",
     "build": "tsc --noEmit && tsc -p tsconfig.server.json && node --import tsx scripts/cloud-migrate.ts --if-production && node --no-experimental-require-module scripts/check-cloud-build.mjs && vite build",
     "start": "node --env-file-if-exists=.env --import tsx server/index.ts",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "tsx --test tests/*.test.ts tests/*.test.mjs",
     "test:e2e": "playwright test",
     "mcp": "tsx server/stdio.ts",
     "format": "prettier --write src server tests *.ts *.json *.md",
     "mcp:check": "tsx scripts/check-mcp.ts",
     "cloud:migrate": "node --env-file-if-exists=.env.cloud --import tsx scripts/cloud-migrate.ts",
-    "cloud:prepare-browser": "node --env-file-if-exists=.env.cloud --import tsx scripts/prepare-cloud-browser.ts"
+    "cloud:prepare-browser": "node --env-file-if-exists=.env.cloud --import tsx scripts/prepare-cloud-browser.ts",
+    "plugin:package": "python3 scripts/package-plugin.py",
+    "plugin:test": "node --test tests/plugin-helper.test.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.0",
@@ -43,5 +45,7 @@
     "typescript": "^5.9.3",
     "vite": "^7.2.2"
   },
-  "packageManager": "pnpm@11.25.0"
+  "packageManager": "pnpm@11.25.0",
+  "license": "MIT"
 }
+
