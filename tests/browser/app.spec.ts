@@ -725,3 +725,49 @@ test("navigation accepts equivalent links but rejects conflicting destinations b
   );
   expect(page.url()).toBe("https://fixture.example/store");
 });
+
+test("reviewed menus open submenus and restrict navigation choices", async ({
+  page,
+}) => {
+  const { perform } = await import("../../server/interaction-policy.mjs");
+  await page.route("https://fixture.example/**", (route) =>
+    route.fulfill({ contentType: "text/html", body: "<h1>Stores</h1>" }),
+  );
+  await page.goto("https://fixture.example/");
+  await page.setContent(
+    `<div role="menu"><div role="menuitem" aria-haspopup="menu" onclick="document.querySelector('#choices').hidden=false">Island</div></div><div id="choices" hidden role="menu"><div role="menuitem" onclick="location.href='/stores?region=North'">North</div></div>`,
+  );
+  await perform(page, { type: "menu", name: "Island", value: "" });
+  await expect(
+    perform(page, { type: "menu", name: "North", value: "" }),
+  ).rejects.toThrow(/reviewed destination/);
+  await expect(
+    perform(page, {
+      type: "menu",
+      name: "North",
+      value: "https://elsewhere.example/",
+    }),
+  ).rejects.toThrow(/policy/);
+  await perform(
+    page,
+    {
+      type: "menu",
+      name: "North",
+      value: "https://fixture.example/stores?region=North",
+    },
+    ["https://fixture.example/stores?region=North"],
+  );
+  expect(page.url()).toBe("https://fixture.example/stores?region=North");
+  await page.setContent(
+    '<form><div role="menuitem" aria-haspopup="menu">Island</div></form>',
+  );
+  await expect(
+    perform(page, { type: "menu", name: "Island", value: "" }),
+  ).rejects.toThrow(/policy/);
+  await page.setContent(
+    '<div role="menuitem" aria-haspopup="menu">Delete account</div>',
+  );
+  await expect(
+    perform(page, { type: "menu", name: "Delete account", value: "" }),
+  ).rejects.toThrow(/policy/);
+});

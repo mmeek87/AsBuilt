@@ -1,5 +1,8 @@
 import { journeyResourceAllowed, reviewedDestinations } from "./safety.ts";
-import { recordBlockedResource } from "./resource-evidence.ts";
+import {
+  recordBlockedResource,
+  resourceFailureReason,
+} from "./resource-evidence.ts";
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -107,6 +110,7 @@ export async function runInteractive(report: Report) {
     if (message.type === "fetch") {
       const id = z.number().int().positive().parse(message.id);
       let response: any = { type: "resource", id, allowed: false };
+      let deniedReason = "network policy or resource budget";
       try {
         const originList = (process.env.ASBUILT_PREVIEW_ORIGINS || "")
           .split(",")
@@ -166,15 +170,15 @@ export async function runInteractive(report: Report) {
               body: fetched.body.toString("base64"),
             };
         }
-      } catch {
-        /* Deny closed. The worker records this as blocked evidence. */
+      } catch (error) {
+        deniedReason = resourceFailureReason(error);
       }
       if (!response.allowed) {
         recordBlockedResource(
           report,
           String(message.url),
           String(message.resourceType),
-          "network policy, budget, or safe fetch failure",
+          deniedReason,
         );
       }
       send(response);

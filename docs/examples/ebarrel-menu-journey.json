@@ -1,0 +1,94 @@
+{
+  "intent": "Use Sending to, choose Jamaica and Manchester, open Mandeville Fresh Mart, then Bottled water (24).",
+  "target": "https://shopebarrel.tech",
+  "execution": "interactive",
+  "journey": true,
+  "readUrls": [],
+  "criteria": [
+    {
+      "id": "country",
+      "expected": "The selected parish is Manchester, Jamaica, and the stores URL has the Manchester filter.",
+      "kind": "button",
+      "value": "Sending to Manchester, JA",
+      "match": "contains",
+      "occurrence": "at_least_one",
+      "actions": [
+        {
+          "type": "click",
+          "name": "Essential Only",
+          "value": ""
+        },
+        {
+          "type": "click",
+          "name": "Sending to",
+          "match": "contains",
+          "value": ""
+        },
+        {
+          "type": "menu",
+          "name": "Jamaica",
+          "value": ""
+        },
+        {
+          "type": "menu",
+          "name": "Manchester",
+          "value": "https://shopebarrel.tech/stores?parish=Manchester"
+        }
+      ],
+      "expectedUrl": "https://shopebarrel.tech/stores?parish=Manchester"
+    },
+    {
+      "id": "store",
+      "expected": "The selected store opens at its reviewed URL.",
+      "kind": "heading",
+      "value": "Mandeville Fresh Mart",
+      "expectedUrl": "https://shopebarrel.tech/stores/31020340-a983-40d2-8051-fb01ebf1aac2",
+      "actions": [
+        {
+          "type": "navigate",
+          "name": "Mandeville Fresh Mart Verified store",
+          "value": "https://shopebarrel.tech/stores/31020340-a983-40d2-8051-fb01ebf1aac2"
+        }
+      ],
+      "match": "contains"
+    },
+    {
+      "id": "store-country",
+      "expected": "Manchester, Jamaica remains selected.",
+      "kind": "button",
+      "value": "Sending to Manchester, JA",
+      "match": "contains",
+      "occurrence": "at_least_one"
+    },
+    {
+      "id": "product",
+      "expected": "The selected product opens at its reviewed URL.",
+      "kind": "heading",
+      "value": "Bottled water (24)",
+      "expectedUrl": "https://shopebarrel.tech/products/aa417056-199d-47dd-aa68-0d81a50cd714",
+      "actions": [
+        {
+          "type": "navigate",
+          "name": "Bottled water (24)",
+          "value": "https://shopebarrel.tech/products/aa417056-199d-47dd-aa68-0d81a50cd714"
+        }
+      ]
+    },
+    {
+      "id": "seller",
+      "expected": "The product identifies Mandeville Fresh Mart as its seller.",
+      "kind": "link",
+      "value": "Mandeville Fresh Mart",
+      "match": "contains",
+      "occurrence": "at_least_one"
+    },
+    {
+      "id": "product-country",
+      "expected": "Manchester, Jamaica remains selected.",
+      "kind": "button",
+      "value": "Sending to Manchester, JA",
+      "match": "contains",
+      "occurrence": "at_least_one"
+    }
+  ]
+}

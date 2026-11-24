@@ -29,3 +29,26 @@ export function recordBlockedResource(
       count: 1,
     });
 }
+
+// Error messages may contain credentials or URLs. Persist only known categories.
+export function resourceFailureReason(error: unknown): string {
+  if (error instanceof Error) {
+    if (error.message === "Preview request timed out.")
+      return "safe fetch timed out";
+    if (error.message === "Preview resource exceeds 5 MB.")
+      return "resource size limit";
+    const code = (error as Error & { code?: string }).code;
+    if (
+      code &&
+      [
+        "ECONNRESET",
+        "ETIMEDOUT",
+        "EAI_AGAIN",
+        "ENOTFOUND",
+        "ECONNREFUSED",
+      ].includes(code)
+    )
+      return `safe fetch failed (${code})`;
+  }
+  return "safe fetch or request validation failed";
+}

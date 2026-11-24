@@ -5,7 +5,9 @@ import { journeyFixture } from "./journey-fixture.mjs";
 // One browser context per viewport. Checkpoints run in order and retain only this run's state.
 export async function runJourney(browser, plan, resource, send) {
   const destinations = plan.criteria.flatMap((c) =>
-    (c.actions ?? []).filter((a) => a.type === "navigate").map((a) => a.value),
+    (c.actions ?? [])
+      .filter((a) => a.type === "navigate" || (a.type === "menu" && !!a.value))
+      .map((a) => a.value),
   );
   for (const viewport of [
     { name: "Desktop", width: 1440, height: 960 },

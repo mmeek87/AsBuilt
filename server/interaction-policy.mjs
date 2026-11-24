@@ -86,10 +86,51 @@ export async function perform(page, action, destinations = []) {
     }
     return;
   }
+  if (action.type === "menu") {
+    if (
+      action.value &&
+      (new URL(action.value).origin !== new URL(page.url()).origin ||
+        !destinations.includes(action.value))
+    )
+      throw Error("Menu destination is outside the reviewed policy.");
+    const item = root
+      .getByRole("menuitem", {
+        name: action.name,
+        exact: action.match !== "contains",
+      })
+      .filter({ visible: true });
+    await item.first().waitFor({ state: "visible", timeout: 5000 });
+    if ((await item.count()) !== 1)
+      throw Error("The reviewed menu item is ambiguous.");
+    const safe = await item.evaluate(
+      (el) =>
+        !el.closest("form") &&
+        !el.closest("a[href]") &&
+        !el.closest('button[type="submit"]') &&
+        !(el instanceof HTMLButtonElement && el.form) &&
+        el.getAttribute("aria-disabled") !== "true",
+    );
+    if (!safe)
+      throw Error("Menu target is outside the permitted interaction policy.");
+    if (!action.value && (await item.getAttribute("aria-haspopup")) !== "menu")
+      throw Error(
+        "A menu choice requires a reviewed destination; only submenu triggers can omit it.",
+      );
+    await item.click({ timeout: 5000 });
+    if (action.value)
+      await page.waitForURL(action.value, {
+        timeout: 15000,
+        waitUntil: "domcontentloaded",
+      });
+    return;
+  }
   const locator =
     action.type === "click"
       ? root
-          .getByRole("button", { name: action.name, exact: true })
+          .getByRole("button", {
+            name: action.name,
+            exact: action.match !== "contains",
+          })
           .filter({ visible: true })
       : root.getByLabel(action.name, { exact: true });
   await locator.first().waitFor({ state: "visible", timeout: 3000 });
