@@ -33,6 +33,7 @@ const kindLabels = {
   text: "Visible text",
   heading: "Heading",
   button: "Button",
+  link: "Link",
   required: "Required field",
   manual: "Needs a separate test",
 };
@@ -1019,7 +1020,7 @@ function App() {
                                   {c.kind !== "manual" && (
                                     <div>
                                       <label htmlFor={`value-${c.id}`}>
-                                        Exact text or field label
+                                        Text or accessible name
                                       </label>
                                       <input
                                         id={`value-${c.id}`}
@@ -1033,6 +1034,54 @@ function App() {
                                         }
                                       />
                                     </div>
+                                  )}
+                                  {c.kind !== "manual" && (
+                                    <>
+                                      <div>
+                                        <label htmlFor={`match-${c.id}`}>
+                                          Text matching
+                                        </label>
+                                        <select
+                                          id={`match-${c.id}`}
+                                          value={c.match ?? "exact"}
+                                          onChange={(e) =>
+                                            changeCriterion(i, {
+                                              match: e.target
+                                                .value as Criterion["match"],
+                                            })
+                                          }
+                                        >
+                                          <option value="exact">
+                                            Exact text
+                                          </option>
+                                          <option value="contains">
+                                            Contains text
+                                          </option>
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label htmlFor={`occurrence-${c.id}`}>
+                                          Visible matches needed
+                                        </label>
+                                        <select
+                                          id={`occurrence-${c.id}`}
+                                          value={c.occurrence ?? "unique"}
+                                          onChange={(e) =>
+                                            changeCriterion(i, {
+                                              occurrence: e.target
+                                                .value as Criterion["occurrence"],
+                                            })
+                                          }
+                                        >
+                                          <option value="unique">
+                                            Exactly one
+                                          </option>
+                                          <option value="at_least_one">
+                                            At least one
+                                          </option>
+                                        </select>
+                                      </div>
+                                    </>
                                   )}
                                 </div>
                                 {execution === "interactive" &&
@@ -1512,6 +1561,24 @@ function App() {
                             <strong>Blocked requests:</strong>{" "}
                             {report.blockedRequests}
                           </p>
+                          {!!report.blockedResources?.length && (
+                            <>
+                              <p>
+                                Blocked resource origins (up to 40 groups).
+                                Paths and URL parameters are omitted for
+                                privacy. Counts do not establish their effect on
+                                a check.
+                              </p>
+                              <ul>
+                                {report.blockedResources.map((r, i) => (
+                                  <li key={i}>
+                                    {r.origin} · {r.resourceType} · {r.reason} ·{" "}
+                                    {r.count} request(s)
+                                  </li>
+                                ))}
+                              </ul>
+                            </>
+                          )}
                           <ul>
                             {report.limitations.map((l, i) => (
                               <li key={i}>{l}</li>

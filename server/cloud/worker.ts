@@ -1,3 +1,4 @@
+import { recordBlockedResource } from "../resource-evidence.ts";
 import type { Sandbox } from "@vercel/sandbox";
 import { put } from "@vercel/blob";
 import { PassThrough, Writable } from "node:stream";
@@ -81,10 +82,21 @@ export async function runCloud(report: Report) {
     } catch {
       /* Deny closed. */
     }
+    if (!response.allowed)
+      recordBlockedResource(
+        report,
+        String(m.url),
+        String(m.resourceType),
+        "network policy, budget, or safe fetch failure",
+      );
     send(response);
   }
   async function message(m: any) {
     if (m.type === "browser") {
+      if (m.matchingVersion !== 1)
+        throw Error(
+          "Rebuild the browser worker: matching capabilities are outdated.",
+        );
       report.browserVersion = z.string().max(100).parse(m.version);
       return;
     }
@@ -147,6 +159,7 @@ export async function runCloud(report: Report) {
     sandbox = await Sandbox.create(sandboxOptions(config.snapshot));
     const files = [
       "browser-worker.mjs",
+      "observation.mjs",
       "interaction-policy.mjs",
       "interactive-fixture.mjs",
       "static-fixture.mjs",

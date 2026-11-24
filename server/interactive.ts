@@ -1,3 +1,4 @@
+import { recordBlockedResource } from "./resource-evidence.ts";
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -63,7 +64,6 @@ export async function runInteractive(report: Report) {
   let requests = 0;
   let totalBytes = 0;
   const budgets = new Map<string, { requests: number; bytes: number }>();
-  const denials = new Map<string, number>();
   let finished = false;
   let failure = "";
   let buffer = "";
@@ -146,21 +146,21 @@ export async function runInteractive(report: Report) {
         /* Deny closed. The worker records this as blocked evidence. */
       }
       if (!response.allowed) {
-        // Diagnostic paths only: never retain query strings, cookies or request bodies.
-        try {
-          const u = new URL(message.url);
-          const key = `${message.resourceType}: ${u.origin}${u.pathname}`.slice(
-            0,
-            300,
-          );
-          if (denials.size < 40 || denials.has(key))
-            denials.set(key, (denials.get(key) || 0) + 1);
-        } catch {}
+        recordBlockedResource(
+          report,
+          String(message.url),
+          String(message.resourceType),
+          "network policy, budget, or safe fetch failure",
+        );
       }
       send(response);
       return;
     }
     if (message.type === "browser") {
+      if (message.matchingVersion !== 1)
+        throw Error(
+          "Rebuild the browser worker: matching capabilities are outdated.",
+        );
       report.browserVersion = z.string().max(100).parse(message.version);
       return;
     }
@@ -284,11 +284,6 @@ export async function runInteractive(report: Report) {
       });
       cleanup.on("error", () => {});
     }
-    if (denials.size)
-      report.limitations.push(
-        "Blocked or unavailable resources: " +
-          [...denials].map(([path, n]) => `${path} (${n})`).join("; "),
-      );
     report.finishedAt = new Date().toISOString();
     save(report);
   }

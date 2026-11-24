@@ -25,7 +25,7 @@ export async function dispatch(name: string, args: any) {
       const { allowedOrigins } = await import("./runner.ts");
       return {
         service: "asbuilt",
-        version: "0.2.0",
+        version: "0.2.1",
         scope: "local single operator",
         githubConfigured: githubConfigured(),
         agentConfigured: agentConfigured(),
@@ -75,7 +75,7 @@ export async function dispatch(name: string, args: any) {
 export function makeMcp(
   execute: (name: string, args: any) => Promise<any> = dispatch,
 ) {
-  const server = new McpServer({ name: "asbuilt", version: "0.2.0" });
+  const server = new McpServer({ name: "asbuilt", version: "0.2.1" });
   const schemas = {
     get_connection_status: {},
     capture_intent: { intent: z.string().min(3).max(5000) },

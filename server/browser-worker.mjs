@@ -1,3 +1,4 @@
+import { observe } from "./observation.mjs";
 import { staticHtml } from "./static-fixture.mjs";
 import { perform } from "./interaction-policy.mjs";
 import { chromium } from "playwright";
@@ -46,53 +47,9 @@ async function resource(request, scope) {
   });
   return result;
 }
-async function observe(page, c) {
-  if (c.kind === "manual" || !c.value.trim())
-    return {
-      status: "not_verified",
-      observed: "This outcome needs a separate test.",
-    };
-  const locator =
-    c.kind === "text"
-      ? page.getByText(c.value, { exact: true })
-      : c.kind === "required"
-        ? page.getByLabel(c.value, { exact: true })
-        : page.getByRole(c.kind, { name: c.value, exact: true });
-  try {
-    await locator.first().waitFor({ state: "visible", timeout: 3000 });
-  } catch {
-    return {
-      status: "fail",
-      observed: `No visible exact match for “${c.value}” after the reviewed actions.`,
-    };
-  }
-  if ((await locator.count()) !== 1)
-    return {
-      status: "not_verified",
-      observed: "Multiple matches make this observation ambiguous.",
-    };
-  if (c.kind === "required") {
-    const required = await locator.evaluate((el) =>
-      "required" in el ? el.required : null,
-    );
-    return {
-      status: required === null ? "not_verified" : required ? "pass" : "fail",
-      observed:
-        required === null
-          ? "Custom field validation is not supported."
-          : required
-            ? "The visible field has native required validation. Submission was not exercised."
-            : "The visible field does not have native required validation.",
-    };
-  }
-  return {
-    status: "pass",
-    observed: `One visible ${c.kind} matches “${c.value}” after the reviewed actions.`,
-  };
-}
 async function run(plan) {
   const browser = await chromium.launch({ headless: true });
-  send({ type: "browser", version: browser.version() });
+  send({ type: "browser", version: browser.version(), matchingVersion: 1 });
   try {
     for (const viewport of [
       { name: "Desktop", width: 1440, height: 960 },
@@ -126,7 +83,8 @@ async function run(plan) {
                 await route.fulfill({
                   status: 200,
                   contentType: "text/html",
-                  body: plan.execution === "static" ? staticHtml : interactiveHtml,
+                  body:
+                    plan.execution === "static" ? staticHtml : interactiveHtml,
                 });
               else {
                 blocked++;
@@ -187,7 +145,11 @@ async function run(plan) {
                 `${action.type === "click" ? "Click" : action.type === "fill" ? "Fill" : "Select"} “${action.name}”${action.type === "click" ? "" : ` with “${action.value}”`}.`,
               );
             }
-            observation = await observe(page, c);
+            observation = await observe(page, c, {
+              staticMode:
+                plan.execution === "static" && plan.target !== "sample",
+              waitMs: plan.execution === "static" ? 0 : 3000,
+            });
           }
         } catch (error) {
           observation = {
