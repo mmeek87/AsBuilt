@@ -14,6 +14,7 @@ import {
   validateExecution,
   sampleIntent,
   interactiveSampleCriteria,
+  journeySampleCriteria,
   generateCriteria,
   type Report,
 } from "../schema.ts";
@@ -135,6 +136,7 @@ export function createCloudApp(
       origins: c.origins,
       sampleIntent,
       interactiveSampleCriteria,
+      journeySampleCriteria,
       interactivePreviews: c.enabled && !!c.snapshot,
       executionEnabled: c.enabled && !!c.snapshot,
       installUrl: null,

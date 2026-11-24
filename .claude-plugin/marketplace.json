@@ -6,7 +6,7 @@
       "name": "asbuilt",
       "source": "./plugins/asbuilt",
       "description": "Review your intent, run approved local checks, and inspect website evidence.",
-      "version": "0.1.1"
+      "version": "0.2.0"
     }
   ]
 }

@@ -601,3 +601,127 @@ test("stdio MCP bridge works from another directory and shares HTTP reports", as
     await client.close();
   }
 });
+
+test("journey review clears approval on edits and preserves location across checkpoint pages", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Workspace access key").fill(token);
+  await page.getByRole("button", { name: "Open workspace" }).click();
+  await page.getByRole("button", { name: "Use an example" }).click();
+  await page.getByRole("button", { name: "Create review plan" }).click();
+  await page
+    .getByLabel("Browser mode", { exact: true })
+    .selectOption("interactive");
+  await page.getByRole("button", { name: "Load journey example" }).click();
+  await expect(
+    page.getByLabel("Keep one session for this journey"),
+  ).toBeChecked();
+  await page
+    .getByLabel("I approve the exact actions", { exact: false })
+    .check();
+  await page.getByLabel("I’ve reviewed these checks", { exact: false }).check();
+  await page
+    .getByLabel("Reviewed read-only data URLs", { exact: false })
+    .fill("https://sample.asbuilt.invalid/api/example");
+  await expect(
+    page.getByLabel("I approve the exact actions", { exact: false }),
+  ).not.toBeChecked();
+  await page
+    .getByLabel("Reviewed read-only data URLs", { exact: false })
+    .fill("");
+  await page
+    .getByLabel("I approve the exact actions", { exact: false })
+    .check();
+  await page.getByLabel("I’ve reviewed these checks", { exact: false }).check();
+  await page.getByRole("button", { name: "Run reviewed checks" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Verification report" }),
+  ).toBeVisible({ timeout: 45000 });
+  const runs = await (await page.request.get("/api/runs")).json();
+  const report = await (
+    await page.request.get(`/api/runs/${runs[0].id}`)
+  ).json();
+  expect(report.plan.journey).toBe(true);
+  expect(report.results).toHaveLength(6);
+  expect(report.results.every((r: any) => r.status === "pass")).toBe(true);
+});
+
+test("implicit cookie button outside forms is allowed but explicit and associated submits are refused", async ({
+  page,
+}) => {
+  const { perform } = await import("../../server/interaction-policy.mjs");
+  await page.setContent(
+    `<button onclick="this.textContent='Accepted'">Essential Only</button><button type="submit">Explicit submit</button><form id="f"></form><button form="f">Associated submit</button>`,
+  );
+  await perform(page, { type: "click", name: "Essential Only", value: "" });
+  await expect(page.getByRole("button", { name: "Accepted" })).toBeVisible();
+  await expect(
+    perform(page, { type: "click", name: "Explicit submit", value: "" }),
+  ).rejects.toThrow();
+  await expect(
+    perform(page, { type: "click", name: "Associated submit", value: "" }),
+  ).rejects.toThrow();
+});
+
+test("named sections disambiguate duplicate action labels without choosing the first match", async ({
+  page,
+}) => {
+  const { perform } = await import("../../server/interaction-policy.mjs");
+  await page.setContent(
+    `<section aria-label="Location"><button type="button" onclick="this.textContent='Selected Jamaica'">Jamaica</button></section><section aria-label="Other"><button type="button">Jamaica</button></section>`,
+  );
+  await expect(
+    perform(page, { type: "click", name: "Jamaica", value: "" }),
+  ).rejects.toThrow(/ambiguous/);
+  await perform(page, {
+    type: "click",
+    name: "Jamaica",
+    value: "",
+    within: { role: "region", name: "Location" },
+  });
+  await expect(
+    page
+      .getByRole("region", { name: "Location" })
+      .getByRole("button", { name: "Selected Jamaica" }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Other" })
+      .getByRole("button", { name: "Jamaica" }),
+  ).toBeVisible();
+});
+
+test("navigation accepts equivalent links but rejects conflicting destinations before clicking", async ({
+  page,
+}) => {
+  const { perform } = await import("../../server/interaction-policy.mjs");
+  await page.route("https://fixture.example/**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: "<h1>Destination</h1>",
+    }),
+  );
+  await page.goto("https://fixture.example/");
+  await page.setContent('<a href="/store">Store</a><a href="/other">Store</a>');
+  await expect(
+    perform(
+      page,
+      {
+        type: "navigate",
+        name: "Store",
+        value: "https://fixture.example/store",
+      },
+      ["https://fixture.example/store"],
+    ),
+  ).rejects.toThrow(/reviewed destination/);
+  expect(page.url()).toBe("https://fixture.example/");
+  await page.setContent('<a href="/store">Store</a><a href="/store">Store</a>');
+  await perform(
+    page,
+    { type: "navigate", name: "Store", value: "https://fixture.example/store" },
+    ["https://fixture.example/store"],
+  );
+  expect(page.url()).toBe("https://fixture.example/store");
+});

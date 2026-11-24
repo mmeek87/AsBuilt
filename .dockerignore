@@ -6,3 +6,7 @@ server/*
 !server/interactive-fixture.mjs
 !server/interaction-policy.mjs
 !server/static-fixture.mjs
+
+!server/observation.mjs
+!server/journey-worker.mjs
+!server/journey-fixture.mjs

@@ -1,3 +1,4 @@
+import { runJourney } from "./journey-worker.mjs";
 import { observe } from "./observation.mjs";
 import { staticHtml } from "./static-fixture.mjs";
 import { perform } from "./interaction-policy.mjs";
@@ -43,14 +44,36 @@ async function resource(request, scope) {
       url: request.url(),
       method: request.method(),
       resourceType: request.resourceType(),
+      headers: Object.fromEntries(
+        Object.entries(request.headers()).filter(([k]) =>
+          [
+            "rsc",
+            "next-router-state-tree",
+            "next-router-prefetch",
+            "next-router-segment-prefetch",
+            "x-deployment-id",
+            "next-url",
+          ].includes(k),
+        ),
+      ),
     });
   });
   return result;
 }
 async function run(plan) {
   const browser = await chromium.launch({ headless: true });
-  send({ type: "browser", version: browser.version(), matchingVersion: 1 });
+  send({
+    type: "browser",
+    version: browser.version(),
+    matchingVersion: 1,
+    journeyVersion: 1,
+  });
   try {
+    if (plan.journey) {
+      await runJourney(browser, plan, resource, send);
+      send({ type: "done" });
+      return;
+    }
     for (const viewport of [
       { name: "Desktop", width: 1440, height: 960 },
       { name: "Mobile", width: 390, height: 844 },
