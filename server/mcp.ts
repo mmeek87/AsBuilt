@@ -72,7 +72,9 @@ export async function dispatch(name: string, args: any) {
       throw Error("Unknown tool.");
   }
 }
-export function makeMcp(execute = dispatch) {
+export function makeMcp(
+  execute: (name: string, args: any) => Promise<any> = dispatch,
+) {
   const server = new McpServer({ name: "asbuilt", version: "0.2.0" });
   const schemas = {
     get_connection_status: {},

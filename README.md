@@ -209,3 +209,7 @@ Implementation references checked November 24, 2026:
 - [ChatGPT custom MCP connections](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt)
 
 Instrument Serif and Public Sans are self-hosted; their SIL Open Font License files are in `public/fonts/`. The app loads no remote fonts or analytics.
+
+## Fully online hosting
+
+Use the Vite preset on Vercel. See [the deployment guide](docs/vercel.md) for the dedicated database, private evidence storage, browser setup, costs, and current validation limits. Cloud browser execution is disabled by default.

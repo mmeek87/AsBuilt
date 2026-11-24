@@ -5,3 +5,4 @@ server/*
 !server/browser-worker.mjs
 !server/interactive-fixture.mjs
 !server/interaction-policy.mjs
+!server/static-fixture.mjs

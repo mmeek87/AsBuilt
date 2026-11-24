@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 import type { Criterion, Report } from "../server/schema.ts";
 import "./style.css";
 type Config = {
+  hosting?: "vercel";
+  executionEnabled?: boolean;
   github: boolean;
   agent: boolean;
   comments: boolean;
@@ -234,6 +236,9 @@ function App() {
             onClick={() => {
               setView("history");
               setError("");
+              void api("/api/runs")
+                .then(setHistory)
+                .catch((e) => setError(e.message));
             }}
           >
             <Icon name="history" />
@@ -270,7 +275,9 @@ function App() {
             <Icon name="lock" />
           </span>
           <div>
-            Reports stay on this device
+            {config?.hosting === "vercel"
+              ? "Reports stay in your private workspace"
+              : "Reports stay on this device"}
             <small>Source sharing asks for approval.</small>
           </div>
         </div>
@@ -301,8 +308,8 @@ function App() {
               Open your workspace
             </h1>
             <p>
-              Unlock AsBuilt with the local access key. Your GitHub credentials
-              stay on the server.
+              Unlock AsBuilt with your workspace access key. Your GitHub
+              credentials stay on the server.
             </p>
             <form
               onSubmit={(e) => {
@@ -314,7 +321,7 @@ function App() {
                 });
               }}
             >
-              <label htmlFor="key">Local access key</label>
+              <label htmlFor="key">Workspace access key</label>
               <input
                 id="key"
                 type="password"
@@ -325,8 +332,8 @@ function App() {
                 aria-describedby="key-help"
               />
               <p id="key-help" className="hint">
-                Find it in the project’s <code>.data/token</code> file after
-                starting AsBuilt, or use your configured ASBUILT_TOKEN.
+                For the local app, use the key in <code>.data/token</code>. For
+                the online app, use the hosted access key you configured.
               </p>
               <label className="remember-device">
                 <input
@@ -1282,6 +1289,12 @@ function App() {
                               browser run. This is not a live production site.
                             </span>
                           </label>
+                          {config.executionEnabled === false && (
+                            <p role="status" className="hint">
+                              Online browser tests are not enabled yet. Complete
+                              the worker setup before running checks.
+                            </p>
+                          )}
                           <div className="form-footer">
                             <span className="hint">
                               {execution === "interactive"
@@ -1292,6 +1305,7 @@ function App() {
                               disabled={
                                 !!busy ||
                                 !approved ||
+                                config.executionEnabled === false ||
                                 (execution === "interactive" &&
                                   (!actionsApproved ||
                                     (mode === "preview" &&

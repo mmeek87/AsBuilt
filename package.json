@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22.13"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "node --env-file-if-exists=.env --import tsx --watch server/index.ts",
@@ -14,10 +14,16 @@
     "test:e2e": "playwright test",
     "mcp": "tsx server/stdio.ts",
     "format": "prettier --write src server tests *.ts *.json *.md",
-    "mcp:check": "tsx scripts/check-mcp.ts"
+    "mcp:check": "tsx scripts/check-mcp.ts",
+    "cloud:migrate": "node --env-file-if-exists=.env.cloud --import tsx scripts/cloud-migrate.ts",
+    "cloud:prepare-browser": "node --env-file-if-exists=.env.cloud --import tsx scripts/prepare-cloud-browser.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.0",
+    "@neondatabase/serverless": "^1.2.1",
+    "@vercel/blob": "^2.9.0",
+    "@vercel/functions": "^3.11.3",
+    "@vercel/sandbox": "^4.1.0",
     "express": "^5.1.0",
     "ipaddr.js": "^2.2.0",
     "playwright": "^1.56.1",

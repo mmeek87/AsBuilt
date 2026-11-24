@@ -12,3 +12,6 @@ playwright-report/
 *.pfx
 *.log
 .mcp.json
+
+!.env.cloud.example
+.vercel/

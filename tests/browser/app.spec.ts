@@ -43,7 +43,7 @@ test("guided sample delivers actual pass, fail and not-verified evidence with ac
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Local access key").fill(token);
+  await page.getByLabel("Workspace access key").fill(token);
   await page.getByRole("button", { name: "Open workspace" }).click();
   await expect(page.getByRole("heading", { name: "New review" })).toBeVisible();
   await page.getByRole("button", { name: "Use an example" }).click();
@@ -186,7 +186,7 @@ test("MCP initializes, exposes shared tools and returns honest drafts", async ()
 });
 test("keyboard can reach the sample action and inputs", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("Local access key").fill(token);
+  await page.getByLabel("Workspace access key").fill(token);
   await page.getByRole("button", { name: "Open workspace" }).click();
   await page.keyboard.press("Tab");
   let sawInput = false;
@@ -206,7 +206,7 @@ test("workspace navigation preserves the draft and explains connection setup", a
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Local access key").fill(token);
+  await page.getByLabel("Workspace access key").fill(token);
   await page.getByRole("button", { name: "Open workspace" }).click();
   await page
     .getByLabel("What should happen?", { exact: true })
@@ -236,7 +236,7 @@ test("editor focus is continuous across the text field and footer", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Local access key").fill(token);
+  await page.getByLabel("Workspace access key").fill(token);
   await page.getByRole("button", { name: "Open workspace" }).click();
   await page.getByLabel("What should happen?", { exact: true }).focus();
   await page
@@ -293,7 +293,7 @@ test("deleting a review requires confirmation and removes its evidence", async (
     ).status(),
   ).toBe(401);
   await page.goto("/");
-  await page.getByLabel("Local access key").fill(token);
+  await page.getByLabel("Workspace access key").fill(token);
   await page.getByRole("button", { name: "Open workspace" }).click();
   await page.getByRole("button", { name: /Past reviews/ }).click();
   const row = page.getByTestId(`review-${run.id}`);
@@ -321,7 +321,7 @@ test("interactive sample executes reviewed click, fill and select steps on both 
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Local access key").fill(token);
+  await page.getByLabel("Workspace access key").fill(token);
   await page.getByRole("button", { name: "Open workspace" }).click();
   await page.getByRole("button", { name: "Use an example" }).click();
   await page.getByRole("button", { name: "Create review plan" }).click();
@@ -487,7 +487,7 @@ test("remember device uses a protected persistent cookie and sign out revokes it
   request,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Local access key").fill(token);
+  await page.getByLabel("Workspace access key").fill(token);
   await expect(
     page.getByLabel("Remember this device for 30 days"),
   ).toBeChecked();
@@ -504,7 +504,7 @@ test("remember device uses a protected persistent cookie and sign out revokes it
     page.getByRole("button", { name: "Sign out", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
-  await expect(page.getByLabel("Local access key")).toBeVisible();
+  await expect(page.getByLabel("Workspace access key")).toBeVisible();
   expect(
     (
       await request.get("/api/config", {
@@ -512,7 +512,7 @@ test("remember device uses a protected persistent cookie and sign out revokes it
       })
     ).status(),
   ).toBe(401);
-  await page.getByLabel("Local access key").fill(token);
+  await page.getByLabel("Workspace access key").fill(token);
   await page.getByLabel("Remember this device for 30 days").uncheck();
   await page.getByRole("button", { name: "Open workspace" }).click();
   await expect(

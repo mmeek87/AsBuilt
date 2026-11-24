@@ -1,3 +1,4 @@
+import { staticHtml } from "./static-fixture.mjs";
 import { perform } from "./interaction-policy.mjs";
 import { chromium } from "playwright";
 import { createInterface } from "node:readline";
@@ -102,7 +103,7 @@ async function run(plan) {
         const actions = c.actions || [];
         const context = await browser.newContext({
           viewport: { width: viewport.width, height: viewport.height },
-          javaScriptEnabled: true,
+          javaScriptEnabled: plan.execution !== "static",
           serviceWorkers: "block",
           acceptDownloads: false,
           permissions: [],
@@ -125,7 +126,7 @@ async function run(plan) {
                 await route.fulfill({
                   status: 200,
                   contentType: "text/html",
-                  body: interactiveHtml,
+                  body: plan.execution === "static" ? staticHtml : interactiveHtml,
                 });
               else {
                 blocked++;
