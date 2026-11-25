@@ -23,6 +23,22 @@ export const criterionSchema = z
     expectedUrl: z.string().url().max(2048).optional(),
     match: z.enum(["exact", "contains"]).optional(),
     occurrence: z.enum(["unique", "at_least_one"]).optional(),
+    within: z
+      .object({
+        role: z.enum([
+          "region",
+          "dialog",
+          "navigation",
+          "main",
+          "article",
+          "listitem",
+          "group",
+        ]),
+        name: z.string().max(100),
+        each: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
     actions: z.array(actionSchema).max(6).optional(),
   })
   .strict();
@@ -114,10 +130,7 @@ export function validateExecution(plan: Plan) {
     throw Error(
       "Normal browser networking requires an explicit environment and approval that page traffic may change server data. Use a test environment and test accounts.",
     );
-  if (
-    plan.environment === "production" &&
-    !plan.publicReadOnly
-  )
+  if (plan.environment === "production" && !plan.publicReadOnly)
     throw Error(
       "Production browser runs currently support public inspection without user actions only.",
     );

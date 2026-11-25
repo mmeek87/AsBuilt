@@ -11,7 +11,7 @@ export function endpoint(value = 'http://127.0.0.1:4310') {
   return url.origin;
 }
 export function parse(argv) {
-  let home; let url; const rest = []; let approved = false; let actionsApproved = false;
+  let home; let url; const rest = []; let approved = false; let actionsApproved = false; let networkApproved = false;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--home' || a === '--url') {
@@ -20,6 +20,7 @@ export function parse(argv) {
       if (a === '--home') home = value; else url = value;
     } else if (a === '--approved') approved = true;
     else if (a === '--approve-actions') actionsApproved = true;
+    else if (a === '--approve-network') networkApproved = true;
     else if (a.startsWith('--')) throw Error(`Unknown option: ${a}`);
     else rest.push(a);
   }
@@ -27,9 +28,9 @@ export function parse(argv) {
   if (!Object.hasOwn(commands, command ?? '')) throw Error('Commands: status, capture <json>, plan <json>, run <json> --approved, progress <id>, report <id>. Supply --home /absolute/path/to/AsBuilt.');
   if (extra.length || (command === 'status' ? input !== undefined : !input)) throw Error('Unexpected or missing command arguments.');
   if (!home || !isAbsolute(home)) throw Error('--home must name the absolute path to your local AsBuilt checkout.');
-  if (command !== 'run' && (approved || actionsApproved)) throw Error('Approval flags are only valid for run.');
+  if (command !== 'run' && (approved || actionsApproved || networkApproved)) throw Error('Approval flags are only valid for run.');
   if (command === 'run' && !approved) throw Error('Show the exact target and checks to the user, then pass --approved only after approval.');
-  return {home, url:endpoint(url), command, input, approved, actionsApproved};
+  return {home, url:endpoint(url), command, input, approved, actionsApproved, networkApproved};
 }
 export function payload(options) {
   if (options.command === 'status') return {};
@@ -44,8 +45,10 @@ export function payload(options) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw Error('Input must be a JSON object.');
   if (options.command === 'run') {
     // A saved file cannot grant permission. Only explicit invocation flags can.
-    delete body.approved; delete body.actionsApproved;
+    delete body.approved; delete body.actionsApproved; delete body.networkApproved;
     body.approved = true;
+    if (body.network === 'browser' && !options.networkApproved) throw Error('Normal browser traffic requires explicit approval and --approve-network.');
+    if (options.networkApproved) body.networkApproved = true;
     if (body.execution === 'interactive' && !options.actionsApproved) throw Error('Interactive runs need separate approval of the listed actions and --approve-actions.');
     if (options.actionsApproved) body.actionsApproved = true;
   }

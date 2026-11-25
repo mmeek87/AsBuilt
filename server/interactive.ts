@@ -219,6 +219,11 @@ export async function runInteractive(report: Report) {
       return;
     }
     if (message.type === "browser") {
+      if (
+        report.plan.criteria.some((c) => c.within) &&
+        message.scopedAssertionsVersion !== 1
+      )
+        throw Error("Rebuild the browser worker for scoped assertions.");
       if (report.plan.network === "browser" && message.networkVersion !== 1)
         throw Error("Rebuild the browser worker for browser networking.");
       if (report.plan.journey && message.journeyVersion !== 1)

@@ -1321,6 +1321,89 @@ function App() {
                                     </>
                                   )}
                                 </div>
+                                {c.kind !== "manual" && (
+                                  <fieldset>
+                                    <legend>Where to check</legend>
+                                    <label htmlFor={`scope-${c.id}`}>
+                                      Page or section
+                                    </label>
+                                    <select
+                                      id={`scope-${c.id}`}
+                                      value={c.within?.role ?? ""}
+                                      onChange={(e) =>
+                                        changeCriterion(i, {
+                                          within: e.target.value
+                                            ? {
+                                                role: e.target
+                                                  .value as NonNullable<
+                                                  Criterion["within"]
+                                                >["role"],
+                                                name: c.within?.name ?? "",
+                                                each: c.within?.each ?? false,
+                                              }
+                                            : undefined,
+                                        })
+                                      }
+                                    >
+                                      <option value="">Whole page</option>
+                                      {[
+                                        "region",
+                                        "dialog",
+                                        "navigation",
+                                        "main",
+                                        "article",
+                                        "listitem",
+                                        "group",
+                                      ].map((role) => (
+                                        <option key={role} value={role}>
+                                          {role}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    {c.within && (
+                                      <>
+                                        <label htmlFor={`scope-name-${c.id}`}>
+                                          Exact section name (blank for unnamed
+                                          sections)
+                                        </label>
+                                        <input
+                                          id={`scope-name-${c.id}`}
+                                          value={c.within.name}
+                                          maxLength={100}
+                                          onChange={(e) =>
+                                            changeCriterion(i, {
+                                              within: {
+                                                ...c.within!,
+                                                name: e.target.value,
+                                              },
+                                            })
+                                          }
+                                        />
+                                        <label>
+                                          <input
+                                            type="checkbox"
+                                            checked={c.within.each ?? false}
+                                            onChange={(e) =>
+                                              changeCriterion(i, {
+                                                within: {
+                                                  ...c.within!,
+                                                  each: e.target.checked,
+                                                },
+                                              })
+                                            }
+                                          />
+                                          Check every matching visible section
+                                        </label>
+                                        <p>
+                                          Text must match inside each selected
+                                          section. Empty collections cannot
+                                          pass. Hidden and unloaded results are
+                                          not covered.
+                                        </p>
+                                      </>
+                                    )}
+                                  </fieldset>
+                                )}
                                 {execution === "interactive" &&
                                   c.kind !== "manual" && (
                                     <div className="action-editor">
