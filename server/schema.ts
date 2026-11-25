@@ -35,6 +35,11 @@ export const planSchema = z
     execution: z.enum(["static", "interactive"]).optional(),
     actionsApproved: z.literal(true).optional(),
     journey: z.boolean().optional(),
+    publicReadOnly: z.boolean().optional(),
+    network: z.enum(["restricted", "browser"]).optional(),
+    browser: z.enum(["chromium", "firefox", "webkit"]).optional(),
+    environment: z.enum(["test", "production"]).optional(),
+    networkApproved: z.literal(true).optional(),
     readUrls: z.array(z.string().url().max(2048)).max(20).optional(),
     source: z
       .object({
@@ -63,7 +68,7 @@ export type Report = {
   status: "queued" | "running" | "complete" | "interrupted";
   createdAt: string;
   finishedAt?: string;
-  mode: "sample" | "preview";
+  mode: "sample" | "preview" | "public";
   plan: Plan;
   results: Result[];
   blockedRequests: number;
@@ -99,6 +104,34 @@ export const sampleIntent =
   'Show a heading called "Plan your visit". The "Email address" field is required. Show a button called "Book a visit". Show the text "Free cancellation". Send a confirmation email after booking.';
 
 export function validateExecution(plan: Plan) {
+  if (
+    plan.network === "browser" &&
+    (plan.execution !== "interactive" ||
+      plan.target === "sample" ||
+      !plan.networkApproved ||
+      !plan.environment)
+  )
+    throw Error(
+      "Normal browser networking requires an explicit environment and approval that page traffic may change server data. Use a test environment and test accounts.",
+    );
+  if (
+    plan.environment === "production" &&
+    !plan.publicReadOnly
+  )
+    throw Error(
+      "Production browser runs currently support public inspection without user actions only.",
+    );
+  if (
+    plan.publicReadOnly &&
+    (plan.target === "sample" ||
+      plan.execution !== "interactive" ||
+      plan.journey ||
+      plan.readUrls?.length ||
+      plan.criteria.some((c) => c.actions?.length || c.expectedUrl))
+  )
+    throw Error(
+      "Public read-only mode allows only action-free observations in a fresh isolated browser; no journeys, data API grants or navigation checkpoints.",
+    );
   if (
     (plan.journey || plan.readUrls?.length) &&
     plan.execution !== "interactive"
@@ -151,7 +184,11 @@ export function validateExecution(plan: Plan) {
   if (count > 20) throw Error("Limit each run to 20 actions in total.");
   if (count && plan.execution !== "interactive")
     throw Error("Actions require interactive verification.");
-  if (plan.execution === "interactive" && !plan.actionsApproved)
+  if (
+    plan.execution === "interactive" &&
+    !plan.publicReadOnly &&
+    !plan.actionsApproved
+  )
     throw Error("Review and approve the interactive actions before running.");
 }
 export const interactiveSampleCriteria: Criterion[] = [

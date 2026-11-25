@@ -44,13 +44,28 @@ export async function runJourney(browser, plan, resource, send) {
         void popup.close();
       }
     });
-    await context.routeWebSocket("**/*", (ws) => {
-      blocked++;
-      criticalBlocked++;
-      ws.close();
-    });
+    if (plan.network !== "browser")
+      await context.routeWebSocket("**/*", (ws) => {
+        blocked++;
+        criticalBlocked++;
+        ws.close();
+      });
     await context.route("**/*", async (route) => {
       const req = route.request();
+      if (plan.network === "browser") {
+        const url = new URL(req.url());
+        if (
+          !["https:", "data:", "blob:"].includes(url.protocol) ||
+          (req.isNavigationRequest() &&
+            req.frame() === page.mainFrame() &&
+            url.origin !== new URL(plan.target).origin)
+        ) {
+          blocked++;
+          criticalBlocked++;
+          await route.abort();
+        } else await route.continue();
+        return;
+      }
       try {
         if (plan.target === "sample") {
           const url = new URL(req.url());

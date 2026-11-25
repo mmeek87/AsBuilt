@@ -4,6 +4,11 @@ import { randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
 import { workerCommand } from "../server/interactive.ts";
 import { journeySampleCriteria } from "../server/schema.ts";
+const engine = process.argv[2] ?? "chromium";
+assert.ok(
+  ["chromium", "firefox", "webkit"].includes(engine),
+  "Unknown browser engine",
+);
 const id = randomUUID();
 const spec = workerCommand(false, id);
 const child = spawn(spec.command, spec.args, {
@@ -32,6 +37,7 @@ child.stdin.write(
     type: "start",
     plan: {
       target: "sample",
+      browser: engine,
       journey: true,
       execution: "interactive",
       criteria: journeySampleCriteria,
@@ -49,7 +55,7 @@ try {
       "89504e470d0a1a0a",
     );
   console.log(
-    "Network-isolated Docker journey: six checkpoints passed with screenshots; no external network requests.",
+    `${engine}: network-isolated Docker journey: six checkpoints passed with screenshots; no external network requests.`,
   );
 } finally {
   clearTimeout(timer);

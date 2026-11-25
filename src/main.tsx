@@ -131,9 +131,25 @@ function App() {
   const [execution, setExecution] = useState<"static" | "interactive">(
     "static",
   );
+  const [network, setNetwork] = useState<"browser" | "restricted">("browser");
+  const [browserEngine, setBrowserEngine] = useState<
+    "chromium" | "firefox" | "webkit"
+  >("chromium");
+  const [environment, setEnvironment] = useState<"test" | "production">("test");
+  const [networkApproved, setNetworkApproved] = useState(false);
   const [journey, setJourney] = useState(false);
   const [readUrls, setReadUrls] = useState("");
   const [actionsApproved, setActionsApproved] = useState(false);
+  const publicInspection =
+    mode !== "sample" &&
+    execution === "interactive" &&
+    network === "browser" &&
+    environment === "production";
+  const publicPlanConflict =
+    publicInspection &&
+    (journey ||
+      !!readUrls.trim() ||
+      !!draft?.criteria.some((c) => c.actions?.length || c.expectedUrl));
   const heading = useRef<HTMLHeadingElement>(null);
   async function load() {
     try {
@@ -903,6 +919,22 @@ function App() {
                                   ...(execution === "interactive"
                                     ? {
                                         actionsApproved,
+                                        browser: browserEngine,
+                                        ...(mode !== "sample"
+                                          ? {
+                                              network,
+                                              ...(network === "browser"
+                                                ? {
+                                                    environment,
+                                                    networkApproved,
+                                                    ...(environment ===
+                                                    "production"
+                                                      ? { publicReadOnly: true }
+                                                      : {}),
+                                                  }
+                                                : {}),
+                                            }
+                                          : {}),
                                         journey,
                                         readUrls: readUrls
                                           .split("\n")
@@ -944,6 +976,114 @@ function App() {
                                 Interactive checks
                               </option>
                             </select>
+                            {execution === "interactive" && (
+                              <>
+                                <label>
+                                  Browser engine
+                                  <select
+                                    aria-label="Browser engine"
+                                    value={browserEngine}
+                                    onChange={(e) => {
+                                      setBrowserEngine(
+                                        e.target.value as typeof browserEngine,
+                                      );
+                                      setApproved(false);
+                                      setActionsApproved(false);
+                                      setNetworkApproved(false);
+                                    }}
+                                  >
+                                    <option value="chromium">
+                                      Chromium (Chrome / Edge engine)
+                                    </option>
+                                    <option value="firefox">Firefox</option>
+                                    <option value="webkit">
+                                      WebKit (not installed Safari)
+                                    </option>
+                                  </select>
+                                </label>
+                                {mode !== "sample" && (
+                                  <>
+                                    <label>
+                                      Page loading
+                                      <select
+                                        aria-label="Page loading"
+                                        value={network}
+                                        onChange={(e) => {
+                                          setNetwork(
+                                            e.target.value as typeof network,
+                                          );
+                                          setApproved(false);
+                                          setActionsApproved(false);
+                                          setNetworkApproved(false);
+                                        }}
+                                      >
+                                        <option value="browser">
+                                          Normal browser loading (recommended)
+                                        </option>
+                                        <option value="restricted">
+                                          Restricted legacy loading
+                                        </option>
+                                      </select>
+                                    </label>
+                                    {network === "browser" && (
+                                      <>
+                                        <label>
+                                          Environment
+                                          <select
+                                            aria-label="Environment"
+                                            value={environment}
+                                            onChange={(e) => {
+                                              setEnvironment(
+                                                e.target
+                                                  .value as typeof environment,
+                                              );
+                                              setApproved(false);
+                                              setActionsApproved(false);
+                                              setNetworkApproved(false);
+                                            }}
+                                          >
+                                            <option value="test">
+                                              Staging / test environment
+                                            </option>
+                                            <option value="production">
+                                              Live site: inspect only
+                                            </option>
+                                          </select>
+                                        </label>
+                                        <p className="hint">
+                                          Use test accounts, disposable data and
+                                          sandbox payments/email. A preview URL
+                                          may still use production data.
+                                          Live-site inspection permits no
+                                          actions or journeys. Remove any
+                                          existing actions, journey setting,
+                                          destination checks and data URLs
+                                          before running.
+                                        </p>
+                                        <label className="check">
+                                          <input
+                                            type="checkbox"
+                                            required
+                                            checked={networkApproved}
+                                            onChange={(e) => {
+                                              setNetworkApproved(
+                                                e.target.checked,
+                                              );
+                                              setApproved(false);
+                                            }}
+                                          />
+                                          I confirm the environment above and
+                                          allow normal page traffic. Loading
+                                          pages may send requests or change
+                                          server data; this is not a zero-write
+                                          guarantee.
+                                        </label>
+                                      </>
+                                    )}
+                                  </>
+                                )}
+                              </>
+                            )}
                             {execution === "interactive" && (
                               <>
                                 <label className="check">
@@ -1458,7 +1598,10 @@ function App() {
                                       <button
                                         type="button"
                                         className="text-button"
-                                        disabled={(c.actions?.length || 0) >= 6}
+                                        disabled={
+                                          publicInspection ||
+                                          (c.actions?.length || 0) >= 6
+                                        }
                                         onClick={() =>
                                           changeCriterion(i, {
                                             actions: [
@@ -1589,8 +1732,8 @@ function App() {
                             />
                             <span>
                               I’ve reviewed these checks and approve this{" "}
-                              {mode === "sample" ? "sample" : "preview-only"}{" "}
-                              browser run. This is not a live production site.
+                              {mode === "sample" ? "sample" : "approved-site"}{" "}
+                              browser run in the environment selected above.
                             </span>
                           </label>
                           {config.executionEnabled === false && (
@@ -1609,6 +1752,11 @@ function App() {
                               disabled={
                                 !!busy ||
                                 !approved ||
+                                publicPlanConflict ||
+                                (execution === "interactive" &&
+                                  mode !== "sample" &&
+                                  network === "browser" &&
+                                  !networkApproved) ||
                                 config.executionEnabled === false ||
                                 (execution === "interactive" &&
                                   (!actionsApproved ||
@@ -1807,7 +1955,8 @@ function App() {
                               "No GitHub source attached"}
                           </p>
                           <p>
-                            <strong>Browser:</strong> Chromium{" "}
+                            <strong>Browser:</strong>{" "}
+                            {report.plan.browser ?? "chromium"}{" "}
                             {report.browserVersion || "not started"}. JavaScript{" "}
                             {report.plan.execution === "interactive"
                               ? "enabled in the interaction worker"

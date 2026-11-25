@@ -2,18 +2,22 @@ import { runJourney } from "./journey-worker.mjs";
 import { observe } from "./observation.mjs";
 import { staticHtml } from "./static-fixture.mjs";
 import { perform } from "./interaction-policy.mjs";
-import { chromium } from "playwright";
+import { chromium, firefox, webkit } from "playwright";
+import { createTunnelProxy } from "./tunnel-proxy.mjs";
 import { createInterface } from "node:readline";
 import { interactiveHtml } from "./interactive-fixture.mjs";
 const input = createInterface({ input: process.stdin, crlfDelay: Infinity });
 const pending = new Map();
 let seq = 0;
 let started = false;
+let tunnelProxy;
 const send = (message) => process.stdout.write(JSON.stringify(message) + "\n");
 input.on("line", (line) => {
   try {
     const message = JSON.parse(line);
-    if (message.type === "resource") {
+    if (message.type.startsWith("tunnel-")) {
+      tunnelProxy?.receive(message);
+    } else if (message.type === "resource") {
       const resolve = pending.get(message.id);
       pending.delete(message.id);
       resolve?.(message);
@@ -61,12 +65,20 @@ async function resource(request, scope) {
   return result;
 }
 async function run(plan) {
-  const browser = await chromium.launch({ headless: true });
+  if (plan.network === "browser") tunnelProxy = await createTunnelProxy(send);
+  const engine = { chromium, firefox, webkit }[plan.browser ?? "chromium"];
+  const browser = await engine.launch({
+    headless: true,
+    ...(tunnelProxy
+      ? { proxy: { server: tunnelProxy.url, bypass: "<-loopback>" } }
+      : {}),
+  });
   send({
     type: "browser",
     version: browser.version(),
     matchingVersion: 1,
     journeyVersion: 1,
+    networkVersion: 1,
   });
   try {
     if (plan.journey) {
@@ -91,11 +103,26 @@ async function run(plan) {
         let blocked = 0;
         let pageError = false;
         const log = [];
-        await context.routeWebSocket("**/*", (ws) => {
-          blocked++;
-          ws.close();
-        });
+        if (plan.network !== "browser")
+          await context.routeWebSocket("**/*", (ws) => {
+            blocked++;
+            ws.close();
+          });
         await context.route("**/*", async (route) => {
+          if (plan.network === "browser") {
+            const req = route.request(),
+              url = new URL(req.url());
+            if (
+              !["https:", "data:", "blob:"].includes(url.protocol) ||
+              (req.isNavigationRequest() &&
+                req.frame() === req.frame().page().mainFrame() &&
+                url.origin !== new URL(plan.target).origin)
+            ) {
+              blocked++;
+              await route.abort();
+            } else await route.continue();
+            return;
+          }
           try {
             const req = route.request();
             if (plan.target === "sample") {
@@ -156,6 +183,14 @@ async function run(plan) {
           if (!response || response.status() >= 400)
             throw Error("The page did not load successfully.");
           if (c.kind === "manual") {
+            if (plan.network === "browser") {
+              try {
+                await page
+                  .getByRole("heading")
+                  .first()
+                  .waitFor({ state: "visible", timeout: 10000 });
+              } catch {}
+            }
             observation = {
               status: "not_verified",
               observed:
@@ -214,5 +249,6 @@ async function run(plan) {
     send({ type: "done" });
   } finally {
     await browser.close();
+    tunnelProxy?.close();
   }
 }

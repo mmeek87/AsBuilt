@@ -1,3 +1,4 @@
+import { createBrowserNetwork } from "./browser-network.ts";
 import { journeyResourceAllowed, reviewedDestinations } from "./safety.ts";
 import {
   recordBlockedResource,
@@ -38,6 +39,7 @@ export function workerCommand(sample: boolean, id: string) {
           "--pids-limit=256",
           "--shm-size=256m",
           "--tmpfs=/tmp:rw,nosuid,nodev,size=256m,mode=1777",
+          "--tmpfs=/home/pwuser:rw,nosuid,nodev,size=32m,mode=1777",
           "asbuilt-browser:local",
         ],
       };
@@ -66,6 +68,20 @@ export async function runInteractive(report: Report) {
       "Only reviewed links, controls, document destinations and exact read-only data URLs are permitted. No credentials, submissions, cart changes or purchases.",
       "A failed or uncertain checkpoint stops subsequent actions. Screenshots are captured at each checkpoint.",
       "Positive observations describe only their exact checkpoint; blocked resources and script errors remain coverage limits. Missing outcomes with functional blockers are Not verified.",
+    ];
+  if (report.plan.publicReadOnly)
+    report.limitations = [
+      "Public read-only inspection: fresh signed-out browser, no user actions, credentials, API grants or persisted browser state.",
+      "Only the approved origin's page and permitted static assets may load. Cross-origin assets, API requests and writes remain blocked.",
+      "This inspection does not certify application behavior or full rendering; blocked resources may prevent client rendering.",
+    ];
+  if (report.plan.network === "browser")
+    report.limitations = [
+      "Normal browser networking: HTTPS dependencies, APIs, cookies and page-initiated writes are allowed. No guarantee of zero server-side changes.",
+      "Use staging, isolated test data and sandbox external services. A preview URL alone is not proof of database isolation.",
+      "Fresh browser session in a network-isolated container; public HTTPS connections are DNS-validated and pinned. Private networks, non-HTTPS traffic, downloads and unreviewed top-level origins remain blocked.",
+      "Only the reviewed user actions execute. Production inspection has no user actions. No personal browser session or host credentials are imported.",
+      "Browser engine and exact observations define coverage. WebKit is not an installed Safari test.",
     ];
   save(report);
   const directory = join(dataDir, report.id);
@@ -96,6 +112,12 @@ export async function runInteractive(report: Report) {
     if (!child.stdin.destroyed)
       child.stdin.write(JSON.stringify(message) + "\n");
   };
+  const network =
+    report.plan.network === "browser"
+      ? createBrowserNetwork(send, (origin, reason) =>
+          recordBlockedResource(report, origin, "connection", reason),
+        )
+      : null;
   const terminate = () => {
     try {
       if (child.pid) process.kill(-child.pid, "SIGKILL");
@@ -107,12 +129,24 @@ export async function runInteractive(report: Report) {
     terminate();
   }, 150000);
   async function handle(message: any) {
+    if (
+      typeof message.type === "string" &&
+      message.type.startsWith("tunnel-")
+    ) {
+      if (!network) throw Error("Unapproved browser networking.");
+      await network.receive(message);
+      return;
+    }
     if (message.type === "fetch") {
       const id = z.number().int().positive().parse(message.id);
       let response: any = { type: "resource", id, allowed: false };
       let deniedReason = "network policy or resource budget";
       try {
-        const originList = (process.env.ASBUILT_PREVIEW_ORIGINS || "")
+        const originList = (
+          (report.plan.publicReadOnly
+            ? process.env.ASBUILT_PUBLIC_READONLY_ORIGINS
+            : process.env.ASBUILT_PREVIEW_ORIGINS) || ""
+        )
           .split(",")
           .map((x) => x.trim());
         const target = validateTarget(report.plan.target, originList);
@@ -185,6 +219,8 @@ export async function runInteractive(report: Report) {
       return;
     }
     if (message.type === "browser") {
+      if (report.plan.network === "browser" && message.networkVersion !== 1)
+        throw Error("Rebuild the browser worker for browser networking.");
       if (report.plan.journey && message.journeyVersion !== 1)
         throw Error("Rebuild the browser worker for journeys.");
       if (message.matchingVersion !== 1)
@@ -196,7 +232,7 @@ export async function runInteractive(report: Report) {
     }
     if (message.type === "fatal") {
       failure = sample
-        ? "The sample worker failed. Install Chromium with pnpm exec playwright install chromium."
+        ? `The sample worker failed. Install the selected engine with pnpm exec playwright install ${report.plan.browser ?? "chromium"}.`
         : "The isolated preview worker failed. Check the Docker image and docs/phase2.md.";
       return;
     }
@@ -259,7 +295,10 @@ export async function runInteractive(report: Report) {
       buffer = buffer.slice(end + 1);
       try {
         const msg = JSON.parse(line);
-        if (msg.type === "fetch") {
+        if (
+          msg.type === "fetch" ||
+          (typeof msg.type === "string" && msg.type.startsWith("tunnel-"))
+        ) {
           void handle(msg).catch(() => {
             failure = "Invalid worker resource request.";
             terminate();
@@ -306,6 +345,7 @@ export async function runInteractive(report: Report) {
     report.error = "Interactive verification stopped unexpectedly.";
   } finally {
     clearTimeout(timer);
+    network?.close();
     terminate();
     if (!sample) {
       const cleanup = spawn("docker", ["rm", "-f", `asbuilt-${report.id}`], {
