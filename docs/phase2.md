@@ -1,3 +1,5 @@
+> This guide describes legacy restricted loading. For the new local normal-loading mode and its approval requirements, see [browser networking](browser-networking.md).
+
 # Phase 2: approved browser interactions
 
 The browser can click a named button, fill a labeled field and select a native option, then check an observable outcome. Each check starts in a fresh browser context on desktop and mobile. Reports include the completed actions, expected and observed outcomes, and a separate screenshot per check. Both the checks and exact actions require approval; editing a check clears approval.

@@ -159,6 +159,10 @@ export function createCloudApp(
       );
     const plan = planSchema.parse(input);
     validateExecution(plan);
+    if (plan.network === "browser")
+      throw Error(
+        "Normal browser networking is currently local-only. Paid cloud execution has not been enabled.",
+      );
     if (plan.target !== "sample") validateTarget(plan.target, c.origins);
     if (plan.source) {
       const actual = await inspectSource(plan.source.url);

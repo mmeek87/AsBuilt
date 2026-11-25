@@ -771,3 +771,23 @@ test("reviewed menus open submenus and restrict navigation choices", async ({
     perform(page, { type: "menu", name: "Delete account", value: "" }),
   ).rejects.toThrow(/policy/);
 });
+
+test("changing browser engine invalidates reviewed approvals", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Workspace access key").fill(token);
+  await page.getByRole("button", { name: "Open workspace" }).click();
+  await page.getByRole("button", { name: "Use an example" }).click();
+  await page.getByRole("button", { name: "Create review plan" }).click();
+  await page.getByLabel("Browser mode", { exact: true }).selectOption("interactive");
+  const engine = page.getByLabel("Browser engine", { exact: true });
+  await expect(engine.locator("option")).toHaveCount(3);
+  await page.getByLabel("I approve the exact actions", { exact: false }).check();
+  await page.getByLabel("I’ve reviewed these checks", { exact: false }).check();
+  await expect(page.getByRole("button", { name: "Run reviewed checks" })).toBeEnabled();
+  await engine.selectOption("firefox");
+  await expect(page.getByLabel("I approve the exact actions", { exact: false })).not.toBeChecked();
+  await expect(page.getByLabel("I’ve reviewed these checks", { exact: false })).not.toBeChecked();
+  await expect(page.getByRole("button", { name: "Run reviewed checks" })).toBeDisabled();
+  await engine.selectOption("webkit");
+  await expect(engine).toHaveValue("webkit");
+});

@@ -39,7 +39,16 @@ export function startVerification(input: unknown): Report {
     throw Error(
       "Interactive previews require the isolated Docker worker. Follow docs/phase2.md to enable it. The sample works without Docker.",
     );
-  if (plan.target !== "sample") validateTarget(plan.target, allowedOrigins());
+  if (plan.target !== "sample")
+    validateTarget(
+      plan.target,
+      plan.publicReadOnly
+        ? (process.env.ASBUILT_PUBLIC_READONLY_ORIGINS || "")
+            .split(",")
+            .map((x) => x.trim())
+            .filter(Boolean)
+        : allowedOrigins(),
+    );
   if (active)
     throw Error(
       "Another verification is running. Please wait for it to finish.",
@@ -52,7 +61,12 @@ export function startVerification(input: unknown): Report {
     id: randomUUID(),
     status: "queued",
     createdAt: new Date().toISOString(),
-    mode: plan.target === "sample" ? "sample" : "preview",
+    mode:
+      plan.target === "sample"
+        ? "sample"
+        : plan.publicReadOnly
+          ? "public"
+          : "preview",
     plan,
     results: [],
     blockedRequests: 0,
