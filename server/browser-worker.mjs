@@ -77,6 +77,7 @@ async function run(plan) {
     type: "browser",
     version: browser.version(),
     matchingVersion: 1,
+    scopedAssertionsVersion: 1,
     journeyVersion: 1,
     networkVersion: 1,
   });

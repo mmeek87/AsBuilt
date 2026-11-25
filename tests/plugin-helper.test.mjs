@@ -53,3 +53,17 @@ test('helper sends key only to loopback, rejects redirects and handles 401 witho
     server.close();target.close();rmSync(home,{recursive:true,force:true});
   }
 });
+
+test('normal network approval must come from invocation, not a saved plan',()=>{
+  const home=mkdtempSync(join(tmpdir(),'asbuilt-network-'));
+  try {
+    const file=join(home,'plan.json');
+    writeFileSync(file,JSON.stringify({execution:'interactive',network:'browser',networkApproved:true}));
+    const args=['--home',home,'run',file,'--approved','--approve-actions'];
+    assert.throws(()=>payload(parse(args)),/approve-network/);
+    assert.equal(payload(parse([...args,'--approve-network'])).networkApproved,true);
+    assert.throws(()=>parse(['--home',home,'status','--approve-network']),/only valid/);
+    writeFileSync(file,JSON.stringify({execution:'static',networkApproved:true}));
+    assert.equal(payload(parse(['--home',home,'run',file,'--approved'])).networkApproved,undefined);
+  } finally {rmSync(home,{recursive:true,force:true});}
+});

@@ -38,6 +38,15 @@
       "expectedUrl": "https://shopebarrel.tech/stores?parish=Manchester"
     },
     {
+      "id": "filtered-stores-heading",
+      "expected": "The store listing identifies Manchester, Jamaica as the selected location; this does not prove every result belongs there.",
+      "kind": "heading",
+      "value": "Stores in Manchester, Jamaica",
+      "match": "exact",
+      "occurrence": "unique",
+      "expectedUrl": "https://shopebarrel.tech/stores?parish=Manchester"
+    },
+    {
       "id": "store",
       "expected": "The selected store opens at its reviewed URL.",
       "kind": "heading",
@@ -78,9 +87,9 @@
       "id": "seller",
       "expected": "The product identifies Mandeville Fresh Mart as its seller.",
       "kind": "link",
-      "value": "Mandeville Fresh Mart",
-      "match": "contains",
-      "occurrence": "at_least_one"
+      "value": "Sold by Mandeville Fresh Mart",
+      "match": "exact",
+      "occurrence": "unique"
     },
     {
       "id": "product-country",

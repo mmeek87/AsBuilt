@@ -1,0 +1,59 @@
+{
+  "intent": "Find a mystery book and check its details.",
+  "target": "https://books.toscrape.com/",
+  "execution": "interactive",
+  "network": "browser",
+  "environment": "test",
+  "browser": "chromium",
+  "journey": true,
+  "criteria": [
+    {
+      "id": "catalogue",
+      "kind": "heading",
+      "value": "All products",
+      "expected": "The catalogue opens with its All products heading."
+    },
+    {
+      "id": "category",
+      "kind": "heading",
+      "value": "Mystery",
+      "expected": "Choosing Mystery opens the mystery category.",
+      "expectedUrl": "https://books.toscrape.com/catalogue/category/books/mystery_3/index.html",
+      "actions": [
+        {
+          "type": "navigate",
+          "name": "Mystery",
+          "value": "https://books.toscrape.com/catalogue/category/books/mystery_3/index.html"
+        }
+      ]
+    },
+    {
+      "id": "book",
+      "kind": "heading",
+      "value": "Sharp Objects",
+      "expected": "Choosing Sharp Objects opens that book's detail page.",
+      "expectedUrl": "https://books.toscrape.com/catalogue/sharp-objects_997/index.html",
+      "actions": [
+        {
+          "type": "navigate",
+          "name": "Sharp Objects",
+          "value": "https://books.toscrape.com/catalogue/sharp-objects_997/index.html"
+        }
+      ]
+    },
+    {
+      "id": "price",
+      "kind": "text",
+      "value": "£47.82",
+      "occurrence": "at_least_one",
+      "expected": "The detail page displays the demo price £47.82."
+    },
+    {
+      "id": "availability",
+      "kind": "text",
+      "value": "In stock (20 available)",
+      "occurrence": "at_least_one",
+      "expected": "The detail page displays its stock availability."
+    }
+  ]
+}

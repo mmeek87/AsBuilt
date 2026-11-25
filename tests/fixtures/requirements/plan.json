@@ -1,0 +1,63 @@
+{
+  "intent": "Choose Ontario, open Maple Market, and view its Notebook. Retain Ontario on the store page; the product must identify Maple Market as seller and show In stock.",
+  "target": "https://requirements.asbuilt.invalid/",
+  "approved": true,
+  "execution": "interactive",
+  "actionsApproved": true,
+  "journey": true,
+  "criteria": [
+    {
+      "id": "region",
+      "kind": "text",
+      "value": "Sending to Ontario",
+      "expected": "Choosing Ontario updates the selected region.",
+      "actions": [{ "type": "click", "name": "Ontario", "value": "" }]
+    },
+    {
+      "id": "store",
+      "kind": "heading",
+      "value": "Maple Market",
+      "expected": "The selected store opens.",
+      "expectedUrl": "https://requirements.asbuilt.invalid/store",
+      "actions": [
+        {
+          "type": "navigate",
+          "name": "Maple Market",
+          "value": "https://requirements.asbuilt.invalid/store"
+        }
+      ]
+    },
+    {
+      "id": "retained-region",
+      "kind": "text",
+      "value": "Sending to Ontario",
+      "expected": "The region remains Ontario after opening the store."
+    },
+    {
+      "id": "product",
+      "kind": "heading",
+      "value": "Notebook",
+      "expected": "The selected product opens.",
+      "expectedUrl": "https://requirements.asbuilt.invalid/product",
+      "actions": [
+        {
+          "type": "navigate",
+          "name": "Notebook",
+          "value": "https://requirements.asbuilt.invalid/product"
+        }
+      ]
+    },
+    {
+      "id": "seller",
+      "kind": "text",
+      "value": "Sold by Maple Market",
+      "expected": "The Notebook identifies Maple Market as its seller."
+    },
+    {
+      "id": "stock",
+      "kind": "text",
+      "value": "In stock",
+      "expected": "The Notebook is shown as in stock."
+    }
+  ]
+}

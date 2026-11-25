@@ -114,6 +114,11 @@ export async function runCloud(report: Report) {
   }
   async function message(m: any) {
     if (m.type === "browser") {
+      if (
+        report.plan.criteria.some((c) => c.within) &&
+        m.scopedAssertionsVersion !== 1
+      )
+        throw Error("Rebuild the browser worker for scoped assertions.");
       if (report.plan.journey && m.journeyVersion !== 1)
         throw Error("Rebuild the browser worker for journeys.");
       if (m.matchingVersion !== 1)

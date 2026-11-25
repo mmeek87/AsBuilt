@@ -1,9 +1,64 @@
 // Shared by local and isolated browser runners. Matching options are part of the reviewed plan.
-export async function observe(
-  page,
-  c,
-  { staticMode = false, waitMs = 0 } = {},
-) {
+export async function observe(page, c, options = {}) {
+  if (!c.within || c.kind === "manual" || !c.value.trim())
+    return observeSingle(page, c, options);
+  const { role, name, each = false } = c.within;
+  const scopes = page
+    .getByRole(role, { name, exact: true })
+    .filter({ visible: true });
+  if (options.waitMs) {
+    try {
+      await scopes
+        .first()
+        .waitFor({ state: "visible", timeout: options.waitMs });
+    } catch {}
+  }
+  const count = await scopes.count();
+  const label = `${role} “${name}”`;
+  if (!count)
+    return {
+      status: options.staticMode ? "not_verified" : "fail",
+      observed: `No visible ${label} scope found. An empty collection cannot pass.`,
+    };
+  if ((!each && count !== 1) || count > 100)
+    return {
+      status: "not_verified",
+      observed: `Found ${count} visible ${label} scopes; ${each ? "the inspection limit is 100" : "exactly one scope is required"}.`,
+    };
+  const observations = [];
+  for (let i = 0; i < count; i++) {
+    // One wait budget for the scope, not one timeout per member. Never search outside it.
+    observations.push(
+      await observeSingle(scopes.nth(i), c, { ...options, waitMs: 0 }),
+    );
+  }
+  if ((await scopes.count()) !== count)
+    return {
+      status: "not_verified",
+      observed:
+        "The visible collection changed size during inspection. Rerun after it settles.",
+    };
+  const failed = observations.filter((x) => x.status === "fail").length;
+  const uncertain = observations.filter(
+    (x) => x.status === "not_verified",
+  ).length;
+  const detail = observations
+    .flatMap((x, i) =>
+      x.status === "pass" ? [] : [`Item ${i + 1}: ${x.observed}`],
+    )
+    .slice(0, 3)
+    .join(" ");
+  return {
+    status: failed ? "fail" : uncertain ? "not_verified" : "pass",
+    observed:
+      `Checked ${count} visible ${label} scope(s): ${count - failed - uncertain} passed, ${failed} failed, ${uncertain} not verified. ${detail || `Each scope contains the required ${c.kind} “${c.value}”.`} Only currently rendered visible members were checked.`.slice(
+        0,
+        1900,
+      ),
+  };
+}
+
+async function observeSingle(page, c, { staticMode = false, waitMs = 0 } = {}) {
   if (c.kind === "manual" || !c.value.trim())
     return {
       status: "not_verified",
