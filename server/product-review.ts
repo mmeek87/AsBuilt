@@ -410,7 +410,10 @@ export function summarizeCoverage(
             : passed > 0
               ? "partial"
               : "not_tested";
-      return { ...outcome, status, evidence };
+      // An unconfirmed expectation stays "unclear", but an observed failure
+      // must never disappear from view behind that label.
+      const observedMismatch = evidence.some((e) => e.status === "fail");
+      return { ...outcome, status, observedMismatch, evidence };
     });
     const status: CoverageStatus = requirement.uncertainty
       ? "unclear"
@@ -421,7 +424,12 @@ export function summarizeCoverage(
           : outcomes.some((o) => ["verified", "partial"].includes(o.status))
             ? "partial"
             : "not_tested";
-    return { ...requirement, status, outcomes };
+    return {
+      ...requirement,
+      status,
+      observedMismatch: outcomes.some((o) => o.observedMismatch),
+      outcomes,
+    };
   });
   const counts = Object.fromEntries(
     (
@@ -456,6 +464,7 @@ export function summarizeCoverage(
     scenarios: review.spec.scenarios,
     runs: review.runs,
     counts,
+    observedMismatches: requirements.filter((r) => r.observedMismatch).length,
     limitations: [
       "Each baseline revision requires fresh evidence. Earlier runs remain available on their original revision and are not carried forward as passes.",
       "The discovered function inventory is supplied by the host; it is not proof that every feature was discovered. Journey groupings are not end-to-end passes.",

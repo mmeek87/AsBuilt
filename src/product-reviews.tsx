@@ -176,6 +176,17 @@ export function ProductReviews({ openRun }: { openRun: (id: string) => void }) {
               )
               .join(" · ")}
           </p>
+          {review.observedMismatches > 0 && (
+            <p role="note">
+              <strong>
+                {review.observedMismatches === 1
+                  ? "1 unclear requirement also failed a check."
+                  : `${review.observedMismatches} unclear requirements also failed checks.`}
+              </strong>{" "}
+              Confirm the intended behavior, then decide whether to fix the app
+              or the check.
+            </p>
+          )}
           <p>
             This covers the recorded requirements. It does not certify the whole
             site.
@@ -203,6 +214,9 @@ export function ProductReviews({ openRun }: { openRun: (id: string) => void }) {
             <section key={r.id} className="source-section">
               <h3>
                 {r.title} — {labels[r.status]}
+                {r.status !== "mismatch" && r.observedMismatch
+                  ? " · a check failed"
+                  : ""}
               </h3>
               <p>
                 {r.actor} · {r.priority}
@@ -224,7 +238,13 @@ export function ProductReviews({ openRun }: { openRun: (id: string) => void }) {
               <ul>
                 {r.outcomes.map((o) => (
                   <li key={o.id}>
-                    <strong>{labels[o.status]}: </strong>
+                    <strong>
+                      {labels[o.status]}
+                      {o.status !== "mismatch" && o.observedMismatch
+                        ? " (a check failed)"
+                        : ""}
+                      :{" "}
+                    </strong>
                     {o.expected}
                     {o.gap && <p>Coverage gap: {o.gap}</p>}
                     {o.evidence.map((e, i) => (
