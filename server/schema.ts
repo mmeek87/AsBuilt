@@ -13,6 +13,7 @@ export const actionSchema = z
       "menu",
       "check",
       "testPayment",
+      "reload",
     ]),
     name: z.string().min(1).max(100),
     match: z.enum(["exact", "contains"]).optional(),
@@ -37,6 +38,8 @@ export const criterionSchema = z
     // "none": must NOT be visible (privacy, signed-out states). Pair it with
     // a positive check on the same page so a blank page can't pass.
     occurrence: z.enum(["unique", "at_least_one", "none"]).optional(),
+    // Which test account this checkpoint runs as. "second" needs secondSignIn.
+    as: z.enum(["first", "second"]).optional(),
     within: z
       .object({
         role: z.enum([
@@ -56,6 +59,42 @@ export const criterionSchema = z
     actions: z.array(actionSchema).max(6).optional(),
   })
   .strict();
+// How to sign in with a test account. Labels and text only; the account
+// itself comes from secrets, never from the plan.
+const signInSchema = z
+  .object({
+    path: z
+      .string()
+      .regex(/^\/[^\s?#]*$/)
+      .max(300),
+    emailLabel: z.string().min(1).max(100),
+    passwordLabel: z.string().min(1).max(100),
+    submit: z.string().min(1).max(100),
+    signedInText: z.string().min(1).max(200),
+    // Optional consent/banner button to close first, if it's showing
+    // (e.g. "Essential Only"). Never a consequential action.
+    dismiss: z
+      .string()
+      .min(1)
+      .max(60)
+      .refine(
+        (name) =>
+          !/\b(buy|purchase|pay|checkout|order|delete|remove|send|publish|transfer|subscribe|book|confirm|submit|sign|log)\b/i.test(
+            name,
+          ),
+        "dismiss may only close a banner, not take an action",
+      )
+      .optional(),
+    // Optional page to open after signing in where signedInText is
+    // shown on every viewport (headers often hide names on mobile).
+    signedInPath: z
+      .string()
+      .regex(/^\/[^\s?#]*$/)
+      .max(300)
+      .optional(),
+  })
+  .strict();
+
 export const planSchema = z
   .object({
     intent: z.string().min(3).max(5000),
@@ -91,40 +130,10 @@ export const planSchema = z
     readUrls: z.array(z.string().url().max(2048)).max(20).optional(),
     // Sign in with a dedicated test account first. Labels and text only;
     // the account itself comes from secrets, never from the plan.
-    signIn: z
-      .object({
-        path: z
-          .string()
-          .regex(/^\/[^\s?#]*$/)
-          .max(300),
-        emailLabel: z.string().min(1).max(100),
-        passwordLabel: z.string().min(1).max(100),
-        submit: z.string().min(1).max(100),
-        signedInText: z.string().min(1).max(200),
-        // Optional consent/banner button to close first, if it's showing
-        // (e.g. "Essential Only"). Never a consequential action.
-        dismiss: z
-          .string()
-          .min(1)
-          .max(60)
-          .refine(
-            (name) =>
-              !/\b(buy|purchase|pay|checkout|order|delete|remove|send|publish|transfer|subscribe|book|confirm|submit|sign|log)\b/i.test(
-                name,
-              ),
-            "dismiss may only close a banner, not take an action",
-          )
-          .optional(),
-        // Optional page to open after signing in where signedInText is
-        // shown on every viewport (headers often hide names on mobile).
-        signedInPath: z
-          .string()
-          .regex(/^\/[^\s?#]*$/)
-          .max(300)
-          .optional(),
-      })
-      .strict()
-      .optional(),
+    signIn: signInSchema.optional(),
+    // A second test account (for example a store) for checkpoints marked
+    // "as": "second". Credentials come from ASBUILT_SECOND_EMAIL/PASSWORD.
+    secondSignIn: signInSchema.optional(),
     source: z
       .object({
         url: z.string().url(),
@@ -188,6 +197,24 @@ export const sampleIntent =
   'Show a heading called "Plan your visit". The "Email address" field is required. Show a button called "Book a visit". Show the text "Free cancellation". Send a confirmation email after booking.';
 
 export function validateExecution(plan: Plan) {
+  if (plan.secondSignIn && !plan.signIn)
+    throw Error(
+      "A second test account needs the first one too: add signIn as well as secondSignIn.",
+    );
+  if (plan.criteria.some((c) => c.as === "second") && !plan.secondSignIn)
+    throw Error(
+      'Checkpoints marked "as": "second" need a secondSignIn for the second test account.',
+    );
+  if (
+    (plan.secondSignIn ||
+      plan.criteria.some((c) =>
+        c.actions?.some((a) => a.type === "navigate" && a.value.endsWith("/*")),
+      )) &&
+    !plan.testActions
+  )
+    throw Error(
+      "A second account and opening the newest matching link (a URL ending in /*) are test-site features: approve them with testActions first.",
+    );
   if (
     plan.signIn &&
     (plan.target === "sample" ||

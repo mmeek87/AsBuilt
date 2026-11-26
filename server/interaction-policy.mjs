@@ -57,6 +57,13 @@ export async function perform(
     await box.first().check({ timeout: 5000 });
     return;
   }
+  if (action.type === "reload") {
+    await page.reload({ waitUntil: "load", timeout: 25000 });
+    await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
+    return;
+  }
+  if (action.type === "navigate" && action.value.endsWith("/*"))
+    return openNewestMatching(page, root, action, destinations);
   if (action.type === "navigate") {
     const expected = new URL(action.value);
     if (
@@ -326,4 +333,52 @@ async function payWithStripeTestCard(page) {
   throw Error(
     "Stripe's payment didn't finish: the page didn't move on after paying with the test card, so the outcome couldn't be checked.",
   );
+}
+
+/**
+ * Open the first visible link (lists usually show the newest first) whose
+ * name contains the reviewed text and whose address is one more path segment
+ * under the reviewed prefix, for example a new order:
+ * "https://shop.example/merchant/orders/*". Never leaves the preview.
+ */
+async function openNewestMatching(page, root, action, destinations) {
+  if (!destinations.includes(action.value))
+    throw Error("Navigation destination is outside the reviewed policy.");
+  const prefix = new URL(action.value.slice(0, -1));
+  if (prefix.origin !== new URL(page.url()).origin)
+    throw Error("Navigation destination is outside the reviewed policy.");
+  const links = root
+    .getByRole("link", { name: action.name, exact: action.match !== "contains" })
+    .filter({ visible: true });
+  try {
+    await links.first().waitFor({ state: "visible", timeout: 10000 });
+  } catch {
+    throw Error(`No matching link named “${action.name}” is visible, so nothing was opened.`);
+  }
+  const hrefs = await links.evaluateAll((els) =>
+    els.map((el) => (el instanceof HTMLAnchorElement ? el.href : "")),
+  );
+  const segment = /^[A-Za-z0-9_-]{1,80}$/;
+  const i = hrefs.findIndex((href) => {
+    try {
+      const u = new URL(href);
+      return (
+        u.origin === prefix.origin &&
+        u.pathname.startsWith(prefix.pathname) &&
+        segment.test(u.pathname.slice(prefix.pathname.length)) &&
+        !u.username &&
+        !u.password
+      );
+    } catch {
+      return false;
+    }
+  });
+  if (i < 0)
+    throw Error(`No matching link named “${action.name}” points under the reviewed address, so nothing was opened.`);
+  const target = hrefs[i];
+  await links.nth(i).click({ timeout: 8000 });
+  await page.waitForURL((u) => u.href.split(/[?#]/)[0] === target.split(/[?#]/)[0], {
+    timeout: 15000,
+    waitUntil: "domcontentloaded",
+  });
 }

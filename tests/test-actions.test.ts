@@ -181,3 +181,42 @@ test("a test payment never takes card details from the check", () => {
     delete process.env.ASBUILT_ALLOW_TEST_ACTIONS;
   }
 });
+
+test("opens the newest matching link under a reviewed address, never elsewhere", async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.route("https://shop.asbuilt.invalid/**", (route) => {
+      const path = new URL(route.request().url()).pathname;
+      return route.fulfill({
+        contentType: "text/html",
+        body: path === "/merchant/orders"
+          ? `<a href="https://evil.invalid/merchant/orders/x">Order for E2E Recipient</a><a href="/merchant/orders/abc-123">Order for E2E Recipient</a><a href="/merchant/orders/old-1">Order for E2E Recipient</a>`
+          : `<h1>Order ${path.split("/").pop()}</h1>`,
+      });
+    });
+    await page.goto("https://shop.asbuilt.invalid/merchant/orders");
+    const open = { type: "navigate" as const, name: "E2E Recipient", match: "contains" as const, value: "https://shop.asbuilt.invalid/merchant/orders/*" };
+    await assert.rejects(perform(page, open, []), /outside the reviewed policy/);
+    await perform(page, open, [open.value]);
+    assert.equal(new URL(page.url()).pathname, "/merchant/orders/abc-123", "first link under the reviewed address, not the off-site one");
+    await perform(page, { type: "reload", name: "page", value: "" });
+    assert.equal(await page.getByRole("heading", { name: "Order abc-123" }).count(), 1);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("a second account and newest-link opening need test actions and a secondSignIn", () => {
+  process.env.ASBUILT_ALLOW_TEST_ACTIONS = "true";
+  try {
+    const signIn = { path: "/login", emailLabel: "Email", passwordLabel: "Password", submit: "Sign in", signedInText: "Sign out" };
+    const store = { id: "store", expected: "Store sees it", kind: "heading" as const, value: "Order", as: "second" as const };
+    assert.throws(() => validateExecution(plan({ signIn, criteria: [...plan().criteria, store] })), /need a secondSignIn/);
+    assert.doesNotThrow(() => validateExecution(plan({ signIn, secondSignIn: signIn, criteria: [...plan().criteria, store] })));
+    const { testActions: _t, ...noTest } = plan({ signIn, secondSignIn: signIn });
+    assert.throws(() => validateExecution(planSchema.parse(noTest)), /test-site features/);
+  } finally {
+    delete process.env.ASBUILT_ALLOW_TEST_ACTIONS;
+  }
+});
