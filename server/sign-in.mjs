@@ -20,6 +20,32 @@ const onPreview = (page, origin) => {
 };
 
 export async function signIn(page, config, credentials, origin) {
+  // Hosts whose requests failed while signing in: names only, for a useful
+  // explanation when sign-in doesn't stick.
+  const failedHosts = new Set();
+  const onFailed = (req) => {
+    try {
+      failedHosts.add(new URL(req.url()).hostname);
+    } catch {}
+  };
+  page.on("requestfailed", onFailed);
+  try {
+    return await signInSteps(page, config, credentials, origin, failedHosts);
+  } finally {
+    page.off("requestfailed", onFailed);
+  }
+}
+
+function where(page, failedHosts) {
+  let path = "";
+  try {
+    path = new URL(page.url()).pathname;
+  } catch {}
+  const hosts = [...failedHosts].slice(0, 4).join(", ");
+  return ` AsBuilt ended up on ${path || "an unknown page"}.${hosts ? ` Requests that failed while signing in: ${hosts}.` : ""}`;
+}
+
+async function signInSteps(page, config, credentials, origin, failedHosts) {
   if (!credentials?.email || !credentials?.password)
     return {
       ok: false,
@@ -158,7 +184,7 @@ export async function signIn(page, config, credentials, origin) {
     } catch {
       return {
         ok: false,
-        reason: `After signing in, AsBuilt couldn't open ${config.signedInPath} to confirm it worked.`,
+        reason: `After signing in, AsBuilt couldn't open ${config.signedInPath} to confirm it worked.${where(page, failedHosts)}`,
       };
     }
   }
@@ -170,7 +196,7 @@ export async function signIn(page, config, credentials, origin) {
   } catch {
     return {
       ok: false,
-      reason: `After signing in, AsBuilt didn't see "${config.signedInText}"${config.signedInPath ? ` on ${config.signedInPath}` : ""}. The test account may be wrong or locked, or sign-in needs a step AsBuilt doesn't support (such as a one-time code or CAPTCHA).`,
+      reason: `After signing in, AsBuilt didn't see "${config.signedInText}"${config.signedInPath ? ` on ${config.signedInPath}` : ""}. The test account may be wrong or locked, or sign-in needs a step AsBuilt doesn't support (such as a one-time code or CAPTCHA).${where(page, failedHosts)}`,
     };
   }
   if (new URL(page.url()).origin !== origin)
