@@ -206,7 +206,7 @@ export async function runInteractive(report: Report) {
             new URL(url),
             undefined,
             report.plan.journey
-              ? z.record(z.string().max(12000)).parse(message.headers ?? {})
+              ? z.record(z.string(), z.string().max(12000)).parse(message.headers ?? {})
               : {},
           );
           totalBytes += fetched.body.length;
