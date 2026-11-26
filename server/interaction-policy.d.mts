@@ -4,5 +4,5 @@ export function perform(
   page: Page,
   action: NonNullable<Criterion["actions"]>[number],
   destinations?: string[],
-  testActions?: { siteMarker: string; approved: string[] },
+  testActions?: { siteMarker: string; approved: string[] | "all" },
 ): Promise<void>;

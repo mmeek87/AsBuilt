@@ -9,7 +9,10 @@ export async function perform(
   // Actions AsBuilt normally refuses run only when the user approved this
   // exact action as a test action, and only while the page proves it's a
   // test site.
-  const approvedTest = !!testActions?.approved?.includes(action.name);
+  const approvedTest =
+    testActions?.approved === "all"
+      ? !/password|log ?in|sign ?in|log ?out|sign ?out/i.test(action.name)
+      : !!testActions?.approved?.includes(action.name);
   if (sensitive.test(action.name) && !approvedTest)
     throw Error(
       "This action is outside the allowed interaction policy. On a test site, the user can approve it as a test action.",

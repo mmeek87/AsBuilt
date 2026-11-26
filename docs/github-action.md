@@ -49,6 +49,7 @@ AsBuilt refuses steps that could change real data, such as adding to a cart, che
 - `siteMarker` is text only your test site shows. AsBuilt checks for it before every step and stops if it's missing.
 - The check also needs `execution: "interactive"`, `actionsApproved: true`, `environment: "test"`, `network: "browser"` and `networkApproved: true`.
 - The workflow must opt in with `allow-test-actions: true`. Add it only to a workflow that never checks your live site.
+- Don't want to approve steps one by one? Save a standing approval in `.asbuilt/settings.json`: `{"testSite": {"siteMarker": "TEST SITE", "approveAllTestActions": true}}`. It covers every step except sign-in in checks with `environment: "test"`. The workflow switch and the on-page marker still apply.
 
 Not supported yet: typing a card inside a payment provider's frame, and journeys that need two accounts.
 

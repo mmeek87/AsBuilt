@@ -89,3 +89,36 @@ test("test actions need the workflow switch, a test environment and approvals th
     else process.env.ASBUILT_ALLOW_TEST_ACTIONS = before;
   }
 });
+
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { applySettings, listPlans, readSettings } from "../server/action.ts";
+
+test("a standing test-site approval covers every step except sign-in, only for test-site checks", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "asbuilt-settings-"));
+  writeFileSync(join(dir, "settings.json"), JSON.stringify({ testSite: { siteMarker: "TEST SITE", approveAllTestActions: true } }));
+  writeFileSync(join(dir, "checkout.json"), "{}");
+  assert.deepEqual(listPlans(dir).map((f) => f.split("/").pop()), ["checkout.json"], "settings.json is never run as a check");
+  const settings = readSettings(dir);
+  const { testActions: _t, ...base } = plan();
+  const applied = applySettings(base, settings);
+  assert.deepEqual(applied.testActions, { siteMarker: "TEST SITE", approved: "all" });
+  assert.equal(applySettings({ ...base, environment: "production" }, settings).testActions, undefined);
+  assert.equal(applySettings({ ...base, network: "restricted" }, settings).testActions, undefined);
+
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(shop(true) + "<button>Sign in</button>");
+    await perform(page, click("Add to cart"), [], applied.testActions);
+    assert.equal(await page.getByText("Added to cart").count(), 1);
+    await assert.rejects(perform(page, click("Sign in"), [], applied.testActions), /outside the allowed interaction policy/);
+    await page.setContent(shop(false));
+    await assert.rejects(perform(page, click("Add to cart"), [], applied.testActions), /test-site marker/);
+  } finally {
+    await browser.close();
+  }
+  writeFileSync(join(dir, "settings.json"), JSON.stringify({ testSite: { siteMarker: "TEST SITE", approveAllTestActions: false } }));
+  assert.throws(() => readSettings(dir), /expected format/);
+});
