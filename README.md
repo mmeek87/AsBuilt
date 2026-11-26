@@ -6,9 +6,9 @@ Your assistant (Claude, ChatGPT, Codex) reads your code and maps every feature y
 
 It never takes the AI's word that something works, and it never marks something passed without seeing it.
 
-![AsBuilt catching a missing order total on a real pull request, then passing after the fix](site/assets/demo/asbuilt-demo.gif)
+![AsBuilt mapping a shop's features, catching a redesign that dropped the order total, then passing after the fix](site/assets/demo/asbuilt-demo.gif)
 
-_50-second demo on [a real pull request](https://github.com/mmeek87/asbuilt-demo/pull/1). Try it yourself with the [demo repository](https://github.com/mmeek87/asbuilt-demo)._
+_50-second demo on [a real pull request](https://github.com/mmeek87/asbuilt-demo/pull/3). Try it yourself with the [demo repository](https://github.com/mmeek87/asbuilt-demo)._
 
 - **Free and open source.** Runs on GitHub Actions (free for public repositories). No servers, no AI bills, no accounts. MIT license.
 - **Nothing to install.** Add one workflow file and one plan file, or ask your assistant to do it with the AsBuilt skill.

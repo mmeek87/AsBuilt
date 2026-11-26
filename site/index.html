@@ -77,7 +77,7 @@
     <div class="wrap">
       <div class="section-head">
         <h2 class="title" id="demo-title">See it catch a real bug in 50 seconds.</h2>
-        <p>A real pull request on a fictional shop. The checkout was supposed to show the order total. AsBuilt noticed it didn't. <a href="https://github.com/mmeek87/asbuilt-demo/pull/1">See the pull request</a>.</p>
+        <p>A real pull request on a fictional shop. A redesign quietly dropped the order total. AsBuilt noticed. <a href="https://github.com/mmeek87/asbuilt-demo/pull/3">See the pull request</a>.</p>
       </div>
       <figure class="demo">
         <video controls muted playsinline preload="none" poster="assets/demo/poster.jpg" aria-describedby="demo-transcript-title">
@@ -85,18 +85,19 @@
           <a href="assets/demo/asbuilt-demo.mp4">Download the demo video</a>
         </video>
         <ol class="story">
-          <li><img src="assets/demo/m1-checks.jpg" width="708" height="1054" loading="lazy" alt="The assistant lists four checks: the cart page opens, the order total is shown before payment, shoppers are told delivery is free, and one clear button to pay."><p>You say what you want. Your assistant proposes four checks and waits for approval.</p></li>
-          <li><img src="assets/demo/m2-fail.jpg" width="992" height="320" loading="lazy" alt="AsBuilt's pull request comment: 6 pass, 2 fail across desktop and mobile. Fail on desktop: the order total is shown before payment; no visible text Order total."><p>AsBuilt checks the real preview: 6 pass, 2 fail. The order total is missing.</p></li>
-          <li><img src="assets/demo/m3-evidence.jpg" width="390" height="560" loading="lazy" alt="AsBuilt's mobile screenshot of the cart: two items, subtotal 42 dollars, delivery 0 dollars, free delivery note, and a Pay securely button, with no order total."><p>The mobile screenshot shows it: subtotal and delivery, but no total.</p></li>
-          <li><img src="assets/demo/m4-pass.jpg" width="992" height="320" loading="lazy" alt="AsBuilt's updated comment: 8 pass across desktop and mobile, including the order total now shown."><p>Paste the fix prompt, your assistant fixes it, and the next preview passes all 8.</p></li>
+          <li><img src="assets/demo/m1-checks.jpg" width="708" height="932" loading="lazy" alt="The assistant lists five things the shop does: shows the cart, shows the order total before payment, says when delivery is free, one clear button to pay, and an order email it can’t check in a browser."><p>Your assistant reads the code, lists what the shop does, and waits for your approval.</p></li>
+          <li><img src="assets/demo/m2-fail.jpg" width="992" height="324" loading="lazy" alt="AsBuilt’s pull request comment: 4 pass, 2 fail, 2 not verified. Fail on desktop: the order total is shown before payment; no visible text Order total."><p>A later redesign is checked on its real preview: the order total is missing.</p></li>
+          <li><img src="assets/demo/m3-evidence.jpg" width="390" height="560" loading="lazy" alt="AsBuilt’s mobile screenshot of the cart: two items, a free delivery note and a Pay securely button showing $42.00, with no order total."><p>The mobile screenshot shows it: the total line is gone.</p></li>
+          <li><img src="assets/demo/m4-pass.jpg" width="992" height="324" loading="lazy" alt="AsBuilt's updated comment: 8 pass across desktop and mobile, including the order total now shown."><p>Paste the fix prompt, your assistant fixes it, and the next preview passes all 8.</p></li>
         </ol>
         <p class="story-video"><a href="assets/demo/asbuilt-demo.mp4">Play the 50-second video</a> (best with your phone sideways)</p>
         <details class="transcript">
           <summary id="demo-transcript-title">What happens in the video (no sound)</summary>
           <ol>
-            <li>In an AI assistant with the AsBuilt plugin, the user asks: “Before paying, shoppers should see the order total and that delivery is free, then one clear Pay button.” The assistant proposes four checks and waits for approval. The chat is recreated for the demo.</li>
-            <li>On the real pull request, AsBuilt comments: 6 passed, 2 failed. The order total is missing on desktop and mobile. Screenshots show the checkout with a subtotal and delivery, but no total.</li>
-            <li>The user pastes AsBuilt's fix prompt into the assistant, which adds the missing order total row.</li>
+            <li>In an AI assistant with the AsBuilt plugin, the user says “Set up AsBuilt on my shop repo.” The assistant lists the five things the shop does, notes that order emails can’t be checked in a browser, and waits for approval of the other four. The chat is recreated for the demo.</li>
+            <li>A later pull request simplifies the cart. On its real preview AsBuilt comments: 4 pass, 2 fail, 2 not verified. The order total is missing on desktop and mobile, and the Pay button’s new label is flagged as a wording question, not a failure. The comment also shows coverage: 4 of 5 features have checks.</li>
+            <li>The screenshots show the cart without its total line.</li>
+            <li>The user pastes AsBuilt’s fix prompt. The assistant restores the total and, since the new Pay button label was intended, updates that check instead of the page.</li>
             <li>The next preview is checked again: all 8 checks pass.</li>
           </ol>
         </details>

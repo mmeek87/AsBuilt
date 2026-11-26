@@ -4,7 +4,7 @@ Check what your website actually does. You describe what you meant to build, you
 
 AsBuilt is free and open source (MIT). There is no account, subscription, or hosted service.
 
-Watch the [50-second demo](https://mmeek87.github.io/AsBuilt/#demo), or see it on [a real pull request](https://github.com/mmeek87/asbuilt-demo/pull/1).
+Watch the [50-second demo](https://mmeek87.github.io/AsBuilt/#demo), or see it on [a real pull request](https://github.com/mmeek87/asbuilt-demo/pull/3).
 
 ## What's in this plugin
 
