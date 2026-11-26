@@ -1,6 +1,6 @@
 {
   "name": "asbuilt",
-  "description": "AsBuilt: check what your website actually does, on every pull request.",
+  "description": "AsBuilt: check what your AI built actually does, on every pull request.",
   "owner": {
     "name": "Mel Meek",
     "url": "https://github.com/mmeek87"
