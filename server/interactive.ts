@@ -82,7 +82,7 @@ export async function runInteractive(report: Report) {
   report.status = "running";
   report.limitations = [
     "Each check starts with a fresh desktop/mobile browser. Only the reviewed click, fill and select actions are available.",
-    "Submissions, password fields, sensitive actions, authenticated sessions, purchases and email delivery are unsupported.",
+    "Purchases, real submissions, sensitive actions and email delivery are unsupported. Sign-in is limited to a dedicated test account supplied as secrets; passwords are never shown or saved in screenshots.",
     "External previews require a network-isolated Docker worker. Resource requests pass through a read-only, origin-restricted broker.",
     "Blocked resources or script errors make a check Not verified. The observed preview is not proven to match its attached commit.",
   ];

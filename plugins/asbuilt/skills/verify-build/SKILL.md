@@ -1,6 +1,6 @@
 ---
 name: verify-build
-description: Use when the user asks to verify a website, check whether a build matches their intent, test a preview, set up or review AsBuilt checks on GitHub pull requests, or review an AsBuilt report. Draft observable checks, obtain approval, and collect evidence with the AsBuilt GitHub Action or the local AsBuilt service.
+description: Use when the user asks to verify a website, check whether a build matches their intent, test a preview, map what their app does, set up or review AsBuilt checks on GitHub pull requests, or review an AsBuilt report. Draft observable checks, obtain approval, and collect evidence with the AsBuilt GitHub Action or the local AsBuilt service.
 ---
 
 # Verify a build with AsBuilt
@@ -11,13 +11,42 @@ Help the user compare intended behavior with observed website behavior. State cl
 
 Use this when the user's repository has `.github/workflows/asbuilt.yml`, or they want AsBuilt on their pull requests. The AsBuilt GitHub Action runs the checks on each preview deployment. It calls no AI model, so you are the planning agent and the Action is the independent observer.
 
-1. Recover intent from what the user says, the PR description, and the files the PR changes. Complete the context review below. Ask when intent is unclear; don't invent requirements.
+### Map the app first (don't make the user list features)
+
+The user often doesn't know every feature their app has, especially if an AI built it. Never ask them to list features or write test cases. You discover them; they react.
+
+When there's no `.asbuilt/features.json`, or the user asks to "map", "check everything" or "set up AsBuilt", build the feature map before drafting any checks:
+
+1. **Read the repository** with whatever access you have (the local checkout, or the GitHub connector). Look at: page routes (`app/`, `pages/`, `src/routes`, router files), navigation and menus, auth middleware and route guards, API routes and server actions, forms, roles and permissions, existing end-to-end tests, README and docs, and recent PR titles. Note who each thing is for (shopper, seller, admin, signed-out visitor).
+2. **Group what you found into features a person would recognize**, in plain words: "Shoppers can track an order", not "GET /api/orders/[id]". Aim for completeness over polish; 20 to 60 features is normal for a real app. Mark each as found in the code (`"confirmed": false`) until the user confirms it.
+3. **Show the user a short, scannable list** grouped by who it's for, then ask at most three questions: what's wrong or missing, which features matter most, and anything that should *not* happen (for example, a page that must stay private). Raise behavior that looks unintended as a question, never as a failure ("Your notifications page opens for signed-out visitors. Is that intended?").
+4. **After they react, write `.asbuilt/features.json`**:
+
+   ```json
+   {
+     "app": "Fern & Field",
+     "features": [
+       { "id": "checkout-total", "name": "Checkout shows the order total before payment", "who": "Shopper", "where": "/cart", "check": "checkout", "confirmed": true },
+       { "id": "order-emails", "name": "Shoppers get an order confirmation email", "who": "Shopper", "why": "Emails can't be checked in a browser", "confirmed": true },
+       { "id": "referrals", "name": "Shoppers can refer a friend", "who": "Shopper", "where": "/buyer/referrals", "confirmed": false }
+     ]
+   }
+   ```
+
+   `id` and `check` are lowercase-with-hyphens. `check` names the check file (`.asbuilt/<check>.json`) that covers the feature; one check file can cover several features. Use `why` for features AsBuilt can't check (payments, emails, server-only rules) or that are waiting on something (a test account). Keep features the user hasn't confirmed, with `"confirmed": false`; remove one only if the user says it isn't a feature.
+5. **Then draft checks for the features that matter most** (start with 3 to 5: sign-in, the main money or core path, and anything private), following the steps below. On every later pull request, add new features the PR introduces to the map, and say which ones still have no check.
+
+Every PR comment shows coverage from the map ("6 of 24 features have checks", then the unchecked ones), so gaps stay visible instead of silent.
+
+### Checks for a feature
+
+1. Recover intent for the features you're checking from the feature map, what the user says, the PR description and the files the PR changes. Complete the context review below. Ask when intent is unclear; don't invent requirements.
 2. Draft observable checks and show them in plain language with the exact kinds and values. Get the user's approval of this concrete plan.
    - **Questions, not failures.** When you notice behavior the user never specified (a page that opens while signed out, a menu shown to everyone, a missing state), present it as a question: "Should signed-out visitors see this?" Never label it a failure or a defect. If they answer, record the answer as a check (use `"occurrence": "none"` for "must not be shown", paired with a positive check on the same page). If they're unsure, leave it out. A check is only a requirement once the user has said so.
 3. Only after approval, write one file per feature: `.asbuilt/<feature>.json` (for example `.asbuilt/checkout.json`) with `intent`, `criteria` and, if needed, `execution`, `journey`, `actionsApproved`, `network` or `signIn`. Keep earlier features' files: every PR rechecks all of them, which is how regressions get caught. Never write `target` or `approved`: the workflow supplies the preview address, and the reviewed file is the approval record. Put wider permissions (clicks, page network traffic, sign-in) in the file only if the user approved them, so they show up in the PR diff.
    - Sign-in: `"signIn": {"path": "/login", "emailLabel": "Email", "passwordLabel": "Password", "submit": "Sign in", "signedInText": "Sign out"}` with `journey: true`, `execution: "interactive"`, `network: "browser"`, `networkApproved: true` and `environment: "test"`. Never put an email or password in the file. The user adds a dedicated test account as repository secrets `ASBUILT_TEST_EMAIL` and `ASBUILT_TEST_PASSWORD`; never ask them to paste it into the chat.
 4. Committing, pushing or opening a pull request is a repository write. Do it only when the user asks. Otherwise give them the file and tell them where to put it.
-5. **Setup ("set up AsBuilt on my repo")**: with permission, add `../../templates/asbuilt-workflow.yml` (relative to this skill) to their repository as `.github/workflows/asbuilt.yml`, plus a first `.asbuilt/<feature>.json` drafted with them, on a new branch with a pull request. Then tell them, in plain steps, what only they can do in GitHub: if their Vercel previews are protected, add the project's automation bypass secret as repository secret `VERCEL_AUTOMATION_BYPASS_SECRET` and uncomment that line; if a plan signs in, add the test account secrets and uncomment those lines. Nothing else needs installing.
+5. **Setup ("set up AsBuilt on my repo")**: map the app first (above). Then, with permission, add `../../templates/asbuilt-workflow.yml` (relative to this skill) to their repository as `.github/workflows/asbuilt.yml`, plus `.asbuilt/features.json` and the first few check files, on a new branch with a pull request. Then tell them, in plain steps, what only they can do in GitHub: if their Vercel previews are protected, add the project's automation bypass secret as repository secret `VERCEL_AUTOMATION_BYPASS_SECRET` and uncomment that line; if a plan signs in, add the test account secrets and uncomment those lines. Nothing else needs installing.
 6. Report a run in three groups: **failed** (contradicts what the user said they want), **not verified** (with the reason), and **passed**. Keep any new observations you make while reading the evidence separate, as questions.
 7. Read results from the PR comment or the workflow's job summary. Report passes, failures and Not verified separately, and point to the **asbuilt-evidence** artifact (`screenshots/<feature>/`) for desktop and mobile screenshots. Never describe a screenshot you haven't seen. If the user asks you to fix a failure, the comment's fix prompt is a starting point, not proof: change the code, then let the next preview's run decide.
 

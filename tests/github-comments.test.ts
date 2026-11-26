@@ -83,7 +83,7 @@ test("untrusted page text in PR comments cannot mention, link, or inject markup"
   assert.ok(!rendered.includes("@org/admins"));
   assert.ok(!rendered.includes("evil.example"));
   assert.match(body, /\*\*1 fail · 1 not verified\*\*/);
-  assert.match(body, /Not verified” means/);
+  assert.match(body, /“Not verified” is never a pass/);
 });
 
 test("inert caps length and never returns an empty code span", () => {
