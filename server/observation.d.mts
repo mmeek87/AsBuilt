@@ -5,3 +5,7 @@ export function observe(
   c: Criterion,
   options?: { staticMode?: boolean; waitMs?: number },
 ): Promise<Pick<Result, "status" | "observed">>;
+export function blocker(
+  page: Page,
+  documentStatus?: number,
+): Promise<string>;

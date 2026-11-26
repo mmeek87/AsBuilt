@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, isAbsolute, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const commands = { status: 'get_connection_status', capture: 'capture_intent', plan: 'generate_criteria', run: 'start_verification', progress: 'check_verification', report: 'get_report' };
+const commands = { baseline: 'establish_product_baseline', context: 'get_product_context', revise: 'revise_product_baseline', status: 'get_connection_status', capture: 'capture_intent', plan: 'generate_criteria', run: 'start_verification', progress: 'check_verification', report: 'get_report', 'save-product': 'save_product_review', products: 'list_product_reviews', product: 'get_product_review', 'run-scenario': 'run_product_scenario' };
 export function endpoint(value = 'http://127.0.0.1:4310') {
   const url = new URL(value);
   if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(url.hostname) || url.username || url.password || url.search || url.hash || url.pathname !== '/')
@@ -25,25 +25,26 @@ export function parse(argv) {
     else rest.push(a);
   }
   const [command, input, ...extra] = rest;
-  if (!Object.hasOwn(commands, command ?? '')) throw Error('Commands: status, capture <json>, plan <json>, run <json> --approved, progress <id>, report <id>. Supply --home /absolute/path/to/AsBuilt.');
-  if (extra.length || (command === 'status' ? input !== undefined : !input)) throw Error('Unexpected or missing command arguments.');
+  if (!Object.hasOwn(commands, command ?? '')) throw Error('Commands: status, capture <json>, plan <json>, run <json> --approved, progress <id>, report <id>, baseline <json>, context <id>, revise <json>, save-product <json>, products, product <id>, run-scenario <json> --approved. Supply --home /absolute/path/to/AsBuilt.');
+  if (extra.length || (['status','products'].includes(command) ? input !== undefined : !input)) throw Error('Unexpected or missing command arguments.');
   if (!home || !isAbsolute(home)) throw Error('--home must name the absolute path to your local AsBuilt checkout.');
-  if (command !== 'run' && (approved || actionsApproved || networkApproved)) throw Error('Approval flags are only valid for run.');
-  if (command === 'run' && !approved) throw Error('Show the exact target and checks to the user, then pass --approved only after approval.');
+  if (!['run','run-scenario'].includes(command) && (approved || actionsApproved || networkApproved)) throw Error('Approval flags are only valid for run or run-scenario.');
+  if (['run','run-scenario'].includes(command) && !approved) throw Error('Show the exact target and checks to the user, then pass --approved only after approval.');
   return {home, url:endpoint(url), command, input, approved, actionsApproved, networkApproved};
 }
 export function payload(options) {
-  if (options.command === 'status') return {};
-  if (['progress','report'].includes(options.command)) {
+  if (['status','products'].includes(options.command)) return {};
+  if (['progress','report','product','context'].includes(options.command)) {
     if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(options.input)) throw Error('Use the run ID returned by AsBuilt.');
     return {id:options.input};
   }
   const path = resolve(options.input);
   const text = readFileSync(path,'utf8');
-  if (Buffer.byteLength(text) > 64000) throw Error('Input must be smaller than 64 KB.');
+  const limit = ['save-product','baseline','revise'].includes(options.command) ? 900000 : 64000;
+  if (Buffer.byteLength(text) > limit) throw Error(`Input must be smaller than ${limit / 1000} KB.`);
   const body = JSON.parse(text);
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw Error('Input must be a JSON object.');
-  if (options.command === 'run') {
+  if (['run','run-scenario'].includes(options.command)) {
     // A saved file cannot grant permission. Only explicit invocation flags can.
     delete body.approved; delete body.actionsApproved; delete body.networkApproved;
     body.approved = true;

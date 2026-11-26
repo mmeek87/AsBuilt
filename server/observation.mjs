@@ -155,3 +155,27 @@ async function observeSingle(page, c, { staticMode = false, waitMs = 0 } = {}) {
     observed: `Found ${count} visible ${c.kind} match(es) for “${c.value}” (${mode}; ${(c.occurrence ?? "unique") === "unique" ? "exactly one required" : "at least one required"}).`,
   };
 }
+
+/**
+ * Environmental reasons a missing outcome can't be blamed on the app.
+ * Called only when a check would otherwise fail. Returns a plain-language
+ * explanation (the check becomes Not verified) or "" (the failure stands).
+ *  - The current page itself returned an HTTP error (outage, bad gateway).
+ *  - The page asks for a password: AsBuilt never signs in, so content
+ *    behind sign-in was not observable.
+ */
+export async function blocker(page, documentStatus) {
+  if (documentStatus === 401 || documentStatus === 403)
+    return `The page returned HTTP ${documentStatus}: it's protected or needs sign-in, so this outcome could not be observed. For a Vercel preview with Deployment Protection, add the project's automation bypass secret (see docs/github-action.md). This isn't a confirmed defect.`;
+  if (documentStatus && documentStatus >= 400)
+    return `The page returned HTTP ${documentStatus}, so this outcome could not be observed. This looks like an environment problem (the site was down or erroring), not a confirmed defect. Retry when the site is available.`;
+  try {
+    const password = await page
+      .locator('input[type="password"]')
+      .filter({ visible: true })
+      .count();
+    if (password > 0)
+      return "This page asks for a password. AsBuilt never signs in, so content behind sign-in could not be checked. Use a preview that doesn't need sign-in, or verify this step manually with a test account.";
+  } catch {}
+  return "";
+}

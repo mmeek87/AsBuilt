@@ -1073,6 +1073,7 @@ textarea {
   }
   .app-nav nav {
     flex-direction: row;
+    flex-wrap: wrap;
     gap: 6px;
   }
   .nav-item {
@@ -1291,6 +1292,10 @@ textarea {
     font-size: 12px;
   }
 }
+.product-coverage { overflow-wrap: anywhere; }
+.product-coverage details { margin: 20px 0; }
+.product-coverage .review-list button { flex-wrap: wrap; justify-content: flex-start; text-align: left; }
+.product-coverage .review-list small { display: block; flex-basis: 100%; }
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1411,3 +1416,12 @@ textarea {
 
 .unlock .remember-device { display: flex; align-items: center; gap: 10px; margin: 20px 0; font-weight: 400; }
 .unlock .remember-device input { width: 18px; height: 18px; margin: 0; flex: 0 0 auto; }
+
+.product-coverage .attention {
+  border-left: 3px solid var(--muted);
+  padding: 4px 0 4px 16px;
+  margin: 16px 0 24px;
+}
+.product-coverage .attention h3 { margin: 0 0 8px; }
+.product-coverage .attention ul { margin: 0; padding-left: 20px; }
+.product-coverage h2:focus, .product-coverage h1:focus { outline-offset: 4px; }

@@ -1,5 +1,8 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import {
+  StdioClientTransport,
+  getDefaultEnvironment,
+} from "@modelcontextprotocol/sdk/client/stdio.js";
 import { fileURLToPath } from "node:url";
 const client = new Client({ name: "asbuilt-connection-check", version: "1.0" });
 try {
@@ -14,6 +17,16 @@ try {
         fileURLToPath(new URL("../server/stdio.ts", import.meta.url)),
       ],
       stderr: "inherit",
+      // Forward only AsBuilt's own connection settings, so a custom data
+      // folder or port can be checked. Other host variables stay out.
+      env: {
+        ...getDefaultEnvironment(),
+        ...Object.fromEntries(
+          ["ASBUILT_TOKEN", "ASBUILT_TOKEN_FILE", "ASBUILT_URL"]
+            .filter((k) => process.env[k])
+            .map((k) => [k, process.env[k]!]),
+        ),
+      },
     }),
   );
   const tools = await client.listTools();

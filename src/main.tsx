@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Criterion, Report } from "../server/schema.ts";
 import "./style.css";
+import { ProductReviews } from "./product-reviews.tsx";
 type Config = {
   hosting?: "vercel";
   executionEnabled?: boolean;
@@ -22,6 +23,15 @@ type Draft = {
   gaps: string[];
   activity: string[];
   evidence: { path: string; line: number; quote: string }[];
+  changedFiles?: {
+    files: {
+      path: string;
+      status: string;
+      additions: number;
+      deletions: number;
+    }[];
+    truncated: boolean;
+  };
   source?: {
     url: string;
     sha: string;
@@ -125,9 +135,9 @@ function App() {
       null,
     ),
     [commentApproved, setCommentApproved] = useState(false);
-  const [view, setView] = useState<"review" | "history" | "connections">(
-    "review",
-  );
+  const [view, setView] = useState<
+    "review" | "history" | "connections" | "products"
+  >("review");
   const [execution, setExecution] = useState<"static" | "interactive">(
     "static",
   );
@@ -239,6 +249,17 @@ function App() {
         </div>
         <nav aria-label="Workspace">
           <button
+            className={view === "products" ? "nav-item active" : "nav-item"}
+            aria-current={view === "products" ? "page" : undefined}
+            onClick={() => {
+              setView("products");
+              setError("");
+            }}
+          >
+            <Icon name="file" />
+            Product coverage
+          </button>
+          <button
             className={view === "review" ? "nav-item active" : "nav-item"}
             aria-current={view === "review" ? "page" : undefined}
             onClick={() => {
@@ -306,15 +327,17 @@ function App() {
         <span className="breadcrumb">
           Workspace <span>/</span>{" "}
           <strong>
-            {view === "history"
-              ? "Past reviews"
-              : view === "connections"
-                ? "Connections"
-                : step === 0
-                  ? "New review"
-                  : step === 1
-                    ? "Review plan"
-                    : "Verification report"}
+            {view === "products"
+              ? "Product coverage"
+              : view === "history"
+                ? "Past reviews"
+                : view === "connections"
+                  ? "Connections"
+                  : step === 0
+                    ? "New review"
+                    : step === 1
+                      ? "Review plan"
+                      : "Verification report"}
           </strong>
         </span>
         <span className="version">
@@ -373,6 +396,19 @@ function App() {
           <p role="status">Opening your workspace…</p>
         ) : (
           <>
+            {view === "products" && (
+              <ProductReviews
+                heading={heading}
+                openRun={(id) =>
+                  void action("Opening evidence…", async () => {
+                    setReport(await api(`/api/runs/${id}`));
+                    setComment(null);
+                    setStep(2);
+                    setView("review");
+                  })
+                }
+              />
+            )}
             {view === "history" && (
               <section className="utility-page">
                 <h1 ref={heading} tabIndex={-1}>
@@ -875,6 +911,27 @@ function App() {
                               {draft.source.sha.slice(0, 7)}
                             </summary>
                             <p>{draft.source.title}</p>
+                            {draft.changedFiles && (
+                              <>
+                                <h4>
+                                  Files this pull request changed (
+                                  {draft.changedFiles.files.length}
+                                  {draft.changedFiles.truncated ? "+" : ""})
+                                </h4>
+                                <p className="hint">
+                                  Used to find features the change might affect.
+                                  A changed file is not proof that anything
+                                  works.
+                                </p>
+                                <ul>
+                                  {draft.changedFiles.files.map((f) => (
+                                    <li key={f.path}>
+                                      <code>{f.path}</code> · {f.status}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </>
+                            )}
                             <ul>
                               {draft.activity.map((a, i) => (
                                 <li key={i}>{a}</li>

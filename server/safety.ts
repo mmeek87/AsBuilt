@@ -38,11 +38,37 @@ export function validateTarget(raw: string, allowed: string[]): URL {
 }
 // Resolve once, validate every returned address, then pin the actual TLS socket.
 // Redirects are never followed here; the browser re-enters this policy for each hop.
+/**
+ * Vercel "Protection Bypass for Automation" for protected previews. The
+ * secret is sent only to an approved preview origin, checked per request,
+ * so a redirect or third-party resource never receives it. Not available
+ * with normal browser networking (traffic there is end-to-end encrypted).
+ */
+export function previewAuthHeaders(
+  url: URL,
+  env: NodeJS.ProcessEnv = process.env,
+): Record<string, string> {
+  const secret = env.ASBUILT_VERCEL_BYPASS_SECRET?.trim();
+  if (!secret || /[\r\n]/.test(secret) || secret.length > 512) return {};
+  const origins = (env.ASBUILT_PREVIEW_ORIGINS || "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+  return url.protocol === "https:" && origins.includes(url.origin)
+    ? { "x-vercel-protection-bypass": secret }
+    : {};
+}
 export async function pinnedGet(
   url: URL,
   lookup = dns.lookup,
   navigationHeaders: Record<string, string> = {},
-): Promise<{ status: number; headers: Record<string, string>; body: Buffer }> {
+  options: { setBypassCookie?: boolean } = {},
+): Promise<{
+  status: number;
+  headers: Record<string, string>;
+  body: Buffer;
+  cookies?: string[];
+}> {
   const addresses = await lookup(url.hostname, { all: true });
   if (!addresses.length || addresses.some((a) => !publicAddress(a.address)))
     throw Error("Preview resolves to a private or reserved network.");
@@ -76,6 +102,11 @@ export async function pinnedGet(
                 !/[\r\n]/.test(value),
             ),
           ),
+          ...previewAuthHeaders(url),
+          ...(options.setBypassCookie &&
+          Object.keys(previewAuthHeaders(url)).length
+            ? { "x-vercel-set-bypass-cookie": "true" }
+            : {}),
         },
         timeout: 8000,
       },
@@ -110,6 +141,9 @@ export async function pinnedGet(
             status: res.statusCode ?? 502,
             headers,
             body: Buffer.concat(chunks),
+            ...(options.setBypassCookie
+              ? { cookies: res.headers["set-cookie"] ?? [] }
+              : {}),
           });
         });
       },
@@ -282,6 +316,46 @@ export function journeyResourceAllowed(
 
 export function reviewedDestinations(plan: import("./schema.ts").Plan) {
   return plan.criteria.flatMap((c) =>
-    (c.actions ?? []).filter((a) => a.type === "navigate" || (a.type === "menu" && !!a.value)).map((a) => a.value),
+    (c.actions ?? [])
+      .filter((a) => a.type === "navigate" || (a.type === "menu" && !!a.value))
+      .map((a) => a.value),
   );
+}
+
+/**
+ * For normal browser networking (end-to-end encrypted, so no header can be
+ * added): ask Vercel for its protection-bypass cookie once, from this
+ * process, and hand only that cookie to the browser for the preview origin.
+ */
+export async function vercelBypassCookies(target: URL, lookup = dns.lookup) {
+  if (!Object.keys(previewAuthHeaders(target)).length) return [];
+  const response = await pinnedGet(
+    new URL("/", target.origin),
+    lookup,
+    {},
+    {
+      setBypassCookie: true,
+    },
+  );
+  return (response.cookies ?? []).flatMap((raw) => {
+    const [pair, ...attributes] = raw.split(";").map((x) => x.trim());
+    const at = pair.indexOf("=");
+    if (at < 1) return [];
+    const flags = attributes.map((a) => a.toLowerCase());
+    const same = flags.find((a) => a.startsWith("samesite="))?.slice(9);
+    return [
+      {
+        name: pair.slice(0, at),
+        value: pair.slice(at + 1),
+        url: target.origin,
+        secure: true,
+        httpOnly: flags.includes("httponly"),
+        sameSite: (same === "none"
+          ? "None"
+          : same === "strict"
+            ? "Strict"
+            : "Lax") as "None" | "Strict" | "Lax",
+      },
+    ];
+  });
 }

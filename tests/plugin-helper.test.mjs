@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync, mkdirSync, writeFileSync, rmSync} from 'node:fs';
+import {mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createServer} from 'node:http';
@@ -66,4 +66,33 @@ test('normal network approval must come from invocation, not a saved plan',()=>{
     writeFileSync(file,JSON.stringify({execution:'static',networkApproved:true}));
     assert.equal(payload(parse(['--home',home,'run',file,'--approved'])).networkApproved,undefined);
   } finally {rmSync(home,{recursive:true,force:true});}
+});
+
+test('product commands parse correctly and saved scenario files cannot grant approval', () => {
+  assert.equal(parse(['--home', '/x', 'products']).command, 'products');
+  assert.throws(() => parse(['--home', '/x', 'products', 'extra']), /Unexpected/);
+  assert.throws(() => parse(['--home', '/x', 'save-product', 'p.json', '--approved']), /only valid for run/);
+  assert.throws(() => parse(['--home', '/x', 'run-scenario', 'r.json']), /--approved only after approval/);
+  assert.throws(() => payload({ command: 'product', input: 'not-a-uuid' }), /run ID/);
+  const dir = mkdtempSync(join(tmpdir(), 'asbuilt-plugin-scenario-'));
+  try {
+    const file = join(dir, 'scenario.json');
+    writeFileSync(file, JSON.stringify({ id: '6f1d6c0e-5b0a-4d55-9f43-2f8f0c8b7a11', scenarioId: 's', approved: true, actionsApproved: true, networkApproved: true }));
+    const body = payload(parse(['--home', '/x', 'run-scenario', file, '--approved']));
+    assert.equal(body.approved, true);
+    assert.equal(body.actionsApproved, undefined, 'file cannot approve actions');
+    assert.equal(body.networkApproved, undefined, 'file cannot approve network traffic');
+    const big = join(dir, 'big.json');
+    writeFileSync(big, JSON.stringify({ intent: 'x'.repeat(70000) }));
+    assert.throws(() => payload(parse(['--home', '/x', 'capture', big])), /smaller than 64 KB/);
+    assert.doesNotThrow(() => payload(parse(['--home', '/x', 'save-product', big])));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the plugin ships the same workflow template the docs point to', () => {
+  const root = new URL('..', import.meta.url);
+  assert.equal(
+    readFileSync(new URL('plugins/asbuilt/templates/asbuilt-workflow.yml', root), 'utf8'),
+    readFileSync(new URL('examples/asbuilt-vercel.yml', root), 'utf8'),
+  );
 });

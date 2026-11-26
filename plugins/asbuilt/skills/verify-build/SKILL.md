@@ -1,11 +1,23 @@
 ---
 name: verify-build
-description: Use when the user asks to verify a website, check whether a build matches their intent, test a preview, or review an AsBuilt report. Draft observable checks, obtain approval, and use the local AsBuilt service to collect evidence.
+description: Use when the user asks to verify a website, check whether a build matches their intent, test a preview, set up or review AsBuilt checks on GitHub pull requests, or review an AsBuilt report. Draft observable checks, obtain approval, and collect evidence with the AsBuilt GitHub Action or the local AsBuilt service.
 ---
 
 # Verify a build with AsBuilt
 
 Help the user compare intended behavior with observed website behavior. State clearly what was tested, what failed, and what remains unverified. A coding agent's claim or successful build is not evidence that a user journey works.
+
+## GitHub mode (preferred, no cost)
+
+Use this when the user's repository has `.github/workflows/asbuilt.yml`, or they want AsBuilt on their pull requests. The AsBuilt GitHub Action runs the checks on each preview deployment. It calls no AI model, so you are the planning agent and the Action is the independent observer.
+
+1. Recover intent from what the user says, the PR description, and the files the PR changes. Complete the context review below. Ask when intent is unclear; don't invent requirements.
+2. Draft observable checks and show them in plain language with the exact kinds and values. Get the user's approval of this concrete plan.
+3. Only after approval, write one file per feature: `.asbuilt/<feature>.json` (for example `.asbuilt/checkout.json`) with `intent`, `criteria` and, if needed, `execution`, `journey`, `actionsApproved`, `network` or `signIn`. Keep earlier features' files: every PR rechecks all of them, which is how regressions get caught. Never write `target` or `approved`: the workflow supplies the preview address, and the reviewed file is the approval record. Put wider permissions (clicks, page network traffic, sign-in) in the file only if the user approved them, so they show up in the PR diff.
+   - Sign-in: `"signIn": {"path": "/login", "emailLabel": "Email", "passwordLabel": "Password", "submit": "Sign in", "signedInText": "Sign out"}` with `journey: true`, `execution: "interactive"`, `network: "browser"`, `networkApproved: true` and `environment: "test"`. Never put an email or password in the file. The user adds a dedicated test account as repository secrets `ASBUILT_TEST_EMAIL` and `ASBUILT_TEST_PASSWORD`; never ask them to paste it into the chat.
+4. Committing, pushing or opening a pull request is a repository write. Do it only when the user asks. Otherwise give them the file and tell them where to put it.
+5. **Setup ("set up AsBuilt on my repo")**: with permission, add `../../templates/asbuilt-workflow.yml` (relative to this skill) to their repository as `.github/workflows/asbuilt.yml`, plus a first `.asbuilt/<feature>.json` drafted with them, on a new branch with a pull request. Then tell them, in plain steps, what only they can do in GitHub: if their Vercel previews are protected, add the project's automation bypass secret as repository secret `VERCEL_AUTOMATION_BYPASS_SECRET` and uncomment that line; if a plan signs in, add the test account secrets and uncomment those lines. Nothing else needs installing.
+6. Read results from the PR comment or the workflow's job summary. Report passes, failures and Not verified separately, and point to the **asbuilt-evidence** artifact (`screenshots/<feature>/`) for desktop and mobile screenshots. Never describe a screenshot you haven't seen. If the user asks you to fix a failure, the comment's fix prompt is a starting point, not proof: change the code, then let the next preview's run decide.
 
 ## Local setup
 
@@ -16,6 +28,10 @@ Use the checkout path supplied by the user. If missing, ask for that path. Do no
 Prefer the connected AsBuilt MCP tools when available: call `get_connection_status` and inspect the actual tool schema first. Otherwise call the helper with `node <helper> --home <checkout> status` first. It reads the local access key internally and only connects to loopback. The service never starts implicitly. Installing dependencies or starting the service does not authorize a browser test, cloud setup, external model calls, or repository writes.
 
 ## Workflow
+
+For a short product description, a whole-build request, or adding AsBuilt to an established project, start with the baseline discovery workflow in the product review reference. Do not require the user to supply a full feature list. For later prompts, retrieve the existing baseline and create a linked revision; do not lose prior intent or reuse old passes as verification of a changed build.
+
+For a whole-build or whole-product request, use the product review workflow in [references/product-review.md](references/product-review.md). Do not substitute one successful browser journey for a product assessment. The host assistant recovers context and drafts the map; AsBuilt persists the map, executes approved scenarios and computes evidence coverage. No additional planning-model subscription is required.
 
 1. Use the user's supplied intent and target. Do not make them re-enter known information. Distinguish fictional sample, approved preview, and production. Recommend staging/test environments, test accounts, disposable data and sandbox integrations. Production supports explicitly approved public inspection only, without user actions. Transactions remain unsupported.
 2. Complete the context review below before drafting checks or announcing potential defects. Then draft checks from the requirement record, using the user's current assistant. This does not need AsBuilt's optional planning model or a second API key. `capture <file>` can record intent; `plan <file>` without repository integrations is only a rule-based starter, not site discovery. Optional repository/model planning requires consent to share selected source; never enable it merely because verification was requested.
@@ -40,7 +56,7 @@ Before testing, produce a brief context summary alongside the requirement record
 
 Use the original request, later user corrections and supplied acceptance criteria already available in the conversation. If the build request is in another chat you cannot access, ask for the relevant requirement; do not imply you can read every Claude or ChatGPT conversation. Do not ask the user to repeat information you already have.
 
-Keep a small requirement record alongside the plan, outside the strict run payload. For each requirement record its source (a short user quote or document section), the expected observable outcome, the corresponding check IDs, and any unresolved assumption. Distinguish explicit requirements from your proposed interpretation. Ask only when ambiguity changes what would count as correct; otherwise label a reasonable assumption for review. Missing requirements are gaps, not invented promises.
+Persist the requirement record with `save_product_review` when the tool is available; use a separate document only as a clearly labeled fallback for older servers. For each requirement record its source (a short user quote or document section), expected observable outcomes, corresponding scenario/check IDs, and unresolved assumptions. Distinguish explicit requirements from proposed interpretations. Ask only when ambiguity changes what would count as correct; otherwise label a reasonable assumption for review. Missing requirements are gaps, not invented promises.
 
 Inspect pages or source only with tools and permissions actually available. Discovery supplies accessible names, roles and destinations; it does not establish what the product should do. The running page and implementation are not the acceptance oracle. Never change a required seller, destination, selected state or other expected outcome merely because the build displays something else. Never silently relax exact matching or cardinality to obtain a pass. A semantics or locator correction must preserve the intended requirement and be explained; a changed requirement needs user confirmation.
 

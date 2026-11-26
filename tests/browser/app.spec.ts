@@ -136,11 +136,33 @@ test("MCP initializes, exposes shared tools and returns honest drafts", async ()
   expect(tools.tools.map((t) => t.name).sort()).toEqual([
     "capture_intent",
     "check_verification",
+    "establish_product_baseline",
     "generate_criteria",
     "get_connection_status",
+    "get_product_context",
+    "get_product_review",
     "get_report",
+    "list_product_reviews",
+    "revise_product_baseline",
+    "run_product_scenario",
+    "save_product_review",
     "start_verification",
   ]);
+  const byName = Object.fromEntries(tools.tools.map((t) => [t.name, t]));
+  // Read tools are marked read-only; nothing is destructive; only runs reach the web.
+  for (const name of [
+    "get_product_context",
+    "get_product_review",
+    "list_product_reviews",
+  ])
+    expect(byName[name].annotations?.readOnlyHint).toBe(true);
+  for (const t of tools.tools)
+    expect(t.annotations?.destructiveHint).toBe(false);
+  expect(byName.run_product_scenario.annotations?.openWorldHint).toBe(true);
+  // Approval is a required literal true, never optional or defaulted.
+  expect(byName.run_product_scenario.inputSchema.required).toContain(
+    "approved",
+  );
   const r = await client.callTool({
     name: "generate_criteria",
     arguments: { intent: 'Show a heading called "Welcome".' },
@@ -545,7 +567,7 @@ test("stdio MCP bridge works from another directory and shares HTTP reports", as
   });
   try {
     await client.connect(transport);
-    expect((await client.listTools()).tools).toHaveLength(6);
+    expect((await client.listTools()).tools).toHaveLength(13);
     const status = await client.callTool({
       name: "get_connection_status",
       arguments: {},
@@ -772,22 +794,237 @@ test("reviewed menus open submenus and restrict navigation choices", async ({
   ).rejects.toThrow(/policy/);
 });
 
-test("changing browser engine invalidates reviewed approvals", async ({ page }) => {
+test("changing browser engine invalidates reviewed approvals", async ({
+  page,
+}) => {
   await page.goto("/");
   await page.getByLabel("Workspace access key").fill(token);
   await page.getByRole("button", { name: "Open workspace" }).click();
   await page.getByRole("button", { name: "Use an example" }).click();
   await page.getByRole("button", { name: "Create review plan" }).click();
-  await page.getByLabel("Browser mode", { exact: true }).selectOption("interactive");
+  await page
+    .getByLabel("Browser mode", { exact: true })
+    .selectOption("interactive");
   const engine = page.getByLabel("Browser engine", { exact: true });
   await expect(engine.locator("option")).toHaveCount(3);
-  await page.getByLabel("I approve the exact actions", { exact: false }).check();
+  await page
+    .getByLabel("I approve the exact actions", { exact: false })
+    .check();
   await page.getByLabel("I’ve reviewed these checks", { exact: false }).check();
-  await expect(page.getByRole("button", { name: "Run reviewed checks" })).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "Run reviewed checks" }),
+  ).toBeEnabled();
   await engine.selectOption("firefox");
-  await expect(page.getByLabel("I approve the exact actions", { exact: false })).not.toBeChecked();
-  await expect(page.getByLabel("I’ve reviewed these checks", { exact: false })).not.toBeChecked();
-  await expect(page.getByRole("button", { name: "Run reviewed checks" })).toBeDisabled();
+  await expect(
+    page.getByLabel("I approve the exact actions", { exact: false }),
+  ).not.toBeChecked();
+  await expect(
+    page.getByLabel("I’ve reviewed these checks", { exact: false }),
+  ).not.toBeChecked();
+  await expect(
+    page.getByRole("button", { name: "Run reviewed checks" }),
+  ).toBeDisabled();
   await engine.selectOption("webkit");
   await expect(engine).toHaveValue("webkit");
+});
+
+test("product coverage leads with what needs attention and links real run evidence", async ({
+  page,
+  request,
+}) => {
+  const headers = { Authorization: `Bearer ${token}` };
+  const name = `Sample studio ${Date.now()}`;
+  const content =
+    'Visitors see a heading called "Plan your visit".\nThe page promises free cancellation.\nBookings send a confirmation email.';
+  const saved = await (
+    await request.post("/api/products", {
+      headers,
+      data: {
+        title: name,
+        understanding: "A fictional studio booking page.",
+        sources: [
+          {
+            id: "ask",
+            title: "Founder request",
+            kind: "user_request",
+            reference: "chat",
+            content,
+          },
+        ],
+        missingContext: ["Email delivery is not observable in a browser."],
+        decisions: [],
+        requirements: [
+          {
+            id: "heading",
+            title: "Welcome heading",
+            actor: "Visitor",
+            priority: "critical",
+            citations: [{ sourceId: "ask", line: 1, quote: "Plan your visit" }],
+            outcomes: [
+              {
+                id: "heading-visible",
+                expected: "The heading is visible",
+                checks: [{ scenarioId: "page", criterionId: "heading" }],
+              },
+            ],
+          },
+          {
+            id: "cancel",
+            title: "Cancellation promise",
+            actor: "Visitor",
+            priority: "important",
+            citations: [
+              { sourceId: "ask", line: 2, quote: "free cancellation" },
+            ],
+            outcomes: [
+              {
+                id: "cancel-text",
+                expected: "Free cancellation is promised",
+                checks: [{ scenarioId: "page", criterionId: "cancel" }],
+              },
+            ],
+          },
+          {
+            id: "email",
+            title: "Confirmation email",
+            actor: "Visitor",
+            priority: "important",
+            citations: [
+              { sourceId: "ask", line: 3, quote: "confirmation email" },
+            ],
+            outcomes: [
+              {
+                id: "email-sent",
+                expected: "An email arrives",
+                checks: [],
+                gap: "Email delivery is outside browser coverage.",
+              },
+            ],
+          },
+        ],
+        scenarios: [
+          {
+            id: "page",
+            title: "Booking page",
+            plan: {
+              intent: "Booking page content",
+              target: "sample",
+              execution: "static",
+              criteria: [
+                {
+                  id: "heading",
+                  expected: "The heading is visible",
+                  kind: "heading",
+                  value: "Plan your visit",
+                },
+                {
+                  id: "cancel",
+                  expected: "Free cancellation is promised",
+                  kind: "text",
+                  value: "Free cancellation",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    })
+  ).json();
+  expect(saved.id).toBeTruthy();
+
+  await page.goto("/");
+  await page.getByLabel("Workspace access key").fill(token);
+  await page.getByRole("button", { name: "Open workspace" }).click();
+  await page.getByRole("button", { name: "Product coverage" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Product coverage", level: 1 }),
+  ).toBeFocused();
+  await page.getByRole("button", { name: new RegExp(name) }).click();
+  await expect(page.getByRole("heading", { name })).toBeFocused();
+  await expect(
+    page.getByRole("heading", { name: "0 of 3 requirements verified" }),
+  ).toBeVisible();
+  await expect(page.getByText("3 haven’t been checked yet.")).toBeVisible();
+  await expect(
+    page.getByText("Your request", { exact: false }).first(),
+  ).toBeAttached();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+  // Nothing runs without the explicit per-scenario approval.
+  await page.getByText("Booking page", { exact: true }).click();
+  const run = page.getByRole("button", { name: "Run this scenario" });
+  await expect(run).toBeDisabled();
+  await page.getByLabel("I approve this scenario", { exact: false }).check();
+  await run.click();
+  await expect(
+    page.getByRole("heading", { name: "Verification report" }),
+  ).toBeVisible({ timeout: 45000 });
+  await expect
+    .poll(
+      async () =>
+        (
+          await (
+            await request.get(`/api/products/${saved.id}`, { headers })
+          ).json()
+        ).runs.length,
+    )
+    .toBe(1);
+  await expect
+    .poll(
+      async () => {
+        const runs = (
+          await (
+            await request.get(`/api/products/${saved.id}`, { headers })
+          ).json()
+        ).runs;
+        return (
+          await (
+            await request.get(`/api/runs/${runs[0].runId}`, { headers })
+          ).json()
+        ).status;
+      },
+      { timeout: 45000 },
+    )
+    .toBe("complete");
+
+  const coverage = await (
+    await request.get(`/api/products/${saved.id}`, { headers })
+  ).json();
+  const status = Object.fromEntries(
+    coverage.requirements.map((r: any) => [r.id, r.status]),
+  );
+  // Real sample evidence: heading present, cancellation text absent, email untestable.
+  expect(status).toEqual({
+    heading: "verified",
+    cancel: "mismatch",
+    email: "not_tested",
+  });
+  // A plain mismatch is already reported; it is not an "unclear" failure.
+  expect(coverage.observedMismatches).toBe(0);
+
+  await page.getByRole("button", { name: "Product coverage" }).click();
+  await page.getByRole("button", { name: new RegExp(name) }).click();
+  await expect(
+    page.getByRole("heading", { name: "1 of 3 requirements verified" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("1 didn’t behave as described. Review the evidence."),
+  ).toBeVisible();
+  await expect(page.getByText(/also failed a check/)).toHaveCount(0);
+  await expect(
+    page.getByRole("button", {
+      name: "View run evidence for: Free cancellation is promised",
+    }),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.screenshot({
+    path: "test-results/product-coverage-mobile.png",
+    fullPage: true,
+  });
 });

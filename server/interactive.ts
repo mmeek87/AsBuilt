@@ -1,5 +1,9 @@
 import { createBrowserNetwork } from "./browser-network.ts";
-import { journeyResourceAllowed, reviewedDestinations } from "./safety.ts";
+import {
+  journeyResourceAllowed,
+  reviewedDestinations,
+  vercelBypassCookies,
+} from "./safety.ts";
 import {
   recordBlockedResource,
   resourceFailureReason,
@@ -43,6 +47,26 @@ export function workerCommand(sample: boolean, id: string) {
           "asbuilt-browser:local",
         ],
       };
+}
+/**
+ * Minimal environment for the browser worker. Host secrets are never passed.
+ * The local sample worker also needs Playwright's browser location when the
+ * operator (or CI) installs browsers outside the default cache; without it
+ * every interactive sample run ends "interrupted". The Docker worker is
+ * unaffected: its image bundles browsers and docker receives no -e flags.
+ */
+export function workerEnv(
+  sample: boolean,
+  source: NodeJS.ProcessEnv = process.env,
+) {
+  const env: Record<string, string | undefined> = {
+    PATH: source.PATH,
+    HOME: source.HOME,
+    TMPDIR: source.TMPDIR,
+  };
+  if (sample && source.PLAYWRIGHT_BROWSERS_PATH)
+    env.PLAYWRIGHT_BROWSERS_PATH = source.PLAYWRIGHT_BROWSERS_PATH;
+  return env;
 }
 const resultSchema = z.object({
   type: z.literal("result"),
@@ -98,11 +122,7 @@ export async function runInteractive(report: Report) {
   const child = spawn(spec.command, spec.args, {
     stdio: ["pipe", "pipe", "pipe"],
     detached: true,
-    env: {
-      PATH: process.env.PATH,
-      HOME: process.env.HOME,
-      TMPDIR: process.env.TMPDIR,
-    },
+    env: workerEnv(sample),
   });
   let stderr = "";
   child.stderr.on("data", (chunk) => {
@@ -190,7 +210,9 @@ export async function runInteractive(report: Report) {
             new URL(url),
             undefined,
             report.plan.journey
-              ? z.record(z.string().max(12000)).parse(message.headers ?? {})
+              ? z
+                  .record(z.string(), z.string().max(12000))
+                  .parse(message.headers ?? {})
               : {},
           );
           totalBytes += fetched.body.length;
@@ -332,7 +354,27 @@ export async function runInteractive(report: Report) {
       });
       child.once("close", resolveExit);
     });
-    send({ type: "start", plan: report.plan });
+    // Secrets travel only on the worker's private channel, never in the
+    // plan, report or logs.
+    const target =
+      report.plan.target === "sample" ? undefined : new URL(report.plan.target);
+    const cookies =
+      target && report.plan.network === "browser"
+        ? await vercelBypassCookies(target).catch(() => [])
+        : [];
+    send({
+      type: "start",
+      plan: report.plan,
+      ...(report.plan.signIn
+        ? {
+            credentials: {
+              email: process.env.ASBUILT_TEST_EMAIL ?? "",
+              password: process.env.ASBUILT_TEST_PASSWORD ?? "",
+            },
+          }
+        : {}),
+      ...(cookies.length ? { cookies } : {}),
+    });
     const code = await exit;
     await chain;
     if (

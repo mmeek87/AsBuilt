@@ -1,4 +1,4 @@
-import { observe } from "./observation.mjs";
+import { observe, blocker } from "./observation.mjs";
 export { observe } from "./observation.mjs";
 import { recordBlockedResource } from "./resource-evidence.ts";
 import { chromium, type Page } from "playwright";
@@ -172,7 +172,10 @@ async function run(report: Report) {
           timeout: 25000,
         });
         if (!response || response.status() >= 400)
-          navigationError = `Preview returned HTTP ${response?.status() ?? "unknown"}.`;
+          navigationError =
+            response?.status() === 401 || response?.status() === 403
+              ? `Preview returned HTTP ${response.status()}: it's protected or needs sign-in. For a Vercel preview with Deployment Protection, add the automation bypass secret (docs/github-action.md).`
+              : `Preview returned HTTP ${response?.status() ?? "unknown"}.`;
       } catch {
         navigationError =
           "The preview could not be loaded safely. Check the URL and network policy.";
@@ -195,11 +198,19 @@ async function run(report: Report) {
           "Screenshot capture failed. Evidence is incomplete.";
       }
       for (const criterion of report.plan.criteria) {
-        const observation = navigationError
+        let observation = navigationError
           ? { status: "not_verified" as const, observed: navigationError }
           : await observe(page, criterion, {
               staticMode: report.mode !== "sample",
             });
+        if (observation.status === "fail") {
+          const reason = await blocker(page);
+          if (reason)
+            observation = {
+              status: "not_verified",
+              observed: `${reason} What AsBuilt saw: ${observation.observed}`,
+            };
+        }
         const result: Result = {
           criterion,
           viewport: viewport.name,

@@ -13,7 +13,6 @@ playwright-report/
 *.log
 .mcp.json
 
-!.env.cloud.example
 .vercel/
 compiled-server/
 

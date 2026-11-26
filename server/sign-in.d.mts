@@ -1,0 +1,13 @@
+import type { Page } from "playwright";
+export function signIn(
+  page: Page,
+  config: {
+    path: string;
+    emailLabel: string;
+    passwordLabel: string;
+    submit: string;
+    signedInText: string;
+  },
+  credentials: { email: string; password: string } | undefined,
+  origin: string,
+): Promise<{ ok: true } | { ok: false; reason: string }>;

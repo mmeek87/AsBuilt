@@ -1,0 +1,7 @@
+{
+  "intent": "Self-test: the bundled sample has a welcome heading but never promises free cancellation.",
+  "criteria": [
+    { "id": "heading", "expected": "The welcome heading is visible", "kind": "heading", "value": "Plan your visit" },
+    { "id": "cancel", "expected": "Free cancellation is promised", "kind": "text", "value": "Free cancellation" }
+  ]
+}

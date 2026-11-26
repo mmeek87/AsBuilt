@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable && pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec tsc --noEmit && pnpm exec tsc -p tsconfig.server.json --noEmit
+      - run: pnpm build
+      - run: pnpm test
+      - run: pnpm test:e2e
+      - name: Keep e2e screenshots
+        if: always()
+        # Best effort: a full artifact quota shouldn't fail a passing build.
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: test-results
+          retention-days: 7
+
+  action-self-test:
+    # Runs this repository's own Action against the bundled sample and checks
+    # it reports the real mismatch instead of passing everything.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - id: asbuilt
+        uses: ./
+        with:
+          url: sample
+          plan: .asbuilt/self-test-plan.json
+          comment: "false"
+          fail-on-mismatch: "false"
+      - name: Expect 2 passes and 2 observed mismatches
+        env:
+          PASSED: ${{ steps.asbuilt.outputs.passed }}
+          FAILED: ${{ steps.asbuilt.outputs.failed }}
+          STATUS: ${{ steps.asbuilt.outputs.status }}
+        run: |
+          echo "status=$STATUS passed=$PASSED failed=$FAILED"
+          test "$STATUS" = complete && test "$PASSED" = 2 && test "$FAILED" = 2

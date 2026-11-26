@@ -1,5 +1,5 @@
 import { runJourney } from "./journey-worker.mjs";
-import { observe } from "./observation.mjs";
+import { observe, blocker } from "./observation.mjs";
 import { staticHtml } from "./static-fixture.mjs";
 import { perform } from "./interaction-policy.mjs";
 import { chromium, firefox, webkit } from "playwright";
@@ -23,7 +23,7 @@ input.on("line", (line) => {
       resolve?.(message);
     } else if (message.type === "start" && !started) {
       started = true;
-      void run(message.plan)
+      void run(message.plan, message.credentials, message.cookies)
         .then(() => process.stdout.write("", () => process.exit(0)))
         .catch(() => {
           send({
@@ -64,7 +64,7 @@ async function resource(request, scope) {
   });
   return result;
 }
-async function run(plan) {
+async function run(plan, credentials, cookies = []) {
   if (plan.network === "browser") tunnelProxy = await createTunnelProxy(send);
   const engine = { chromium, firefox, webkit }[plan.browser ?? "chromium"];
   const browser = await engine.launch({
@@ -83,7 +83,7 @@ async function run(plan) {
   });
   try {
     if (plan.journey) {
-      await runJourney(browser, plan, resource, send);
+      await runJourney(browser, plan, resource, send, credentials, cookies);
       send({ type: "done" });
       return;
     }
@@ -101,6 +101,7 @@ async function run(plan) {
           acceptDownloads: false,
           permissions: [],
         });
+        if (cookies.length) await context.addCookies(cookies);
         let blocked = 0;
         let pageError = false;
         const log = [];
@@ -160,6 +161,14 @@ async function run(plan) {
         });
         const page = await context.newPage();
         page.setDefaultTimeout(3000);
+        let documentStatus;
+        page.on("response", (response) => {
+          if (
+            response.request().isNavigationRequest() &&
+            response.frame() === page.mainFrame()
+          )
+            documentStatus = response.status();
+        });
         page.on("pageerror", () => {
           pageError = true;
         });
@@ -219,6 +228,14 @@ async function run(plan) {
                 ? error.message
                 : "An action or navigation could not complete safely. Subsequent actions were not attempted.",
           };
+        }
+        if (observation.status === "fail") {
+          const reason = await blocker(page, documentStatus);
+          if (reason)
+            observation = {
+              status: "not_verified",
+              observed: `${reason} What AsBuilt saw: ${observation.observed}`,
+            };
         }
         try {
           screenshot = (

@@ -1,9 +1,17 @@
-import { observe } from "./observation.mjs";
+import { observe, blocker } from "./observation.mjs";
 import { perform } from "./interaction-policy.mjs";
 import { journeyFixture } from "./journey-fixture.mjs";
+import { signIn } from "./sign-in.mjs";
 
 // One browser context per viewport. Checkpoints run in order and retain only this run's state.
-export async function runJourney(browser, plan, resource, send) {
+export async function runJourney(
+  browser,
+  plan,
+  resource,
+  send,
+  credentials,
+  cookies = [],
+) {
   const destinations = plan.criteria.flatMap((c) =>
     (c.actions ?? [])
       .filter((a) => a.type === "navigate" || (a.type === "menu" && !!a.value))
@@ -20,12 +28,23 @@ export async function runJourney(browser, plan, resource, send) {
       acceptDownloads: false,
       permissions: [],
     });
+    // Vercel bypass cookie (preview origin only), when provided.
+    if (cookies.length) await context.addCookies(cookies);
     let index = 0,
       blocked = 0,
       criticalBlocked = 0,
       pageErrors = 0,
       stopped = false;
     const page = await context.newPage();
+    // Status of the document currently shown, so a 5xx page isn't read as a missing feature.
+    let documentStatus;
+    page.on("response", (response) => {
+      if (
+        response.request().isNavigationRequest() &&
+        response.frame() === page.mainFrame()
+      )
+        documentStatus = response.status();
+    });
     const scriptErrorMessages = [];
     page.on("pageerror", (error) => {
       pageErrors++;
@@ -99,7 +118,21 @@ export async function runJourney(browser, plan, resource, send) {
       await route.abort();
     });
     let initialError = false;
+    let signInError = "";
+    if (plan.signIn && plan.target !== "sample") {
+      const outcome = await signIn(
+        page,
+        plan.signIn,
+        credentials,
+        new URL(plan.target).origin,
+      ).catch(() => ({
+        ok: false,
+        reason: "Signing in with the test account didn't complete.",
+      }));
+      if (!outcome.ok) signInError = outcome.reason;
+    }
     try {
+      if (signInError) throw Error("sign-in failed");
       const response = await page.goto(
         plan.target === "sample"
           ? "https://sample.asbuilt.invalid/"
@@ -122,6 +155,8 @@ export async function runJourney(browser, plan, resource, send) {
             observed:
               "Not attempted: an earlier journey checkpoint did not pass. No later actions were performed.",
           };
+        else if (signInError)
+          observation = { status: "not_verified", observed: signInError };
         else if (initialError)
           observation = {
             status: "not_verified",
@@ -144,7 +179,22 @@ export async function runJourney(browser, plan, resource, send) {
                   waitUntil: "domcontentloaded",
                   timeout: 10000,
                 });
-              observation = await observe(page, c, { waitMs: 10000 });
+              // Look first: if it's already there, don't wait at all.
+              // Otherwise wait for the page to go quiet, then allow a short
+              // grace period for late rendering. Busy pages (constant
+              // polling) keep a long allowance.
+              observation = await observe(page, c, { waitMs: 300 });
+              if (observation.status !== "pass") {
+                const settled = await page
+                  .waitForLoadState("networkidle", { timeout: 5000 })
+                  .then(
+                    () => true,
+                    () => false,
+                  );
+                observation = await observe(page, c, {
+                  waitMs: settled ? 2000 : 8000,
+                });
+              }
               if (c.expectedUrl)
                 observation.observed += ` URL checkpoint: ${page.url() === c.expectedUrl ? "matches the reviewed destination" : "does not match the reviewed destination"}.`;
               if (page.url() !== c.expectedUrl && c.expectedUrl)
@@ -160,6 +210,14 @@ export async function runJourney(browser, plan, resource, send) {
             };
           }
         }
+        if (observation.status === "fail") {
+          const reason = await blocker(page, documentStatus);
+          if (reason)
+            observation = {
+              status: "not_verified",
+              observed: `${reason} What AsBuilt saw: ${observation.observed}`,
+            };
+        }
         if (observation.status === "fail" && (criticalBlocked || pageErrors))
           observation = {
             status: "not_verified",
@@ -173,6 +231,8 @@ export async function runJourney(browser, plan, resource, send) {
               fullPage: false,
               animations: "disabled",
               timeout: 10000,
+              // Never show typed passwords in evidence.
+              mask: [page.locator('input[type="password"]')],
             })
           ).toString("base64");
         } catch {
