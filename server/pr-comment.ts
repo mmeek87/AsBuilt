@@ -21,7 +21,7 @@ export function inert(text: string, max = 300) {
 
 export function commentBody(
   r: Report,
-  options: { evidenceUrl?: string; marker?: string } = {},
+  options: { evidenceUrl?: string; marker?: string; broken?: string[] } = {},
 ) {
   if (r.status !== "complete" || r.mode === "sample" || !r.plan.source?.pr)
     throw Error(
@@ -44,6 +44,7 @@ export function commentBody(
     `Commit: ${sha}`,
     `Target: ${inert(r.plan.target, 200)}`,
     "",
+    ...brokenLines(options.broken ?? []),
     ...r.results.map(
       (x) =>
         `- **${label[x.status]} · ${x.viewport}** Expected: ${inert(x.criterion.expected)}\n  Observed: ${inert(x.observed)}` +
@@ -71,6 +72,39 @@ export function commentBody(
     options.evidenceUrl
       ? `Report ID: ${r.id}. [Desktop and mobile screenshots](${options.evidenceUrl}) are attached to the workflow run (visible to people with repository access).`
       : `Report ID: ${r.id}. Screenshots are stored locally and are not uploaded to GitHub.`,
+  ].join("\n");
+}
+
+function brokenLines(broken: string[]) {
+  if (!broken.length) return [];
+  return [
+    `**${broken.length} check file${broken.length === 1 ? "" : "s"} couldn't run**, so ${broken.length === 1 ? "that feature wasn't" : "those features weren't"} checked. [How to fix it](${HELP_URL}#plan-couldnt-run)`,
+    ...broken.map((b) => `- ${inert(b)}`),
+    "",
+  ];
+}
+
+/**
+ * Posted when no check file could run, so the pull request shows why
+ * instead of only a failed workflow.
+ */
+export function brokenCommentBody(
+  broken: string[],
+  options: { sha?: string; runUrl?: string; marker?: string } = {},
+) {
+  return [
+    ...(options.marker ? [options.marker] : []),
+    "## AsBuilt verification",
+    "",
+    "**Nothing was checked yet.** This is a problem with the check files or setup, not a finding about your app.",
+    "",
+    ...brokenLines(broken),
+    ...(options.sha && /^[a-f0-9]{40}$/.test(options.sha)
+      ? [`Commit: ${options.sha}`, ""]
+      : []),
+    options.runUrl
+      ? `Details are in [the workflow run](${options.runUrl}). Fix the file, push, and AsBuilt will update this comment.`
+      : "Fix the file, push, and AsBuilt will update this comment.",
   ].join("\n");
 }
 

@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { helpLink } from "../server/help.ts";
+import { brokenCommentBody } from "../server/pr-comment.ts";
 
 test("each Not verified reason links to the matching help section", () => {
   const cases: [string, string][] = [
@@ -19,4 +20,17 @@ test("each Not verified reason links to the matching help section", () => {
   ];
   for (const [observed, topic] of cases)
     assert.equal(helpLink(observed), `https://mmeek87.github.io/AsBuilt/help/#${topic}`, observed);
+});
+
+
+test("a PR with no runnable check file is told why, inertly", () => {
+  const body = brokenCommentBody(
+    ["checkout: This check runs in interactive mode. [x](https://evil.example) @someone"],
+    { sha: "a".repeat(40), marker: "<!-- asbuilt-verification -->" },
+  );
+  assert.ok(body.startsWith("<!-- asbuilt-verification -->"));
+  assert.match(body, /Nothing was checked yet/);
+  assert.match(body, /not a finding about your app/);
+  assert.match(body, /help\/#plan-couldnt-run/);
+  assert.match(body, /- `checkout: This check runs in interactive mode\. \[x\]\(https:\/\/evil\.example\) @someone`/);
 });

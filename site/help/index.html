@@ -35,6 +35,7 @@
     <nav class="toc" aria-label="On this page">
       <ul>
         <li><a href="#not-verified">What “Not verified” means</a></li>
+        <li><a href="#plan-couldnt-run">A check file couldn't run</a></li>
         <li><a href="#protected">The preview is protected (HTTP 401 or 403)</a></li>
         <li><a href="#site-error">The page returned an error (HTTP 500, 502 and similar)</a></li>
         <li><a href="#sign-in-wall">The page asks for a password</a></li>
@@ -53,6 +54,11 @@
       <h2 id="not-verified-h">What “Not verified” means</h2>
       <p>AsBuilt couldn't collect enough evidence to say pass or fail. It is never counted as a pass, and it isn't a bug report either. The line under each result says why. Find that reason below.</p>
       <p><strong>What to do:</strong> Read the reason, fix the setup it points to, and push again. If none of these sections fit, <a href="https://github.com/mmeek87/AsBuilt/issues/new/choose">ask a question</a>.</p>
+    </section>
+    <section class="help-item" id="plan-couldnt-run" aria-labelledby="plan-couldnt-run-h">
+      <h2 id="plan-couldnt-run-h">A check file couldn't run</h2>
+      <p>Before checking anything, AsBuilt reads each file in <code>.asbuilt/</code> and refuses to run one that's broken or asks for more than it's allowed. Nothing about your app was judged. The comment says which file and why.</p>
+      <p><strong>What to do:</strong> Paste the reason to your assistant and ask it to fix the check file. The most common one is an interactive check without approval: once you've reviewed the check, add <code>"actionsApproved": true</code>. Invalid JSON and a start path that isn't a page on the preview are the next most common.</p>
     </section>
     <section class="help-item" id="protected" aria-labelledby="protected-h">
       <h2 id="protected-h">The preview is protected (HTTP 401 or 403)</h2>

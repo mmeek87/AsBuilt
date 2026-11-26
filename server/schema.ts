@@ -251,7 +251,9 @@ export function validateExecution(plan: Plan) {
     !plan.publicReadOnly &&
     !plan.actionsApproved
   )
-    throw Error("Review and approve the interactive actions before running.");
+    throw Error(
+      'This check runs in interactive mode (a full browser with JavaScript), which you need to approve first. Once you have reviewed it, add "actionsApproved": true to the check file.',
+    );
 }
 export const interactiveSampleCriteria: Criterion[] = [
   {

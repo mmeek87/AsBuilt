@@ -224,13 +224,42 @@ export function stepSummary(
   ].join("\n");
 }
 
-export async function postComment(report: Report, evidenceUrl?: string) {
+export async function postComment(
+  report: Report,
+  evidenceUrl?: string,
+  broken: string[] = [],
+) {
   const pr = report.plan.source?.pr;
   if (!pr || input("comment", "true") !== "true" || report.mode === "sample")
     return;
   const { commentBody } = await import("./pr-comment.ts");
-  const marker = "<!-- asbuilt-verification -->";
-  const body = commentBody(report, { evidenceUrl, marker });
+  await upsertComment(
+    Number(pr),
+    commentBody(report, { evidenceUrl, marker: MARKER, broken }),
+  );
+}
+
+/** Tells the PR why nothing ran (only check-file or setup problems). */
+export async function postBrokenComment(
+  source: { pr?: unknown; sha?: unknown } | undefined,
+  broken: string[],
+  runUrl?: string,
+) {
+  if (!source?.pr || input("comment", "true") !== "true") return;
+  const { brokenCommentBody } = await import("./pr-comment.ts");
+  await upsertComment(
+    Number(source.pr),
+    brokenCommentBody(broken, {
+      sha: typeof source.sha === "string" ? source.sha : undefined,
+      runUrl,
+      marker: MARKER,
+    }),
+  );
+}
+
+const MARKER = "<!-- asbuilt-verification -->";
+
+async function upsertComment(pr: number, body: string) {
   const repo = env.GITHUB_REPOSITORY;
   try {
     // One comment per PR, updated on each run, so reruns don't add noise.
@@ -238,7 +267,7 @@ export async function postComment(report: Report, evidenceUrl?: string) {
       `/repos/${repo}/issues/${pr}/comments?per_page=100`,
     )) as any[];
     const mine = comments.find(
-      (c) => typeof c.body === "string" && c.body.startsWith(marker),
+      (c) => typeof c.body === "string" && c.body.startsWith(MARKER),
     );
     if (mine)
       await github(`/repos/${repo}/issues/comments/${mine.id}`, {
@@ -297,6 +326,7 @@ export function combine(runs: { feature: string; report: Report }[]): Report {
     limitations: [...new Set(runs.flatMap((r) => r.report.limitations))],
   };
 }
+
 
 async function main() {
   const url = input("url");
@@ -370,15 +400,20 @@ async function main() {
       );
     }
   }
-  if (!runs.length) throw Error(`No plan could run. ${broken.join(" ")}`);
-  const report = combine(runs);
-  writeFileSync(join(results, "report.json"), JSON.stringify(report, null, 2));
-
   const runUrl = env.GITHUB_RUN_ID
     ? `${env.GITHUB_SERVER_URL || "https://github.com"}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}`
     : undefined;
+  if (!runs.length) {
+    const { brokenCommentBody } = await import("./pr-comment.ts");
+    summary(brokenCommentBody(broken, { runUrl }));
+    await postBrokenComment(source as any, broken, runUrl);
+    throw Error(`No plan could run. ${broken.join(" ")}`);
+  }
+  const report = combine(runs);
+  writeFileSync(join(results, "report.json"), JSON.stringify(report, null, 2));
+
   summary(stepSummary(report, runUrl, broken));
-  await postComment(report, runUrl);
+  await postComment(report, runUrl, broken);
 
   const count = (s: string) =>
     report.results.filter((r) => r.status === s).length;
