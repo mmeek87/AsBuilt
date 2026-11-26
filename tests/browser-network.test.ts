@@ -112,3 +112,15 @@ test("untrusted tunnel frames cannot open arbitrary ports or oversized frames", 
   );
   network.close();
 });
+
+test("egress prefers IPv4, since many CI runners can't reach IPv6", async () => {
+  const resolved = await resolvePublicTunnel(
+    "abc.supabase.co:443",
+    lookup(["2606:4700::6812:260a", "104.18.38.10", "172.64.149.246"]) as any,
+  );
+  assert.equal(resolved.address, "104.18.38.10");
+  assert.deepEqual(
+    resolved.addresses.map((a) => a.address),
+    ["104.18.38.10", "172.64.149.246", "2606:4700::6812:260a"],
+  );
+});

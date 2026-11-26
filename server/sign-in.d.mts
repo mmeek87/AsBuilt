@@ -15,6 +15,6 @@ export function signIn(
 ): Promise<{ ok: true } | { ok: false; reason: string }>;
 export function alreadySignedIn(
   page: Page,
-  config: { signedInText: string; signedInPath?: string },
+  config: { signedInText: string; signedInPath?: string; dismiss?: string },
   origin: string,
 ): Promise<boolean>;

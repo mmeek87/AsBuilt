@@ -13,7 +13,7 @@ const topics: [RegExp, string][] = [
   [/static|JavaScript disabled|JavaScript-off/i, "needs-javascript"],
   [/exactly one|scopes?\b|inspection limit/i, "too-many-matches"],
   [/exact .*match|containing match|role\b|check type/i, "check-wording"],
-  [/interaction policy|test-site marker|test action/i, "test-actions"],
+  [/interaction policy|test-site marker|test action|Stripe|test card/i, "test-actions"],
   [/blocked request|script error/i, "blocked-requests"],
   [/not shown|errored/i, "absence"],
   [/could not be (loaded|fetched)|Journey action|URL checkpoint|didn't load/i, "page-didnt-load"],

@@ -25,102 +25,111 @@ export async function runJourney(
     { name: "Desktop", width: 1440, height: 960 },
     { name: "Mobile", width: 390, height: 844 },
   ]) {
-    const context = await browser.newContext({
-      viewport: { width: viewport.width, height: viewport.height },
-      javaScriptEnabled: true,
-      serviceWorkers: "block",
-      acceptDownloads: false,
-      permissions: [],
-    });
-    // Vercel bypass cookie (preview origin only), when provided.
-    if (cookies.length) await context.addCookies(cookies);
     let index = 0,
       blocked = 0,
       criticalBlocked = 0,
       pageErrors = 0,
       stopped = false;
-    const page = await context.newPage();
     // Status of the document currently shown, so a 5xx page isn't read as a missing feature.
     let documentStatus;
-    page.on("response", (response) => {
-      if (
-        response.request().isNavigationRequest() &&
-        response.frame() === page.mainFrame()
-      )
-        documentStatus = response.status();
-    });
     const scriptErrorMessages = [];
-    page.on("pageerror", (error) => {
-      pageErrors++;
-      if (scriptErrorMessages.length < 3)
-        scriptErrorMessages.push(
-          String(error.message)
-            .replace(/https?:\/\/[^\s]+/g, "[URL omitted]")
-            .slice(0, 300),
-        );
-    });
-    page.on("dialog", (dialog) => void dialog.dismiss());
-    context.on("page", (popup) => {
-      if (popup !== page) {
-        blocked++;
-        criticalBlocked++;
-        void popup.close();
-      }
-    });
-    if (plan.network !== "browser")
-      await context.routeWebSocket("**/*", (ws) => {
-        blocked++;
-        criticalBlocked++;
-        ws.close();
+    // A browser context per account: the first test account, and a second
+    // one (for example a store) when the check uses it.
+    const open = async () => {
+      const context = await browser.newContext({
+        viewport: { width: viewport.width, height: viewport.height },
+        javaScriptEnabled: true,
+        serviceWorkers: "block",
+        acceptDownloads: false,
+        permissions: [],
       });
-    await context.route("**/*", async (route) => {
-      const req = route.request();
-      if (plan.network === "browser") {
-        const url = new URL(req.url());
+      // Vercel bypass cookie (preview origin only), when provided.
+      if (cookies.length) await context.addCookies(cookies);
+      const page = await context.newPage();
+      page.on("response", (response) => {
         if (
-          !["https:", "data:", "blob:"].includes(url.protocol) ||
-          (req.isNavigationRequest() &&
-            req.frame() === page.mainFrame() &&
-            url.origin !== new URL(plan.target).origin)
-        ) {
+          response.request().isNavigationRequest() &&
+          response.frame() === page.mainFrame()
+        )
+          documentStatus = response.status();
+      });
+      page.on("pageerror", (error) => {
+        pageErrors++;
+        if (scriptErrorMessages.length < 3)
+          scriptErrorMessages.push(
+            String(error.message)
+              .replace(/https?:\/\/[^\s]+/g, "[URL omitted]")
+              .slice(0, 300),
+          );
+      });
+      page.on("dialog", (dialog) => void dialog.dismiss());
+      context.on("page", (popup) => {
+        if (popup !== page) {
           blocked++;
           criticalBlocked++;
-          await route.abort();
-        } else await route.continue();
-        return;
-      }
-      try {
-        if (plan.target === "sample") {
+          void popup.close();
+        }
+      });
+      if (plan.network !== "browser")
+        await context.routeWebSocket("**/*", (ws) => {
+          blocked++;
+          criticalBlocked++;
+          ws.close();
+        });
+      await context.route("**/*", async (route) => {
+        const req = route.request();
+        if (plan.network === "browser") {
           const url = new URL(req.url());
           if (
-            req.method() === "GET" &&
-            url.origin === "https://sample.asbuilt.invalid" &&
-            ["/", "/store", "/product"].includes(url.pathname) &&
-            !url.search
+            !["https:", "data:", "blob:"].includes(url.protocol) ||
+            (req.isNavigationRequest() &&
+              req.frame() === page.mainFrame() &&
+              url.origin !== new URL(plan.target).origin)
           ) {
-            await route.fulfill({
-              status: 200,
-              contentType: "text/html",
-              body: journeyFixture(url.pathname),
-            });
-            return;
-          }
-        } else {
-          const response = await resource(req, `${viewport.name}-${index}`);
-          if (response.allowed) {
-            await route.fulfill({
-              status: response.status,
-              headers: response.headers,
-              body: Buffer.from(response.body, "base64"),
-            });
-            return;
-          }
+            blocked++;
+            criticalBlocked++;
+            await route.abort();
+          } else await route.continue();
+          return;
         }
-      } catch {}
-      blocked++;
-      if (!["image", "font"].includes(req.resourceType())) criticalBlocked++;
-      await route.abort();
-    });
+        try {
+          if (plan.target === "sample") {
+            const url = new URL(req.url());
+            if (
+              req.method() === "GET" &&
+              url.origin === "https://sample.asbuilt.invalid" &&
+              ["/", "/store", "/product"].includes(url.pathname) &&
+              !url.search
+            ) {
+              await route.fulfill({
+                status: 200,
+                contentType: "text/html",
+                body: journeyFixture(url.pathname),
+              });
+              return;
+            }
+          } else {
+            const response = await resource(req, `${viewport.name}-${index}`);
+            if (response.allowed) {
+              await route.fulfill({
+                status: response.status,
+                headers: response.headers,
+                body: Buffer.from(response.body, "base64"),
+              });
+              return;
+            }
+          }
+        } catch {}
+        blocked++;
+        if (!["image", "font"].includes(req.resourceType())) criticalBlocked++;
+        await route.abort();
+      });
+      return { context, page };
+    };
+    const first = await open();
+    const context = first.context;
+    let page = first.page;
+    let second;
     let initialError = false;
     let signInError = "";
     if (plan.signIn && plan.target !== "sample") {
@@ -189,6 +198,26 @@ export async function runJourney(
           };
         else {
           try {
+            // Switch to the account this checkpoint is for. The second
+            // account (for example the store) signs in the first time it's
+            // needed, in its own browser context.
+            if (c.as === "second") {
+              if (!second) {
+                second = await open();
+                const outcome = await signIn(
+                  second.page,
+                  plan.secondSignIn,
+                  credentials?.second,
+                  new URL(plan.target).origin,
+                ).catch(() => ({
+                  ok: false,
+                  reason: "Signing in with the second test account didn't complete.",
+                }));
+                if (!outcome.ok)
+                  throw Error(`Second account: ${outcome.reason}`);
+              }
+              page = second.page;
+            } else page = first.page;
             if (c.kind === "manual") observation = await observe(page, c);
             else {
               for (const action of c.actions ?? []) {
@@ -238,7 +267,7 @@ export async function runJourney(
           } catch (error) {
             observation = {
               status: "not_verified",
-              observed: `Journey action or URL checkpoint could not complete. ${/policy|permitted|ambiguous|reviewed/i.test(error.message ?? "") ? error.message : "No later actions were attempted."}`,
+              observed: `Journey action or URL checkpoint could not complete. ${/policy|permitted|ambiguous|reviewed|Stripe|test-site marker|test card|Second account|matching link/i.test(error.message ?? "") ? error.message : "No later actions were attempted."}`,
             };
           }
         }
@@ -318,6 +347,7 @@ export async function runJourney(
       }
     } finally {
       await context.close();
+      await second?.context.close().catch(() => {});
     }
   }
 }

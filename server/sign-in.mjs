@@ -20,6 +20,44 @@ const onPreview = (page, origin) => {
 };
 
 export async function signIn(page, config, credentials, origin) {
+  // Hosts whose requests failed while signing in: names only, for a useful
+  // explanation when sign-in doesn't stick.
+  const failedHosts = new Set();
+  const onFailed = (req) => {
+    try {
+      failedHosts.add(new URL(req.url()).hostname);
+    } catch {}
+  };
+  page.on("requestfailed", onFailed);
+  try {
+    return await signInSteps(page, config, credentials, origin, failedHosts);
+  } finally {
+    page.off("requestfailed", onFailed);
+  }
+}
+
+// Close a consent banner that could cover the page, only if it's showing.
+async function dismissBanner(page, config) {
+  if (!config.dismiss) return;
+  const banner = page
+    .getByRole("button", { name: config.dismiss, exact: true })
+    .filter({ visible: true });
+  if ((await banner.count().catch(() => 0)) === 1) {
+    await banner.click({ timeout }).catch(() => {});
+    await banner.waitFor({ state: "hidden", timeout: 3000 }).catch(() => {});
+  }
+}
+
+function where(page, failedHosts) {
+  let path = "";
+  try {
+    path = new URL(page.url()).pathname;
+  } catch {}
+  const hosts = [...failedHosts].slice(0, 4).join(", ");
+  return ` AsBuilt ended up on ${path || "an unknown page"}.${hosts ? ` Requests that failed while signing in: ${hosts}.` : ""}`;
+}
+
+async function signInSteps(page, config, credentials, origin, failedHosts) {
   if (!credentials?.email || !credentials?.password)
     return {
       ok: false,
@@ -53,16 +91,7 @@ export async function signIn(page, config, credentials, origin) {
       reason:
         "The sign-in page sent AsBuilt to another site (for example Google or an identity provider). AsBuilt only types a test account into the preview itself, so it stopped. Use email and password sign-in on the preview for test accounts.",
     };
-  // Close a consent banner that could cover the form, only if it's showing.
-  if (config.dismiss) {
-    const banner = page
-      .getByRole("button", { name: config.dismiss, exact: true })
-      .filter({ visible: true });
-    if ((await banner.count()) === 1) {
-      await banner.click({ timeout }).catch(() => {});
-      await banner.waitFor({ state: "hidden", timeout: 3000 }).catch(() => {});
-    }
-  }
+  await dismissBanner(page, config);
   const email = page.getByLabel(config.emailLabel, { exact: true });
   const password = page.getByLabel(config.passwordLabel, { exact: true });
   const button = page.getByRole("button", { name: config.submit, exact: true });
@@ -117,6 +146,31 @@ export async function signIn(page, config, credentials, origin) {
     page.waitForLoadState("load", { timeout: 25000 }).catch(() => {}),
     button.click({ timeout }),
   ]);
+  // Many apps sign in with a background request and only then move on.
+  // Wait for the app to leave the sign-in page (or show an error) before
+  // checking, or the session cookie may not exist yet.
+  // (An error message with text also ends the wait. Empty alert regions,
+  // like a framework's route announcer, don't count.)
+  const errorShown = page
+    .getByRole("alert")
+    .filter({ hasText: /\S/, visible: true })
+    .first();
+  await Promise.race([
+    page.waitForURL((u) => u.pathname !== url.pathname, { timeout: 20000 }),
+    errorShown.waitFor({ state: "visible", timeout: 20000 }),
+  ]).catch(() => {});
+  await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
+  if (onPreview(page, origin) && new URL(page.url()).pathname === url.pathname) {
+    const said = await errorShown
+      .innerText({ timeout: 1000 })
+      .catch(() => "");
+    const message = said.replace(/\s+/g, " ").trim().slice(0, 160);
+    if (message && !message.includes(credentials.email))
+      return {
+        ok: false,
+        reason: `Sign-in didn't go through. The site said: “${message}”. Check the test account in your repository secrets.`,
+      };
+  }
   if (config.signedInPath) {
     const proof = new URL(config.signedInPath, origin);
     if (proof.origin !== origin)
@@ -125,14 +179,23 @@ export async function signIn(page, config, credentials, origin) {
         reason: "The signed-in check page must be on the preview itself.",
       };
     try {
-      await page.goto(proof.href, { waitUntil: "load", timeout: 25000 });
+      // The app may still be redirecting after sign-in; if that interrupts
+      // opening the proof page, let it settle and try once more.
+      await page
+        .goto(proof.href, { waitUntil: "load", timeout: 25000 })
+        .catch(async () => {
+          await page
+            .waitForLoadState("networkidle", { timeout: 5000 })
+            .catch(() => {});
+          await page.goto(proof.href, { waitUntil: "load", timeout: 25000 });
+        });
       await page
         .waitForLoadState("networkidle", { timeout: 5000 })
         .catch(() => {});
     } catch {
       return {
         ok: false,
-        reason: `After signing in, AsBuilt couldn't open ${config.signedInPath} to confirm it worked.`,
+        reason: `After signing in, AsBuilt couldn't open ${config.signedInPath} to confirm it worked.${where(page, failedHosts)}`,
       };
     }
   }
@@ -144,7 +207,7 @@ export async function signIn(page, config, credentials, origin) {
   } catch {
     return {
       ok: false,
-      reason: `After signing in, AsBuilt didn't see "${config.signedInText}"${config.signedInPath ? ` on ${config.signedInPath}` : ""}. The test account may be wrong or locked, or sign-in needs a step AsBuilt doesn't support (such as a one-time code or CAPTCHA).`,
+      reason: `After signing in, AsBuilt didn't see "${config.signedInText}"${config.signedInPath ? ` on ${config.signedInPath}` : ""}. The test account may be wrong or locked, or sign-in needs a step AsBuilt doesn't support (such as a one-time code or CAPTCHA).${where(page, failedHosts)}`,
     };
   }
   if (new URL(page.url()).origin !== origin)
@@ -174,6 +237,9 @@ export async function alreadySignedIn(page, config, origin) {
       .getByText(config.signedInText, { exact: false })
       .first()
       .waitFor({ state: "visible", timeout });
+    // A reused session starts in a fresh browser, so a consent banner may
+    // be back; close it the same way sign-in does.
+    await dismissBanner(page, config);
     return onPreview(page, origin);
   } catch {
     return false;

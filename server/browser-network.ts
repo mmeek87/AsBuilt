@@ -17,11 +17,44 @@ export async function resolvePublicTunnel(
   const addresses = await lookup(hostname, { all: true });
   if (!addresses.length || addresses.some((a) => !publicAddress(a.address)))
     throw Error("Private or reserved network denied.");
+  // Prefer IPv4: many CI runners (including GitHub's) have no IPv6 route,
+  // so an IPv6-first answer (common behind Cloudflare) would always fail.
+  const ordered = [
+    ...addresses.filter((a) => a.family === 4),
+    ...addresses.filter((a) => a.family !== 4),
+  ];
   return {
     hostname,
-    address: addresses[0].address,
-    family: addresses[0].family,
+    address: ordered[0].address,
+    family: ordered[0].family,
+    addresses: ordered.slice(0, 4),
   };
+}
+
+/** Connect to the first validated address that answers. */
+function connectAny(addresses: { address: string; family: number }[]) {
+  return new Promise<net.Socket>((resolve, reject) => {
+    const attempt = (i: number) => {
+      if (i >= addresses.length) return reject(Error("No address answered."));
+      const socket = net.connect({
+        host: addresses[i].address,
+        port: 443,
+        family: addresses[i].family,
+      });
+      const fail = () => {
+        socket.destroy();
+        attempt(i + 1);
+      };
+      socket.setTimeout(10000, fail);
+      socket.once("error", fail);
+      socket.once("connect", () => {
+        socket.off("error", fail);
+        socket.setTimeout(0);
+        resolve(socket);
+      });
+    };
+    attempt(0);
+  });
 }
 export function createBrowserNetwork(
   send: (m: unknown) => void,
@@ -55,16 +88,18 @@ export function createBrowserNetwork(
         try {
           const destination = await resolvePublicTunnel(m.authority);
           if (closed || !sockets.has(m.id)) return;
-          const socket = net.connect({
-            host: destination.address,
-            port: 443,
-            family: destination.family,
-          });
+          const socket = await connectAny(destination.addresses);
+          if (closed || !sockets.has(m.id)) {
+            socket.destroy();
+            return;
+          }
           sockets.set(m.id, socket);
-          socket.setTimeout(15000);
-          socket.once("connect", () =>
-            send({ type: "tunnel-ready", id: m.id }),
-          );
+          // Browsers keep connections open and reuse them. Closing one after
+          // a short idle period breaks the next request on it (a sign-in POST
+          // can't be retried), so allow long idle connections; the whole run
+          // is time-limited anyway.
+          socket.setTimeout(180000);
+          send({ type: "tunnel-ready", id: m.id });
           socket.on("data", (data) => {
             bytes += data.length;
             if (bytes > 100_000_000) {

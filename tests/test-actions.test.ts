@@ -122,3 +122,101 @@ test("a standing test-site approval covers every step except sign-in, only for t
   writeFileSync(join(dir, "settings.json"), JSON.stringify({ testSite: { siteMarker: "TEST SITE", approveAllTestActions: false } }));
   assert.throws(() => readSettings(dir), /expected format/);
 });
+
+test("pays with Stripe's public test card inside Stripe's frame, only when approved and on the test site", async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    let posted = "";
+    await page.route("https://shop.asbuilt.invalid/**", (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: new URL(route.request().url()).pathname === "/success"
+          ? "<p>TEST SITE</p><h1>Thank you</h1>"
+          : `<p>TEST SITE · test payments only</p><h1>Checkout</h1><iframe src="https://js.stripe.com/v3/fake" style="width:400px;height:300px"></iframe>`,
+      }),
+    );
+    await page.route("https://js.stripe.com/**", (route) => {
+      if (route.request().method() === "POST") {
+        posted = route.request().postData() ?? "";
+        return route.fulfill({ contentType: "text/html", body: "<script>top.location='https://shop.asbuilt.invalid/success'</script>" });
+      }
+      return route.fulfill({
+        contentType: "text/html",
+        body: `<form method="post" action="https://js.stripe.com/pay">
+          <input id="cardNumber" name="n"><input id="cardExpiry" name="e"><input id="cardCvc" name="c"><input id="billingName" name="name">
+          <button type="submit">Pay</button></form>`,
+      });
+    });
+    await page.goto("https://shop.asbuilt.invalid/checkout");
+    const pay = { type: "testPayment" as const, name: "Pay with the Stripe test card", value: "" };
+    await assert.rejects(perform(page, pay), /allowed interaction policy/);
+    await assert.rejects(perform(page, pay, [], { siteMarker: "TEST SITE", approved: ["Something else"] }), /allowed interaction policy/);
+    assert.equal(posted, "", "nothing was paid without approval");
+    await perform(page, pay, [], { siteMarker: "TEST SITE", approved: ["Pay with the Stripe test card"] });
+    await page.waitForURL("https://shop.asbuilt.invalid/success");
+    const form = new URLSearchParams(posted);
+    assert.equal(form.get("n"), "4242424242424242");
+    assert.equal(form.get("c"), "123");
+    assert.equal(form.get("name"), "AsBuilt Test");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("a test payment never takes card details from the check", () => {
+  process.env.ASBUILT_ALLOW_TEST_ACTIONS = "true";
+  try {
+    const p = (value: string) =>
+      plan({
+        testActions: { siteMarker: "TEST SITE", approved: ["Add to cart", "Continue to payment", "Pay with the Stripe test card"] },
+        criteria: [
+          ...plan().criteria,
+          { id: "pay", expected: "Paid", kind: "heading", value: "Thank you", actions: [{ type: "testPayment", name: "Pay with the Stripe test card", value }] },
+        ],
+      });
+    assert.doesNotThrow(() => validateExecution(p("")));
+    assert.throws(() => validateExecution(p("5555555555554444")), /never takes card details/);
+  } finally {
+    delete process.env.ASBUILT_ALLOW_TEST_ACTIONS;
+  }
+});
+
+test("opens the newest matching link under a reviewed address, never elsewhere", async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.route("https://shop.asbuilt.invalid/**", (route) => {
+      const path = new URL(route.request().url()).pathname;
+      return route.fulfill({
+        contentType: "text/html",
+        body: path === "/merchant/orders"
+          ? `<a href="https://evil.invalid/merchant/orders/x">Order for E2E Recipient</a><a href="/merchant/orders/abc-123">Order for E2E Recipient</a><a href="/merchant/orders/old-1">Order for E2E Recipient</a>`
+          : `<h1>Order ${path.split("/").pop()}</h1>`,
+      });
+    });
+    await page.goto("https://shop.asbuilt.invalid/merchant/orders");
+    const open = { type: "navigate" as const, name: "E2E Recipient", match: "contains" as const, value: "https://shop.asbuilt.invalid/merchant/orders/*" };
+    await assert.rejects(perform(page, open, []), /outside the reviewed policy/);
+    await perform(page, open, [open.value]);
+    assert.equal(new URL(page.url()).pathname, "/merchant/orders/abc-123", "first link under the reviewed address, not the off-site one");
+    await perform(page, { type: "reload", name: "page", value: "" });
+    assert.equal(await page.getByRole("heading", { name: "Order abc-123" }).count(), 1);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("a second account and newest-link opening need test actions and a secondSignIn", () => {
+  process.env.ASBUILT_ALLOW_TEST_ACTIONS = "true";
+  try {
+    const signIn = { path: "/login", emailLabel: "Email", passwordLabel: "Password", submit: "Sign in", signedInText: "Sign out" };
+    const store = { id: "store", expected: "Store sees it", kind: "heading" as const, value: "Order", as: "second" as const };
+    assert.throws(() => validateExecution(plan({ signIn, criteria: [...plan().criteria, store] })), /need a secondSignIn/);
+    assert.doesNotThrow(() => validateExecution(plan({ signIn, secondSignIn: signIn, criteria: [...plan().criteria, store] })));
+    const { testActions: _t, ...noTest } = plan({ signIn, secondSignIn: signIn });
+    assert.throws(() => validateExecution(planSchema.parse(noTest)), /test-site features/);
+  } finally {
+    delete process.env.ASBUILT_ALLOW_TEST_ACTIONS;
+  }
+});

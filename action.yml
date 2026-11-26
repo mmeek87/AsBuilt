@@ -30,6 +30,12 @@ inputs:
   test-password:
     description: Password of that test account, from a repository secret. Typed only into the preview's own sign-in page and masked in screenshots.
     default: ""
+  second-email:
+    description: For check files with a secondSignIn (for example a store that fulfills the order). Email of a second dedicated test account, from a repository secret.
+    default: ""
+  second-password:
+    description: Password of the second test account, from a repository secret. Typed only into the preview's own sign-in page.
+    default: ""
   allow-test-actions:
     description: 'Only for workflows that check a test site. Lets check files that list approved "testActions" add to cart, go through checkout and take other order steps, and only while the page shows the check''s test-site marker. Never turn this on for a workflow that can reach your live site.'
     default: "false"
@@ -80,6 +86,8 @@ runs:
         ASBUILT_TEST_EMAIL: ${{ inputs.test-email }}
         ASBUILT_TEST_PASSWORD: ${{ inputs.test-password }}
         ASBUILT_ALLOW_TEST_ACTIONS: ${{ inputs.allow-test-actions }}
+        ASBUILT_SECOND_EMAIL: ${{ inputs.second-email }}
+        ASBUILT_SECOND_PASSWORD: ${{ inputs.second-password }}
       run: node --import "$GITHUB_ACTION_PATH/node_modules/tsx/dist/loader.mjs" "$GITHUB_ACTION_PATH/server/action.ts"
     - name: Save screenshots and report
       id: upload
