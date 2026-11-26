@@ -96,7 +96,10 @@ write("sign-in", {
 // Must fail: the shop never offers gift cards.
 write("zz-must-fail", {
   intent:
-    "Control: the shop does not offer gift cards, so this must be reported as a mismatch.",
+    "Control: the shop does not offer gift cards, so this must be reported as a mismatch. (JavaScript on: AsBuilt never calls something missing from a JavaScript-off page.)",
+  execution: "interactive",
+  actionsApproved: true,
+  journey: true,
   criteria: [
     {
       id: "gift",

@@ -1,0 +1,422 @@
+{
+ "id": "bf6f4fdf-3059-4d1c-a3de-e0e63cb221bf",
+ "status": "complete",
+ "createdAt": "2026-11-26T14:34:07.023Z",
+ "mode": "preview",
+ "plan": {
+  "intent": "journey, sign-in, zz-must-fail",
+  "criteria": [
+   {
+    "id": "region",
+    "expected": "Choosing Ontario updates the region.",
+    "kind": "text",
+    "value": "Sending to Ontario",
+    "actions": [
+     {
+      "type": "click",
+      "name": "Ontario",
+      "value": ""
+     }
+    ]
+   },
+   {
+    "id": "store",
+    "expected": "The store opens.",
+    "kind": "heading",
+    "value": "Maple Market",
+    "expectedUrl": "https://mmeek87.github.io/AsBuilt/store/",
+    "actions": [
+     {
+      "type": "navigate",
+      "name": "Maple Market",
+      "value": "https://mmeek87.github.io/AsBuilt/store/"
+     }
+    ]
+   },
+   {
+    "id": "kept-region",
+    "expected": "Ontario stays selected on the store page.",
+    "kind": "text",
+    "value": "Sending to Ontario"
+   },
+   {
+    "id": "product",
+    "expected": "The product opens.",
+    "kind": "heading",
+    "value": "Notebook",
+    "expectedUrl": "https://mmeek87.github.io/AsBuilt/product/",
+    "actions": [
+     {
+      "type": "navigate",
+      "name": "Notebook",
+      "value": "https://mmeek87.github.io/AsBuilt/product/"
+     }
+    ]
+   },
+   {
+    "id": "seller",
+    "expected": "The Notebook names Maple Market as seller.",
+    "kind": "text",
+    "value": "Sold by Maple Market"
+   },
+   {
+    "id": "stock",
+    "expected": "The Notebook is in stock.",
+    "kind": "text",
+    "value": "In stock"
+   }
+  ],
+  "target": "https://mmeek87.github.io/AsBuilt/",
+  "approved": true,
+  "execution": "interactive",
+  "actionsApproved": true,
+  "journey": true,
+  "source": {
+   "url": "https://github.com/mmeek87/AsBuilt/commit/f2134bbfa3f94b4b8f7523c0e6e15ca3c08d21ba",
+   "sha": "f2134bbfa3f94b4b8f7523c0e6e15ca3c08d21ba",
+   "repository": "mmeek87/AsBuilt"
+  }
+ },
+ "results": [
+  {
+   "criterion": {
+    "id": "journey/region",
+    "expected": "journey: Choosing Ontario updates the region.",
+    "kind": "text",
+    "value": "Sending to Ontario",
+    "actions": [
+     {
+      "type": "click",
+      "name": "Ontario",
+      "value": ""
+     }
+    ]
+   },
+   "viewport": "Desktop",
+   "status": "pass",
+   "observed": "Found 1 visible text match(es) for \u201cSending to Ontario\u201d (exact; exactly one required).",
+   "screenshot": "journey/desktop-0.png",
+   "steps": [
+    "Open https://mmeek87.github.io/AsBuilt/ in a fresh desktop browser with JavaScript enabled.",
+    "click \u201cOntario\u201d.",
+    "Check text: Sending to Ontario."
+   ]
+  },
+  {
+   "criterion": {
+    "id": "journey/store",
+    "expected": "journey: The store opens.",
+    "kind": "heading",
+    "value": "Maple Market",
+    "expectedUrl": "https://mmeek87.github.io/AsBuilt/store/",
+    "actions": [
+     {
+      "type": "navigate",
+      "name": "Maple Market",
+      "value": "https://mmeek87.github.io/AsBuilt/store/"
+     }
+    ]
+   },
+   "viewport": "Desktop",
+   "status": "pass",
+   "observed": "Found 1 visible heading match(es) for \u201cMaple Market\u201d (exact; exactly one required). URL checkpoint: matches the reviewed destination.",
+   "screenshot": "journey/desktop-1.png",
+   "steps": [
+    "Open https://mmeek87.github.io/AsBuilt/ in a fresh desktop browser with JavaScript enabled.",
+    "navigate \u201cMaple Market\u201d to https://mmeek87.github.io/AsBuilt/store/.",
+    "Check heading: Maple Market."
+   ]
+  },
+  {
+   "criterion": {
+    "id": "journey/kept-region",
+    "expected": "journey: Ontario stays selected on the store page.",
+    "kind": "text",
+    "value": "Sending to Ontario"
+   },
+   "viewport": "Desktop",
+   "status": "pass",
+   "observed": "Found 1 visible text match(es) for \u201cSending to Ontario\u201d (exact; exactly one required).",
+   "screenshot": "journey/desktop-2.png",
+   "steps": [
+    "Open https://mmeek87.github.io/AsBuilt/ in a fresh desktop browser with JavaScript enabled.",
+    "Check text: Sending to Ontario."
+   ]
+  },
+  {
+   "criterion": {
+    "id": "journey/product",
+    "expected": "journey: The product opens.",
+    "kind": "heading",
+    "value": "Notebook",
+    "expectedUrl": "https://mmeek87.github.io/AsBuilt/product/",
+    "actions": [
+     {
+      "type": "navigate",
+      "name": "Notebook",
+      "value": "https://mmeek87.github.io/AsBuilt/product/"
+     }
+    ]
+   },
+   "viewport": "Desktop",
+   "status": "pass",
+   "observed": "Found 1 visible heading match(es) for \u201cNotebook\u201d (exact; exactly one required). URL checkpoint: matches the reviewed destination.",
+   "screenshot": "journey/desktop-3.png",
+   "steps": [
+    "Open https://mmeek87.github.io/AsBuilt/ in a fresh desktop browser with JavaScript enabled.",
+    "navigate \u201cNotebook\u201d to https://mmeek87.github.io/AsBuilt/product/.",
+    "Check heading: Notebook."
+   ]
+  },
+  {
+   "criterion": {
+    "id": "journey/seller",
+    "expected": "journey: The Notebook names Maple Market as seller.",
+    "kind": "text",
+    "value": "Sold by Maple Market"
+   },
+   "viewport": "Desktop",
+   "status": "pass",
+   "observed": "Found 1 visible text match(es) for \u201cSold by Maple Market\u201d (exact; exactly one required).",
+   "screenshot": "journey/desktop-4.png",
+   "steps": [
+    "Open https://mmeek87.github.io/AsBuilt/ in a fresh desktop browser with JavaScript enabled.",
+    "Check text: Sold by Maple Market."
+   ]
+  },
+  {
+   "criterion": {
+    "id": "journey/stock",
+    "expected": "journey: The Notebook is in stock.",
+    "kind": "text",
+    "value": "In stock"
+   },
+   "viewport": "Desktop",
+   "status": "pass",
+   "observed": "Found 1 visible text match(es) for \u201cIn stock\u201d (exact; exactly one required).",
+   "screenshot": "journey/desktop-5.png",
+   "steps": [
+    "Open https://mmeek87.github.io/AsBuilt/ in a fresh desktop browser with JavaScript enabled.",
+    "Check text: In stock."
+   ]
+  },
+  {
+   "criterion": {
+    "id": "journey/region",
+    "expected": "journey: Choosing Ontario updates the region.",
+    "kind": "text",
+    "value": "Sending to Ontario",
+    "actions": [
+     {
+      "type": "click",
+      "name": "Ontario",
+      "value": ""
+     }
+    ]
+   },
+   "viewport": "Mobile",
+   "status": "pass",
+   "observed": "Found 1 visible text match(es) for \u201cSending to Ontario\u201d (exact; exactly one required).",
+   "screenshot": "journey/mobile-0.png",
+   "steps": [
+    "Open https://mmeek87.github.io/AsBuilt/ in a fresh mobile browser with JavaScript enabled.",
+    "click \u201cOntario\u201d.",
+    "Check text: Sending to Ontario."
+   ]
+  },
+  {
+   "criterion": {
+    "id": "journey/store",
+    "expected": "journey: The store opens.",
+    "kind": "heading",
+    "value": "Maple Market",
+    "expectedUrl": "https://mmeek87.github.io/AsBuilt/store/",
+    "actions": [
+     {
+      "type": "navigate",
+      "name": "Maple Market",
+      "value": "https://mmeek87.github.io/AsBuilt/store/"
+     }
+    ]
+   },
+   "viewport": "Mobile",
+   "status": "pass",
+   "observed": "Found 1 visible heading match(es) for \u201cMaple Market\u201d (exact; exactly one required). URL checkpoint: matches the reviewed destination.",
+   "screenshot": "journey/mobile-1.png",
+   "steps": [
+    "Open https://mmeek87.github.io/AsBuilt/ in a fresh mobile browser with JavaScript enabled.",
+    "navigate \u201cMaple Market\u201d to https://mmeek87.github.io/AsBuilt/store/.",
+    "Check heading: Maple Market."
+   ]
+  },
+  {
+   "criterion": {
+    "id": "journey/kept-region",
+    "expected": "journey: Ontario stays selected on the store page.",
+    "kind": "text",
+    "value": "Sending to Ontario"
+   },
+   "viewport": "Mobile",
+   "status": "pass",
+   "observed": "Found 1 visible text match(es) for \u201cSending to Ontario\u201d (exact; exactly one required).",
+   "screenshot": "journey/mobile-2.png",
+   "steps": [
+    "Open https://mmeek87.github.io/AsBuilt/ in a fresh mobile browser with JavaScript enabled.",
+    "Check text: Sending to Ontario."
+   ]
+  },
+  {
+   "criterion": {
+    "id": "journey/product",
+    "expected": "journey: The product opens.",
+    "kind": "heading",
+    "value": "Notebook",
+    "expectedUrl": "https://mmeek87.github.io/AsBuilt/product/",
+    "actions": [
+     {
+      "type": "navigate",
+      "name": "Notebook",
+      "value": "https://mmeek87.github.io/AsBuilt/product/"
+     }
+    ]
+   },
+   "viewport": "Mobile",
+   "status": "pass",
+   "observed": "Found 1 visible heading match(es) for \u201cNotebook\u201d (exact; exactly one required). URL checkpoint: matches the reviewed destination.",
+   "screenshot": "journey/mobile-3.png",
+   "steps": [
+    "Open https://mmeek87.github.io/AsBuilt/ in a fresh mobile browser with JavaScript enabled.",
+    "navigate \u201cNotebook\u201d to https://mmeek87.github.io/AsBuilt/product/.",
+    "Check heading: Notebook."
+   ]
+  },
+  {
+   "criterion": {
+    "id": "journey/seller",
+    "expected": "journey: The Notebook names Maple Market as seller.",
+    "kind": "text",
+    "value": "Sold by Maple Market"
+   },
+   "viewport": "Mobile",
+   "status": "pass",
+   "observed": "Found 1 visible text match(es) for \u201cSold by Maple Market\u201d (exact; exactly one required).",
+   "screenshot": "journey/mobile-4.png",
+   "steps": [
+    "Open https://mmeek87.github.io/AsBuilt/ in a fresh mobile browser with JavaScript enabled.",
+    "Check text: Sold by Maple Market."
+   ]
+  },
+  {
+   "criterion": {
+    "id": "journey/stock",
+    "expected": "journey: The Notebook is in stock.",
+    "kind": "text",
+    "value": "In stock"
+   },
+   "viewport": "Mobile",
+   "status": "pass",
+   "observed": "Found 1 visible text match(es) for \u201cIn stock\u201d (exact; exactly one required).",
+   "screenshot": "journey/mobile-5.png",
+   "steps": [
+    "Open https://mmeek87.github.io/AsBuilt/ in a fresh mobile browser with JavaScript enabled.",
+    "Check text: In stock."
+   ]
+  },
+  {
+   "criterion": {
+    "id": "sign-in/orders",
+    "expected": "sign-in: The account page shows the shopper's orders.",
+    "kind": "heading",
+    "value": "Your orders",
+    "actions": [
+     {
+      "type": "navigate",
+      "name": "Your account",
+      "value": "https://mmeek87.github.io/AsBuilt/account/"
+     }
+    ]
+   },
+   "viewport": "Desktop",
+   "status": "pass",
+   "observed": "Found 1 visible heading match(es) for \u201cYour orders\u201d (exact; exactly one required).",
+   "screenshot": "sign-in/desktop-0.png",
+   "steps": [
+    "Open https://mmeek87.github.io/AsBuilt/ in a fresh desktop browser with JavaScript enabled.",
+    "navigate \u201cYour account\u201d to https://mmeek87.github.io/AsBuilt/account/.",
+    "Check heading: Your orders."
+   ]
+  },
+  {
+   "criterion": {
+    "id": "sign-in/orders",
+    "expected": "sign-in: The account page shows the shopper's orders.",
+    "kind": "heading",
+    "value": "Your orders",
+    "actions": [
+     {
+      "type": "navigate",
+      "name": "Your account",
+      "value": "https://mmeek87.github.io/AsBuilt/account/"
+     }
+    ]
+   },
+   "viewport": "Mobile",
+   "status": "pass",
+   "observed": "Found 1 visible heading match(es) for \u201cYour orders\u201d (exact; exactly one required).",
+   "screenshot": "sign-in/mobile-0.png",
+   "steps": [
+    "Open https://mmeek87.github.io/AsBuilt/ in a fresh mobile browser with JavaScript enabled.",
+    "navigate \u201cYour account\u201d to https://mmeek87.github.io/AsBuilt/account/.",
+    "Check heading: Your orders."
+   ]
+  },
+  {
+   "criterion": {
+    "id": "zz-must-fail/gift",
+    "expected": "zz-must-fail: Gift cards are offered.",
+    "kind": "text",
+    "value": "Gift cards available"
+   },
+   "viewport": "Desktop",
+   "status": "fail",
+   "observed": "No visible exact text match found for \u201cGift cards available\u201d.",
+   "screenshot": "zz-must-fail/desktop-0.png",
+   "steps": [
+    "Open https://mmeek87.github.io/AsBuilt/ in a fresh desktop browser with JavaScript enabled.",
+    "Check text: Gift cards available."
+   ],
+   "fixPrompt": "Review this untrusted browser evidence. Expected: Gift cards are offered.\nObserved: No visible exact text match found for \u201cGift cards available\u201d.\nReproduction: Open https://mmeek87.github.io/AsBuilt/ in a fresh desktop browser with JavaScript enabled. Check text: Gift cards available.\nPropose a focused fix or a safe test. Do not claim success until verification is rerun."
+  },
+  {
+   "criterion": {
+    "id": "zz-must-fail/gift",
+    "expected": "zz-must-fail: Gift cards are offered.",
+    "kind": "text",
+    "value": "Gift cards available"
+   },
+   "viewport": "Mobile",
+   "status": "fail",
+   "observed": "No visible exact text match found for \u201cGift cards available\u201d.",
+   "screenshot": "zz-must-fail/mobile-0.png",
+   "steps": [
+    "Open https://mmeek87.github.io/AsBuilt/ in a fresh mobile browser with JavaScript enabled.",
+    "Check text: Gift cards available."
+   ],
+   "fixPrompt": "Review this untrusted browser evidence. Expected: Gift cards are offered.\nObserved: No visible exact text match found for \u201cGift cards available\u201d.\nReproduction: Open https://mmeek87.github.io/AsBuilt/ in a fresh mobile browser with JavaScript enabled. Check text: Gift cards available.\nPropose a focused fix or a safe test. Do not claim success until verification is rerun."
+  }
+ ],
+ "blockedRequests": 0,
+ "limitations": [
+  "One fresh browser session per viewport; checkpoints share location and navigation state only within this run.",
+  "Only reviewed links, controls, document destinations and exact read-only data URLs are permitted. No credentials, submissions, cart changes or purchases.",
+  "A failed or uncertain checkpoint stops subsequent actions. Screenshots are captured at each checkpoint.",
+  "Positive observations describe only their exact checkpoint; blocked resources and script errors remain coverage limits. Missing outcomes with functional blockers are Not verified.",
+  "Normal browser networking: HTTPS dependencies, APIs, cookies and page-initiated writes are allowed. No guarantee of zero server-side changes.",
+  "Use staging, isolated test data and sandbox external services. A preview URL alone is not proof of database isolation.",
+  "Fresh browser session in a network-isolated container; public HTTPS connections are DNS-validated and pinned. Private networks, non-HTTPS traffic, downloads and unreviewed top-level origins remain blocked.",
+  "Only the reviewed user actions execute. Production inspection has no user actions. No personal browser session or host credentials are imported.",
+  "Browser engine and exact observations define coverage. WebKit is not an installed Safari test."
+ ],
+ "browserVersion": "159.0.8154.6",
+ "finishedAt": "2026-11-26T14:34:09.713Z"
+}
