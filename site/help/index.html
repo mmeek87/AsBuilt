@@ -47,6 +47,7 @@
         <li><a href="#absence">“Must not be shown” couldn't be confirmed</a></li>
         <li><a href="#page-didnt-load">The page or a step didn't load</a></li>
         <li><a href="#screenshot">No screenshot</a></li>
+        <li><a href="#limits">What AsBuilt can and can't check</a></li>
         <li><a href="#ask">Still stuck?</a></li>
       </ul>
     </nav>
@@ -114,6 +115,17 @@
       <h2 id="screenshot-h">No screenshot</h2>
       <p>The check ran, but AsBuilt couldn't save a screenshot as evidence. Without evidence it won't mark the result as verified.</p>
       <p><strong>What to do:</strong> Re-run the workflow. If it keeps happening, <a href="https://github.com/mmeek87/AsBuilt/issues/new/choose">report it</a>.</p>
+    </section>
+    <section class="help-item" id="limits" aria-labelledby="limits-h">
+      <h2 id="limits-h">What AsBuilt can and can't check</h2>
+      <p>AsBuilt opens your preview in a real browser on desktop and mobile and checks what a person would see: text, headings, buttons, links, and what happens after clicks, typing and sign-in with a test account.</p>
+      <ul>
+        <li><strong>It can't check</strong> payments, emails or texts, or anything only your server or database knows, like whether an order was really saved.</li>
+        <li><strong>It won't</strong> buy anything, submit real forms, or sign in with a real person's account.</li>
+        <li><strong>It only checks what's in your checks.</strong> All passing means those checks passed, not that the whole app works. The coverage line in each comment shows which features in your feature map don't have checks yet.</li>
+        <li><strong>The preview may not match the commit exactly</strong> if your host serves a cached or different build.</li>
+      </ul>
+      <p><strong>What to do:</strong> test payments, emails and server-side rules with your app's own tests, and use AsBuilt for what people see.</p>
     </section>
     <section class="help-item" id="ask" aria-labelledby="ask-h">
       <h2 id="ask-h">Still stuck?</h2>

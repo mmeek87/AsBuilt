@@ -1,5 +1,6 @@
 import type { Report } from "./schema.ts";
 import { helpLink, HELP_URL } from "./help.ts";
+import type { Coverage } from "./feature-map.ts";
 
 const label = { pass: "Pass", fail: "Fail", not_verified: "Not verified" };
 
@@ -21,7 +22,12 @@ export function inert(text: string, max = 300) {
 
 export function commentBody(
   r: Report,
-  options: { evidenceUrl?: string; marker?: string; broken?: string[] } = {},
+  options: {
+    evidenceUrl?: string;
+    marker?: string;
+    broken?: string[];
+    coverage?: Coverage;
+  } = {},
 ) {
   if (r.status !== "complete" || r.mode === "sample" || !r.plan.source?.pr)
     throw Error(
@@ -64,15 +70,52 @@ export function commentBody(
           "</details>",
         ]
       : []),
+    ...coverageLines(options.coverage),
     "",
-    `Limitations: ${r.limitations.join(" ")}`,
-    "",
-    `“Not verified” means AsBuilt could not collect enough evidence; it is not a pass. A failure is an observed mismatch, not a diagnosed root cause. [Help and questions](${HELP_URL})`,
+    LIMITS_LINE,
     "",
     options.evidenceUrl
       ? `Report ID: ${r.id}. [Desktop and mobile screenshots](${options.evidenceUrl}) are attached to the workflow run (visible to people with repository access).`
       : `Report ID: ${r.id}. Screenshots are stored locally and are not uploaded to GitHub.`,
   ].join("\n");
+}
+
+/** One plain sentence replaces the per-mode limitation list in comments. */
+export const LIMITS_LINE = `AsBuilt checks what a browser can see on your preview. It doesn't check payments, emails or anything only your server knows, and it signs in only with a test account you add. “Not verified” is never a pass. [What AsBuilt can and can't check](${HELP_URL}#limits)`;
+
+/** Which features in the feature map have checks, and which don't yet. */
+export function coverageLines(c?: Coverage) {
+  if (!c) return [];
+  const map = c.url ? `[feature map](${c.url})` : "feature map";
+  // Confirmed gaps first: those are features the user said they want.
+  const ordered = [
+    ...c.unchecked.filter((f) => f.confirmed !== false),
+    ...c.unchecked.filter((f) => f.confirmed === false),
+  ];
+  const shown = ordered.slice(0, 8);
+  return [
+    "",
+    `**Coverage: ${c.checked} of ${c.total} features** in your ${map} ${c.checked === 1 ? "has a check" : "have checks"}.${c.unchecked.length ? " Not checked yet:" : " Every feature is checked."}`,
+    ...shown.map(
+      (f) =>
+        `- ${inert(f.name, 120)}${f.why ? ` (${inert(f.why, 160)})` : ""}${f.confirmed === false ? " · _unconfirmed_" : ""}`,
+    ),
+    ...(ordered.length > shown.length
+      ? [`- …and ${ordered.length - shown.length} more in the ${map}.`]
+      : []),
+    ...(c.unconfirmed
+      ? [
+          "",
+          `${c.unconfirmed} feature${c.unconfirmed === 1 ? " was" : "s were"} found in your code but not confirmed by you yet. Ask your assistant to go through them with you.`,
+        ]
+      : []),
+    ...(c.unchecked.length
+      ? [
+          "",
+          "Ask your assistant: “Draft AsBuilt checks for the unchecked features that matter most.”",
+        ]
+      : []),
+  ];
 }
 
 function brokenLines(broken: string[]) {

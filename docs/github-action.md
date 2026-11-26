@@ -6,17 +6,38 @@ AsBuilt runs as a GitHub Action. After every preview deployment of a pull reques
 
 ## How it works
 
-1. **You describe the feature** to Claude or ChatGPT, with the AsBuilt skill installed. That's the agent part: your assistant turns your words and the PR's changes into concrete, observable checks.
-2. **You review the checks.** The assistant writes them to `.asbuilt/<feature>.json` in your branch, so they're reviewed like any other change in the PR.
+1. **Your assistant maps the app.** With the AsBuilt plugin, Claude, ChatGPT or Codex reads your code and lists every feature it finds, in plain words, in `.asbuilt/features.json`. You correct the list; you never have to remember every feature yourself.
+2. **You approve checks** for the features that matter most. The assistant writes them to `.asbuilt/<feature>.json` in your branch, so they're reviewed like any other change in the PR.
 3. **Vercel deploys a preview.** GitHub tells the workflow the preview is ready.
 4. **AsBuilt checks the preview** in a real browser, on desktop and mobile, following the plan exactly. It signs in only with a dedicated test account you add as secrets, and never buys anything or makes real submissions.
-5. **You get the results** as a PR comment, in the job summary, and as screenshots in the **asbuilt-evidence** artifact. Each check is a Pass, a Fail, or Not verified, with the reason.
+5. **You get the results** as a PR comment, in the job summary, and as screenshots in the **asbuilt-evidence** artifact. Each check is a Pass, a Fail, or Not verified, with the reason. The comment also shows coverage: how many features in your map have checks, and which don't yet.
 6. **You fix and push.** The next preview is checked again, and the same comment is updated.
+
+## The feature map
+
+`.asbuilt/features.json` lists what your app does, written by your assistant from your code and confirmed by you. AsBuilt never treats it as evidence; it uses it to show coverage, so features without checks stay visible.
+
+```json
+{
+  "app": "Fern & Field",
+  "features": [
+    { "id": "checkout-total", "name": "Checkout shows the order total before payment", "who": "Shopper", "where": "/cart", "check": "checkout", "confirmed": true },
+    { "id": "order-emails", "name": "Shoppers get an order confirmation email", "who": "Shopper", "why": "Emails can't be checked in a browser", "confirmed": true },
+    { "id": "referrals", "name": "Shoppers can refer a friend", "who": "Shopper", "where": "/buyer/referrals", "confirmed": false }
+  ]
+}
+```
+
+- `check` names the check file that covers the feature (`checkout` means `.asbuilt/checkout.json`). A feature counts as checked only if that file ran in this workflow.
+- `why` explains a feature that can't be checked or is waiting on something.
+- `confirmed: false` marks a feature found in the code that you haven't confirmed yet. The comment flags these as questions.
+
+The map is optional. Without it, AsBuilt still runs every check file; it just can't show coverage.
 
 ## Setup (about 5 minutes)
 
 1. Copy [`examples/asbuilt-vercel.yml`](../examples/asbuilt-vercel.yml) to `.github/workflows/asbuilt.yml` in your app's repository.
-2. Add checks at `.asbuilt/<feature>.json` (one file per feature). Ask your assistant: _"Use AsBuilt to draft checks for this PR."_ Or start from this:
+2. Ask your assistant: _"Set up AsBuilt on my repo."_ It maps your features into `.asbuilt/features.json` and drafts checks as `.asbuilt/<feature>.json` (one file per feature). Or write a check yourself, starting from this:
 
    ```json
    {

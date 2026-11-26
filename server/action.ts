@@ -16,8 +16,14 @@ import { spawnSync } from "node:child_process";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Report } from "./schema.ts";
-import { fixPrompt as fixPromptFor } from "./pr-comment.ts";
+import { coverageLines, fixPrompt as fixPromptFor } from "./pr-comment.ts";
 import { helpLink, HELP_URL } from "./help.ts";
+import {
+  coverage,
+  featureMapSchema,
+  FEATURE_MAP_FILE,
+  type Coverage,
+} from "./feature-map.ts";
 
 const env = process.env;
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -180,6 +186,7 @@ export function stepSummary(
   report: Report,
   evidenceUrl?: string,
   broken: string[] = [],
+  cover?: Coverage,
 ) {
   const count = (s: string) =>
     report.results.filter((r) => r.status === s).length;
@@ -216,6 +223,7 @@ export function stepSummary(
           "",
         ]
       : []),
+    ...(cover ? [...coverageLines(cover).slice(1), ""] : []),
     evidenceUrl
       ? `Desktop and mobile screenshots for each feature are in the **asbuilt-evidence** artifact (\`screenshots/<feature>/\`) on [this workflow run](${evidenceUrl}).`
       : "Screenshots are in the results folder under screenshots/<feature>/.",
@@ -228,6 +236,7 @@ export async function postComment(
   report: Report,
   evidenceUrl?: string,
   broken: string[] = [],
+  cover?: Coverage,
 ) {
   const pr = report.plan.source?.pr;
   if (!pr || input("comment", "true") !== "true" || report.mode === "sample")
@@ -235,7 +244,7 @@ export async function postComment(
   const { commentBody } = await import("./pr-comment.ts");
   await upsertComment(
     Number(pr),
-    commentBody(report, { evidenceUrl, marker: MARKER, broken }),
+    commentBody(report, { evidenceUrl, marker: MARKER, broken, coverage: cover }),
   );
 }
 
@@ -292,7 +301,7 @@ export function listPlans(path: string) {
   if (!existsSync(path)) return [];
   if (!statSync(path).isDirectory()) return [path];
   return readdirSync(path)
-    .filter((f) => f.endsWith(".json"))
+    .filter((f) => f.endsWith(".json") && f !== FEATURE_MAP_FILE)
     .sort()
     .map((f) => join(path, f));
 }
@@ -328,6 +337,27 @@ export function combine(runs: { feature: string; report: Report }[]): Report {
 }
 
 
+/**
+ * Reads .asbuilt/features.json when the plan input is a folder. A map that
+ * can't be read is reported as a warning; it never blocks the checks.
+ */
+export function readFeatureMap(folder: string) {
+  const file = join(folder, FEATURE_MAP_FILE);
+  if (!existsSync(file) || !statSync(folder).isDirectory()) return undefined;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    return { error: `${FEATURE_MAP_FILE} isn't valid JSON.` };
+  }
+  const parsed = featureMapSchema.safeParse(raw);
+  if (!parsed.success)
+    return {
+      error: `${FEATURE_MAP_FILE} doesn't match the expected format: ${parsed.error.issues[0]?.message ?? "unknown problem"}`,
+    };
+  return { map: parsed.data };
+}
+
 async function main() {
   const url = input("url");
   const origin = previewOrigin(url);
@@ -344,6 +374,10 @@ async function main() {
 
   const planInput = input("plan", ".asbuilt");
   const files = listPlans(resolve(planInput));
+  if (!files.length && existsSync(join(resolve(planInput), FEATURE_MAP_FILE)))
+    throw Error(
+      `Your feature map is in place, but there are no check files yet. Ask your assistant: "Draft AsBuilt checks for the features that matter most," review them, and commit them as .asbuilt/<feature>.json.`,
+    );
   if (!files.length)
     throw Error(
       `No plan found at ${planInput}. Ask Claude or ChatGPT (with the AsBuilt skill) to draft one, review it, and commit it as .asbuilt/<feature>.json.`,
@@ -412,8 +446,18 @@ async function main() {
   const report = combine(runs);
   writeFileSync(join(results, "report.json"), JSON.stringify(report, null, 2));
 
-  summary(stepSummary(report, runUrl, broken));
-  await postComment(report, runUrl, broken);
+  const mapRead = readFeatureMap(resolve(planInput));
+  if (mapRead?.error) annotate("warning", `Feature map skipped: ${mapRead.error}`);
+  const sha = typeof source?.sha === "string" ? source.sha : undefined;
+  const mapUrl =
+    sha && env.GITHUB_REPOSITORY && /^[a-f0-9]{40}$/.test(sha)
+      ? `${env.GITHUB_SERVER_URL || "https://github.com"}/${env.GITHUB_REPOSITORY}/blob/${sha}/${planInput.replace(/^\.\//, "").replace(/\/$/, "")}/${FEATURE_MAP_FILE}`
+      : undefined;
+  const cover = mapRead?.map
+    ? coverage(mapRead.map, new Set(runs.map((r) => r.feature)), mapUrl)
+    : undefined;
+  summary(stepSummary(report, runUrl, broken, cover));
+  await postComment(report, runUrl, broken, cover);
 
   const count = (s: string) =>
     report.results.filter((r) => r.status === s).length;

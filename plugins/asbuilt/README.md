@@ -26,9 +26,10 @@ In claude.ai or the Claude desktop app, add it from **Customize > Plugins**. In 
 
 ## GitHub mode (recommended)
 
-Ask your assistant: "Set up AsBuilt on my repo." With your permission it opens a pull request that adds:
+Ask your assistant: "Set up AsBuilt on my repo." It reads your code and lists every feature it finds in plain words, so you don't have to remember them. You correct the list and pick what matters most. Then, with your permission, it opens a pull request that adds:
 
 - `.github/workflows/asbuilt.yml`, which runs the [AsBuilt GitHub Action](https://github.com/mmeek87/AsBuilt) whenever a preview deployment finishes.
+- `.asbuilt/features.json`, the feature map. Every PR comment shows how many features have checks and which don't yet.
 - One `.asbuilt/<feature>.json` file per feature, holding the checks you approved.
 
 After that, every pull request gets one AsBuilt comment showing what passed, what failed, what couldn't be verified, and a ready-to-paste fix prompt. Screenshots are saved as the `asbuilt-evidence` workflow artifact. The Action calls no AI model; your assistant plans, and the Action observes.

@@ -2,7 +2,7 @@
 
 **Check that what your AI built actually does what you meant.**
 
-You tell your assistant (Claude, ChatGPT, Codex) what a feature should do. It writes those expectations as a short plan in your repository. Every time Vercel deploys a preview of a pull request, AsBuilt opens it in a real browser on desktop and mobile, checks each expectation, takes screenshots, and comments on the PR: what passed, what didn't, what it couldn't check and why, plus a prompt you can paste back to your assistant to fix it.
+Your assistant (Claude, ChatGPT, Codex) reads your code and maps every feature your app has, in plain language, so you don't have to remember them all. You correct the list and approve checks for what matters. Every time Vercel deploys a preview of a pull request, AsBuilt opens it in a real browser on desktop and mobile, checks each expectation, takes screenshots, and comments on the PR: what passed, what didn't, what it couldn't check and why, plus a prompt you can paste back to your assistant to fix it.
 
 It never takes the AI's word that something works, and it never marks something passed without seeing it.
 
@@ -18,7 +18,7 @@ _50-second demo on [a real pull request](https://github.com/mmeek87/asbuilt-demo
 ## Use it on GitHub (recommended)
 
 1. Copy [`examples/asbuilt-vercel.yml`](examples/asbuilt-vercel.yml) to `.github/workflows/asbuilt.yml`.
-2. Add a plan, one file per feature, such as `.asbuilt/checkout.json`. Ask your assistant: *"Use AsBuilt to draft checks for this feature."*
+2. Ask your assistant: *"Set up AsBuilt on my repo."* It maps your app's features into `.asbuilt/features.json` and drafts checks, one file per feature, such as `.asbuilt/checkout.json`.
 3. Open a pull request. When the preview is ready, AsBuilt runs and comments.
 
 Full guide, including protected previews, test-account sign-in and every option: **[docs/github-action.md](docs/github-action.md)**.
