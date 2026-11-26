@@ -212,3 +212,10 @@ test("the PR comment carries one copy-ready fix prompt that page text can't brea
     "",
   );
 });
+
+test("results comment lists check files that couldn't run", () => {
+  const body = commentBody(report("Saw it"), { broken: ["signup: isn't valid JSON."] });
+  assert.match(body, /1 check file couldn't run/);
+  assert.match(body, /- `signup: isn't valid JSON\.`/);
+  assert.match(body, /help\/#plan-couldnt-run/);
+});

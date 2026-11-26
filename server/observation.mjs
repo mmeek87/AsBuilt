@@ -180,7 +180,7 @@ async function observeSingle(page, c, { staticMode = false, waitMs = 0 } = {}) {
  * Called only when a check would otherwise fail. Returns a plain-language
  * explanation (the check becomes Not verified) or "" (the failure stands).
  *  - The current page itself returned an HTTP error (outage, bad gateway).
- *  - The page asks for a password: AsBuilt never signs in, so content
+ *  - The page asks for a password and the check doesn't sign in, so content
  *    behind sign-in was not observable.
  */
 export async function blocker(page, documentStatus) {
@@ -194,7 +194,7 @@ export async function blocker(page, documentStatus) {
       .filter({ visible: true })
       .count();
     if (password > 0)
-      return "This page asks for a password. AsBuilt never signs in, so content behind sign-in could not be checked. Use a preview that doesn't need sign-in, or verify this step manually with a test account.";
+      return "This page asks for a password, and this check doesn't sign in, so content behind sign-in could not be checked. Check a page that doesn't need sign-in, or add sign-in with a dedicated test account.";
   } catch {}
   return "";
 }

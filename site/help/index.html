@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Help · AsBuilt</title>
+<meta name="description" content="What each AsBuilt result means, why a check can be Not verified, and how to fix it.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Crect width='28' height='28' rx='7' fill='%23252522'/%3E%3Cpath d='M8 8h5v3h-2v9H8zm12 12h-5v-3h2V8h3z' fill='%23ffe17a'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to main content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="../" aria-label="AsBuilt home">
+      <svg width="26" height="26" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="currentColor"/><path d="M8 8h5v3h-2v9H8zm12 12h-5v-3h2V8h3z" fill="#ffe17a"/></svg>
+      asbuilt
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      <ul>
+        <li class="optional"><a href="../#how">How it works</a></li>
+        <li><a href="../example/">Example report</a></li>
+        <li><a href="./" aria-current="page">Help</a></li>
+        <li class="optional"><a href="https://github.com/mmeek87/AsBuilt/blob/main/docs/github-action.md">Docs</a></li>
+        <li><a href="https://github.com/mmeek87/AsBuilt">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<main id="main">
+  <div class="wrap prose" style="max-width:720px;padding-top:64px;padding-bottom:88px">
+    <span class="eyebrow">Help</span>
+    <h1 class="title" style="margin-top:18px">Understanding your results</h1>
+    <p>Every check ends in one of three results. <strong>Pass</strong> means AsBuilt saw what you intended. <strong>Fail</strong> means it saw something different, with a screenshot. <strong>Not verified</strong> means it couldn't tell, and says why.</p>
+    <nav class="toc" aria-label="On this page">
+      <ul>
+        <li><a href="#not-verified">What “Not verified” means</a></li>
+        <li><a href="#plan-couldnt-run">A check file couldn't run</a></li>
+        <li><a href="#protected">The preview is protected (HTTP 401 or 403)</a></li>
+        <li><a href="#site-error">The page returned an error (HTTP 500, 502 and similar)</a></li>
+        <li><a href="#sign-in-wall">The page asks for a password</a></li>
+        <li><a href="#sign-in">Sign-in didn't work</a></li>
+        <li><a href="#needs-javascript">The check ran without JavaScript</a></li>
+        <li><a href="#too-many-matches">More than one thing matched</a></li>
+        <li><a href="#check-wording">The wording didn't match exactly</a></li>
+        <li><a href="#blocked-requests">Some of the page was blocked</a></li>
+        <li><a href="#absence">“Must not be shown” couldn't be confirmed</a></li>
+        <li><a href="#page-didnt-load">The page or a step didn't load</a></li>
+        <li><a href="#screenshot">No screenshot</a></li>
+        <li><a href="#ask">Still stuck?</a></li>
+      </ul>
+    </nav>
+    <section class="help-item" id="not-verified" aria-labelledby="not-verified-h">
+      <h2 id="not-verified-h">What “Not verified” means</h2>
+      <p>AsBuilt couldn't collect enough evidence to say pass or fail. It is never counted as a pass, and it isn't a bug report either. The line under each result says why. Find that reason below.</p>
+      <p><strong>What to do:</strong> Read the reason, fix the setup it points to, and push again. If none of these sections fit, <a href="https://github.com/mmeek87/AsBuilt/issues/new/choose">ask a question</a>.</p>
+    </section>
+    <section class="help-item" id="plan-couldnt-run" aria-labelledby="plan-couldnt-run-h">
+      <h2 id="plan-couldnt-run-h">A check file couldn't run</h2>
+      <p>Before checking anything, AsBuilt reads each file in <code>.asbuilt/</code> and refuses to run one that's broken or asks for more than it's allowed. Nothing about your app was judged. The comment says which file and why.</p>
+      <p><strong>What to do:</strong> Paste the reason to your assistant and ask it to fix the check file. The most common one is an interactive check without approval: once you've reviewed the check, add <code>"actionsApproved": true</code>. Invalid JSON and a start path that isn't a page on the preview are the next most common.</p>
+    </section>
+    <section class="help-item" id="protected" aria-labelledby="protected-h">
+      <h2 id="protected-h">The preview is protected (HTTP 401 or 403)</h2>
+      <p>The preview asked for a login before showing anything, so AsBuilt saw a lock screen instead of your site. On Vercel this is usually Deployment Protection.</p>
+      <p><strong>What to do:</strong> In Vercel, open your project's <em>Settings → Deployment Protection</em> and copy the <em>Protection Bypass for Automation</em> secret. In GitHub, add it as the repository secret <code>VERCEL_AUTOMATION_BYPASS_SECRET</code>, then uncomment the <code>vercel-bypass-secret</code> line in <code>.github/workflows/asbuilt.yml</code>. AsBuilt sends it only to your preview.</p>
+    </section>
+    <section class="help-item" id="site-error" aria-labelledby="site-error-h">
+      <h2 id="site-error-h">The page returned an error (HTTP 500, 502 and similar)</h2>
+      <p>Your preview was down or crashed when AsBuilt opened it. That's a real problem worth looking at, but AsBuilt can't tell whether your feature works until the page loads.</p>
+      <p><strong>What to do:</strong> Open the preview yourself. If it errors, check your hosting logs and fix the crash. If it loads fine now, it was a temporary outage: re-run the workflow from the Actions tab.</p>
+    </section>
+    <section class="help-item" id="sign-in-wall" aria-labelledby="sign-in-wall-h">
+      <h2 id="sign-in-wall-h">The page asks for a password</h2>
+      <p>AsBuilt reached a sign-in form. It never types a password unless you set up a test account, so it couldn't see what's behind it.</p>
+      <p><strong>What to do:</strong> Either check a page that doesn't need sign-in, or add sign-in to the check with a dedicated test account. Ask your assistant: “Add AsBuilt sign-in to this check.” It will tell you which two secrets to add (<code>ASBUILT_TEST_EMAIL</code> and <code>ASBUILT_TEST_PASSWORD</code>). Never use a real customer account.</p>
+    </section>
+    <section class="help-item" id="sign-in" aria-labelledby="sign-in-h">
+      <h2 id="sign-in-h">Sign-in didn't work</h2>
+      <p>AsBuilt tried to sign in with your test account but couldn't confirm it worked. The reason names what went wrong: a field it couldn't find, a page that didn't load, or no proof of being signed in afterwards.</p>
+      <p><strong>What to do:</strong> Make sure the test account exists on the preview's database and has no two-step verification. Check that the field and button names in the check match what's on screen exactly, for example “Email” and “Sign in”. If a cookie banner covers the form, add its decline button as <code>dismiss</code>.</p>
+    </section>
+    <section class="help-item" id="needs-javascript" aria-labelledby="needs-javascript-h">
+      <h2 id="needs-javascript-h">The check ran without JavaScript</h2>
+      <p>Simple checks read the page with scripts turned off, which is faster and safer. If your page builds its content with JavaScript, that content isn't there yet, so the check can't be judged.</p>
+      <p><strong>What to do:</strong> Ask your assistant to make this check interactive (<code>"execution": "interactive"</code>). It will then load the page in a full browser.</p>
+    </section>
+    <section class="help-item" id="too-many-matches" aria-labelledby="too-many-matches-h">
+      <h2 id="too-many-matches-h">More than one thing matched</h2>
+      <p>The check looks for exactly one thing, like one “Buy” button, and found several. AsBuilt won't guess which one you meant.</p>
+      <p><strong>What to do:</strong> Make the check more specific: use the exact visible words, or check the area of the page the thing lives in. Your assistant can rewrite it.</p>
+    </section>
+    <section class="help-item" id="check-wording" aria-labelledby="check-wording-h">
+      <h2 id="check-wording-h">The wording didn't match exactly</h2>
+      <p>AsBuilt found something close, such as text that contains your words, or a link where the check expected a button, but not an exact match. It's flagging this instead of guessing.</p>
+      <p><strong>What to do:</strong> Look at what AsBuilt saw. If the page is right, update the check's wording or type. If the page is wrong, that's your fix.</p>
+    </section>
+    <section class="help-item" id="blocked-requests" aria-labelledby="blocked-requests-h">
+      <h2 id="blocked-requests-h">Some of the page was blocked</h2>
+      <p>For safety, AsBuilt only loads what's allowed. If parts of the page came from other sites, they were blocked, so the page might not have looked complete.</p>
+      <p><strong>What to do:</strong> If those requests are part of your app, ask your assistant to allow browser network access for this check. That needs your approval, and it's recorded in the check file so it shows up in the pull request.</p>
+    </section>
+    <section class="help-item" id="absence" aria-labelledby="absence-h">
+      <h2 id="absence-h">“Must not be shown” couldn't be confirmed</h2>
+      <p>Checks that something is <em>not</em> on a page only count when AsBuilt is sure the page loaded properly. An error page also doesn't show the thing, so that can't count as a pass.</p>
+      <p><strong>What to do:</strong> Fix whatever stopped the page loading (see the sections above), then run again.</p>
+    </section>
+    <section class="help-item" id="page-didnt-load" aria-labelledby="page-didnt-load-h">
+      <h2 id="page-didnt-load-h">The page or a step didn't load</h2>
+      <p>AsBuilt couldn't open the page, or a click or step in the journey didn't finish. Anything after that point couldn't be checked.</p>
+      <p><strong>What to do:</strong> Open the preview and try the same steps yourself. Check that the start path in the check exists on the preview and that the button names match what's on screen.</p>
+    </section>
+    <section class="help-item" id="screenshot" aria-labelledby="screenshot-h">
+      <h2 id="screenshot-h">No screenshot</h2>
+      <p>The check ran, but AsBuilt couldn't save a screenshot as evidence. Without evidence it won't mark the result as verified.</p>
+      <p><strong>What to do:</strong> Re-run the workflow. If it keeps happening, <a href="https://github.com/mmeek87/AsBuilt/issues/new/choose">report it</a>.</p>
+    </section>
+    <section class="help-item" id="ask" aria-labelledby="ask-h">
+      <h2 id="ask-h">Still stuck?</h2>
+      <p>Ask in <a href="https://github.com/mmeek87/AsBuilt/discussions">GitHub Discussions</a>, or <a href="https://github.com/mmeek87/AsBuilt/issues/new/choose">open an issue</a> if something looks broken. Include the check file and a link to the workflow run, and leave out passwords and private code. AsBuilt is maintained by one person; expect a reply within about a week.</p>
+    </section>
+  </div>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <span>AsBuilt · MIT licensed · Built by <a href="https://github.com/mmeek87">Mel Meek</a></span>
+    <ul>
+      <li><a href="https://github.com/mmeek87/AsBuilt/blob/main/SECURITY.md">Security</a></li>
+      <li><a href="https://github.com/mmeek87/AsBuilt/blob/main/EVALS.md">Evaluation</a></li>
+      <li><a href="../privacy/">Privacy</a></li>
+      <li><a href="../shop/">Test shop</a></li>
+    </ul>
+  </div>
+</footer>
+</body>
+</html>
