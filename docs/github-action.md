@@ -78,8 +78,38 @@ Outputs: `status`, `passed`, `failed`, `not-verified`, `results-dir`.
 - Page text in comments is shown literally, so a page can't inject mentions or links into your PR.
 - The token is used only to find the PR and post one comment. Pull requests from forks get a read-only token, so they get the job summary but no comment.
 
+## Protected Vercel previews
+
+If your previews use Vercel Deployment Protection, copy the project's **Protection Bypass for Automation** secret (Vercel → Project → Settings → Deployment Protection), add it to your GitHub repository as the secret `VERCEL_AUTOMATION_BYPASS_SECRET`, and uncomment the `vercel-bypass-secret` line in the workflow. AsBuilt sends it only to the preview's own address. Without it, protected pages report **Not verified: protected or needs sign-in**, never Fail.
+
+## Signing in with a test account
+
+To check pages behind a login, create a **dedicated test account** in your app (never a real person's), add it as repository secrets `ASBUILT_TEST_EMAIL` and `ASBUILT_TEST_PASSWORD`, uncomment the two `test-…` lines in the workflow, and add a `signIn` block to the plan:
+
+```json
+{
+  "intent": "A signed-in shopper sees their orders.",
+  "execution": "interactive",
+  "journey": true,
+  "actionsApproved": true,
+  "network": "browser",
+  "networkApproved": true,
+  "environment": "test",
+  "signIn": { "path": "/login", "emailLabel": "Email", "passwordLabel": "Password", "submit": "Sign in", "signedInText": "Sign out" },
+  "criteria": [
+    { "id": "orders", "kind": "heading", "value": "Your orders", "expected": "Orders are listed", "actions": [{ "type": "navigate", "name": "My account", "value": "https://YOUR-PREVIEW/account" }] }
+  ]
+}
+```
+
+AsBuilt types the account only into the sign-in page on your preview, checks that the "signed in" text appears, and masks password fields in screenshots. If sign-in fails, or needs a one-time code, CAPTCHA or an outside login page (Google, Auth0), every check says so as Not verified. Because the page itself can see what's typed, as with any login test, only ever use an account with nothing real behind it.
+
+## One file per feature
+
+Put each feature's checks in its own file: `.asbuilt/browse.json`, `.asbuilt/checkout.json`, and so on (up to 10). Every PR rechecks all of them, so a change to checkout that breaks browsing is caught. A broken plan file is reported by name without stopping the others.
+
 ## Limits
 
-- Vercel previews with Deployment Protection turned on can't be checked yet (AsBuilt doesn't send a bypass token). Use an unprotected preview for test data, or turn protection off for previews.
-- No sign-in flows. Pages behind a login report Not verified with an explanation.
-- The isolated worker for interactive checks hasn't been run on a GitHub runner yet; static and sample runs have been tested.
+- No one-time codes, CAPTCHAs, outside identity providers, real payments or order submission.
+- Previews must be reachable from GitHub's servers (Vercel previews are).
+- Screenshots are kept for 14 days and count toward your account's Actions storage on private repositories. If storage is full, results still post and the summary says screenshots weren't saved.

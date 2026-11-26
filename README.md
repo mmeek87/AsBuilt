@@ -1,20 +1,35 @@
 # AsBuilt
 
-**An independent product-review agent for people building with AI.**
+**Check that what your AI built actually does what you meant.**
 
-AsBuilt starts with what you meant to build, examines a GitHub snapshot, and proposes observable checks. You review the plan before a separate browser runner gathers evidence. It never treats the agent's confidence as proof that the application works.
+You tell your assistant (Claude, ChatGPT, Codex) what a feature should do. It writes those expectations as a short plan in your repository. Every time Vercel deploys a preview of a pull request, AsBuilt opens it in a real browser on desktop and mobile, checks each expectation, takes screenshots, and comments on the PR: what passed, what didn't, what it couldn't check and why, plus a prompt you can paste back to your assistant to fix it.
+
+It never takes the AI's word that something works, and it never marks something passed without seeing it.
+
+- **Free and open source.** Runs on GitHub Actions (free for public repositories). No servers, no AI bills, no accounts. MIT license.
+- **Nothing to install.** Add one workflow file and one plan file, or ask your assistant to do it with the AsBuilt skill.
+- **Honest results.** Pass, Fail, or Not verified with a reason (signed out, site down, protected preview). Measured in [EVALS.md](EVALS.md): 0 false passes across 9 scenarios, including misleading pages.
+- **Safe by design.** Only your preview, only reviewed steps, no purchases or form submissions, test accounts only. See [SECURITY.md](SECURITY.md).
+
+## Use it on GitHub (recommended)
+
+1. Copy [`examples/asbuilt-vercel.yml`](examples/asbuilt-vercel.yml) to `.github/workflows/asbuilt.yml`.
+2. Add a plan, one file per feature, such as `.asbuilt/checkout.json`. Ask your assistant: *"Use AsBuilt to draft checks for this feature."*
+3. Open a pull request. When the preview is ready, AsBuilt runs and comments.
+
+Full guide, including protected previews, test-account sign-in and every option: **[docs/github-action.md](docs/github-action.md)**.
 
 ![AsBuilt review workspace](docs/screenshots/workspace.png)
 
-A standalone TypeScript project. It does not import, modify, or test eBarrel. No live eBarrel requests or orders were made during development.
+## Assistant plugin
 
-## Open-source plugin
+The AsBuilt skill teaches Claude, ChatGPT or Codex to turn your intent and a pull request into reviewed checks, set up the workflow (with your permission), and explain the results. That's the agent: your assistant plans, AsBuilt independently observes. See [plugin installation](plugins/asbuilt/README.md).
 
-AsBuilt is MIT-licensed. The primary distribution is a local skill-and-script plugin for hosts with local execution; the existing MCP interfaces and optional private hosting remain available for developers.
+## Local app (optional, for development)
 
-See [plugin installation](plugins/asbuilt/README.md) and the [Claude / ChatGPT release checklist](docs/open-source-release.md). Build the submission archives with `python3 scripts/package-plugin.py`. The package does not enable paid runs or require the maintainer's hosted account. It has not yet been submitted or accepted by either directory.
+The same engine also runs as a local app with a review interface and an MCP server, useful for trying checks before committing them, or for the product coverage view.
 
-## Run locally
+### Run locally
 
 Requirements: Node 24 LTS and pnpm 11.25 or later in the 11.x line.
 
@@ -41,6 +56,7 @@ Choose **Sample project → Use an example → Create review plan**, review the 
 | 2. Browser capability    | Actual Playwright desktop/mobile checks for visible text, headings, buttons and native required fields. Static mode plus approved click/fill/select interactions with JavaScript. Local sample validated; Docker worker fixture checks validated; real external preview acceptance pending. See [Phase 2 setup](docs/phase2.md).                                                                       |
 | 3. Reports/history       | Per-check expected/observed results, reproducible steps, screenshots, suggested prompts, JSON export and local persisted run history.                                                                                                                                     |
 | 4. MCP                   | One authenticated shared service with Streamable HTTP and a stdio bridge. Tested with the MCP SDK client. HTTP and stdio tested end-to-end; Codex and Claude Desktop configurations installed on this workstation. Host activation and hosted ChatGPT remain unverified.                                                                 |
+| GitHub Action            | Runs reviewed `.asbuilt/*.json` plans on every preview deployment, on desktop and mobile, with screenshots, a job summary, one updated PR comment with a fix prompt, test-account sign-in and Vercel protected-preview support. Free on public repositories. Live acceptance runs against a real external site in CI. |
 | Product coverage (0.5.0) | Whole-product requirement maps with cited sources, frozen scenarios and revisions. Coverage only counts a pass from a fresh, complete, plan-matching run with both viewports and screenshots. Usable from the **Product coverage** screen and 7 MCP tools. |
 | 5. Deployment automation | Not implemented. Future work must bind a deployment to its exact commit and approved preview origin, validate signed events and prevent duplicate runs.                                                                                                                   |
 
@@ -179,7 +195,9 @@ Do not commit a credential-bearing `.mcp.json`. A stdio-capable Claude desktop h
 
 ### ChatGPT and hosted Claude
 
-**What works today:** Claude Desktop and Claude Code (local stdio or HTTP, configured above) and Codex. **What doesn't:** ChatGPT on the web and Claude custom connectors connect to MCP servers *from their own cloud*, so they need a public HTTPS URL. They cannot reach `127.0.0.1` on your computer (checked against Claude's and OpenAI's connector documentation, November 2026). ChatGPT developer-mode apps also expect OAuth or no authentication. AsBuilt's shared bearer key is not a supported option there (reported by developers; not independently verified).
+**Simplest path for any assistant, ChatGPT included: the [GitHub version](docs/github-action.md).** The assistant only needs to write a plan file to your repository; no MCP connection is involved.
+
+For the local MCP server: **what works today** is Claude Desktop and Claude Code (local stdio or HTTP, configured above) and Codex. **What doesn't:** ChatGPT on the web and Claude custom connectors connect to MCP servers *from their own cloud*, so they need a public HTTPS URL. They cannot reach `127.0.0.1` on your computer (checked against Claude's and OpenAI's connector documentation, November 2026). ChatGPT developer-mode apps also expect OAuth or no authentication. AsBuilt's shared bearer key is not a supported option there (reported by developers; not independently verified).
 
 This MVP is **not yet a deployed ChatGPT/Claude connector**. It intentionally binds to loopback and rejects unknown hosts/origins. ChatGPT remote MCP setup depends on your account/workspace permissions and requires a reachable supported transport, with appropriate authentication. A plain localhost URL and our arbitrary bearer token are not a finished hosted integration.
 
@@ -230,8 +248,3 @@ Implementation references checked November 24, 2026:
 - [ChatGPT custom MCP connections](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt)
 
 Instrument Serif and Public Sans are self-hosted; their SIL Open Font License files are in `public/fonts/`. The app loads no remote fonts or analytics.
-
-## Fully online hosting
-
-Use the Vite preset on Vercel. See [the deployment guide](docs/vercel.md) for the dedicated database, private evidence storage, browser setup, costs, and current validation limits. Cloud browser execution is disabled by default.
-
