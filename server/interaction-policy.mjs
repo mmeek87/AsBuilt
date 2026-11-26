@@ -427,3 +427,18 @@ async function remember(page, action, memory) {
   if (values[0].length > 100) throw Error("The remembered value is too long.");
   memory.set(action.name, values[0]);
 }
+
+// The isolated worker has no network interface of its own (traffic goes
+// through AsBuilt's reviewed tunnel), so the browser would report
+// navigator.onLine === false and apps that check it would say "no
+// connection". With approved browser networking the page is online.
+export async function reportOnline(context) {
+  await context.addInitScript(() => {
+    try {
+      Object.defineProperty(Navigator.prototype, "onLine", {
+        configurable: true,
+        get: () => true,
+      });
+    } catch {}
+  });
+}

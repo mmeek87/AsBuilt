@@ -1,5 +1,5 @@
 import { observe, blocker } from "./observation.mjs";
-import { perform } from "./interaction-policy.mjs";
+import { perform, reportOnline } from "./interaction-policy.mjs";
 import { journeyFixture } from "./journey-fixture.mjs";
 import { alreadySignedIn, signIn } from "./sign-in.mjs";
 
@@ -43,6 +43,7 @@ export async function runJourney(
         acceptDownloads: false,
         permissions: [],
       });
+      if (plan.network === "browser") await reportOnline(context);
       // Vercel bypass cookie (preview origin only), when provided.
       if (cookies.length) await context.addCookies(cookies);
       const page = await context.newPage();

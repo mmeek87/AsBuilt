@@ -7,3 +7,4 @@ export function perform(
   testActions?: { siteMarker: string; approved: string[] | "all" },
   memory?: Map<string, string>,
 ): Promise<void>;
+export function reportOnline(context: import("playwright").BrowserContext): Promise<void>;
