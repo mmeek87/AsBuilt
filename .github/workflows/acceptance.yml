@@ -25,6 +25,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           url=$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq .html_url 2>/dev/null || true)
+          # Anything but a real https address (404 body, "null", empty) means not enabled.
+          case "$url" in https://*) ;; *) url="" ;; esac
           if [ -z "$url" ]; then
             echo "::notice::GitHub Pages isn't enabled yet, so the live acceptance check was skipped. Enable it in Settings → Pages (Source: GitHub Actions)."
           fi

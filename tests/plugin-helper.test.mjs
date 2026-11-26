@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync, mkdirSync, writeFileSync, rmSync} from 'node:fs';
+import {mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createServer} from 'node:http';
@@ -87,4 +87,12 @@ test('product commands parse correctly and saved scenario files cannot grant app
     assert.throws(() => payload(parse(['--home', '/x', 'capture', big])), /smaller than 64 KB/);
     assert.doesNotThrow(() => payload(parse(['--home', '/x', 'save-product', big])));
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the plugin ships the same workflow template the docs point to', () => {
+  const root = new URL('..', import.meta.url);
+  assert.equal(
+    readFileSync(new URL('plugins/asbuilt/templates/asbuilt-workflow.yml', root), 'utf8'),
+    readFileSync(new URL('examples/asbuilt-vercel.yml', root), 'utf8'),
+  );
 });
