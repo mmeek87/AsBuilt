@@ -7,7 +7,9 @@ import tempfile
 root = Path(__file__).resolve().parents[1]
 plugin = root / 'plugins' / 'asbuilt'
 files = ['plugin.json', '.claude-plugin/plugin.json', 'README.md',
-         'scripts/asbuilt.mjs', 'skills/verify-build/SKILL.md', 'assets/icon.svg']
+         'scripts/asbuilt.mjs', 'skills/verify-build/SKILL.md',
+         'skills/verify-build/references/product-review.md',
+         'templates/asbuilt-workflow.yml', 'assets/icon.svg']
 out = root / 'release'
 out.mkdir(exist_ok=True)
 with tempfile.TemporaryDirectory(prefix='asbuilt-package-') as temp:

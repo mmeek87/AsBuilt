@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy and support · AsBuilt</title>
+<meta name="description" content="What AsBuilt runs, what it sends, what it stores, and how to get help.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Crect width='28' height='28' rx='7' fill='%23252522'/%3E%3Cpath d='M8 8h5v3h-2v9H8zm12 12h-5v-3h2V8h3z' fill='%23ffe17a'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to main content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="../" aria-label="AsBuilt home">
+      <svg width="26" height="26" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="currentColor"/><path d="M8 8h5v3h-2v9H8zm12 12h-5v-3h2V8h3z" fill="#ffe17a"/></svg>
+      asbuilt
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      <ul>
+        <li class="optional"><a href="../#how">How it works</a></li>
+        <li><a href="../example/">Example report</a></li>
+        <li class="optional"><a href="https://github.com/mmeek87/AsBuilt/blob/main/docs/github-action.md">Docs</a></li>
+        <li><a href="https://github.com/mmeek87/AsBuilt">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<main id="main">
+  <div class="wrap prose" style="max-width:720px;padding-top:64px;padding-bottom:88px">
+    <span class="eyebrow">Last updated November 26, 2026</span>
+    <h1 class="title" style="margin-top:18px">Privacy and support</h1>
+    <p>AsBuilt is free, open-source software maintained by Mel Meek. There is no AsBuilt account or hosted service, and AsBuilt collects no personal information. Everything below describes software that runs in your own GitHub repository or on your own computer.</p>
+    <h2>What the GitHub Action does</h2>
+    <ul>
+      <li>Runs on your repository's GitHub Actions runner when a preview deployment finishes.</li>
+      <li>Opens only your preview's address and reads the <code>.asbuilt</code> check files in your repository.</li>
+      <li>Posts or updates one comment on the pull request, using your workflow's own <code>GITHUB_TOKEN</code>.</li>
+      <li>Saves screenshots as a workflow artifact in your repository, kept for as long as your GitHub settings keep artifacts. Password fields are masked.</li>
+      <li>Sends secrets you add, such as a test account or a Vercel bypass secret, only to your preview's own address.</li>
+    </ul>
+    <h2>What the plugin does</h2>
+    <p>The AsBuilt plugin for Claude and ChatGPT is a set of instructions plus a small helper that talks only to an AsBuilt service on your own computer (<code>127.0.0.1</code>). Your assistant processes your prompts and any results you share with it under that assistant's own privacy terms.</p>
+    <h2>What AsBuilt never does</h2>
+    <ul>
+      <li>Send data to the maintainer or any third party</li>
+      <li>Add analytics, telemetry, cookies or tracking</li>
+      <li>Make purchases or payments, or submit real forms</li>
+      <li>Commit to your repository without your permission</li>
+    </ul>
+    <p>This website is hosted on GitHub Pages, which may keep standard server logs under <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub's privacy statement</a>. The site sets no cookies and loads no third-party scripts.</p>
+    <h2>Get help</h2>
+    <p>Ask questions or report problems in <a href="https://github.com/mmeek87/AsBuilt/issues">GitHub Issues</a>. Please leave out passwords, private code and personal data. To report a security issue privately, follow the <a href="https://github.com/mmeek87/AsBuilt/blob/main/SECURITY.md">security policy</a>.</p>
+    <h2>Remove AsBuilt</h2>
+    <p>Uninstall the plugin in your assistant, then delete <code>.github/workflows/asbuilt.yml</code> and the <code>.asbuilt</code> folder from your repository. Screenshots already saved as workflow artifacts expire on GitHub's schedule, or you can delete them from the workflow run.</p>
+  </div>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <span>AsBuilt · MIT licensed · Built by <a href="https://github.com/mmeek87">Mel Meek</a></span>
+    <ul>
+      <li><a href="https://github.com/mmeek87/AsBuilt/blob/main/SECURITY.md">Security</a></li>
+      <li><a href="https://github.com/mmeek87/AsBuilt/blob/main/EVALS.md">Evaluation</a></li>
+      <li><a href="./" aria-current="page">Privacy</a></li>
+      <li><a href="../shop/">Test shop</a></li>
+    </ul>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,8 +1,20 @@
 {
   "name": "asbuilt",
   "version": "0.4.0",
-  "description": "Compare a website’s observable behavior with your intent, then review evidence and honest limitations.",
+  "description": "Check what your website actually does: turn your intent into approved checks and get Pass, Fail or Not verified with screenshots on every pull request.",
   "repository": "https://github.com/mmeek87/AsBuilt",
   "license": "MIT",
-  "keywords": ["verification", "testing", "websites", "product"]
+  "keywords": [
+    "verification",
+    "testing",
+    "websites",
+    "github-actions",
+    "pull-requests",
+    "accessibility"
+  ],
+  "author": {
+    "name": "Mel Meek",
+    "url": "https://github.com/mmeek87"
+  },
+  "homepage": "https://mmeek87.github.io/AsBuilt/"
 }
