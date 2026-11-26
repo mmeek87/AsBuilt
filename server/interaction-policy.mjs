@@ -39,6 +39,24 @@ export async function perform(
     : page;
   if (action.within && (await root.count()) !== 1)
     throw Error("The reviewed action section is missing or ambiguous.");
+  if (action.type === "testPayment") {
+    if (!approvedTest)
+      throw Error(
+        "Paying with the test card is outside the allowed interaction policy until it's approved as a test action.",
+      );
+    return payWithStripeTestCard(page);
+  }
+  if (action.type === "check") {
+    const box = root
+      .getByRole("radio", { name: action.name, exact: true })
+      .or(root.getByRole("checkbox", { name: action.name, exact: true }))
+      .filter({ visible: true });
+    await box.first().waitFor({ state: "visible", timeout: 5000 });
+    // Some sites render the same choice more than once (one per store or
+    // section); ticking the first visible one is the reviewed choice.
+    await box.first().check({ timeout: 5000 });
+    return;
+  }
   if (action.type === "navigate") {
     const expected = new URL(action.value);
     if (
@@ -196,4 +214,92 @@ export async function perform(
   else if (action.type === "fill")
     await locator.fill(action.value, { timeout: 3000 });
   else await locator.selectOption({ label: action.value }, { timeout: 3000 });
+}
+
+// Stripe's public test card. Live Stripe declines it, so this can never
+// charge real money; it is also never read from a plan.
+const TEST_CARD = {
+  number: "4242424242424242",
+  expiry: "12 / 34",
+  cvc: "123",
+  name: "AsBuilt Test",
+  postal: "10001",
+  email: "asbuilt-test@example.com",
+};
+const STRIPE_FRAME =
+  'iframe[src^="https://js.stripe.com/"], iframe[src^="https://checkout.stripe.com/"]';
+
+async function payWithStripeTestCard(page) {
+  const frameEl = page.locator(STRIPE_FRAME).filter({ visible: true });
+  try {
+    await frameEl.first().waitFor({ state: "visible", timeout: 45000 });
+  } catch {
+    throw Error(
+      "No Stripe payment form appeared on the page, so AsBuilt didn't pay.",
+    );
+  }
+  // Stripe Checkout (embedded) shows one frame; Payment Element may show
+  // several (one per field), so look in each until the card number appears.
+  const frames = await frameEl.count();
+  let stripe;
+  for (let i = 0; i < frames && !stripe; i++) {
+    const f = page.frameLocator(STRIPE_FRAME).nth(i);
+    const found = await f
+      .locator(
+        '#cardNumber, input[name="cardnumber"], input[name="number"], [data-testid="card-accordion-item-button"]',
+      )
+      .or(f.getByText("Pay without Link"))
+      .first()
+      .waitFor({ state: "attached", timeout: i === 0 ? 45000 : 5000 })
+      .then(
+        () => true,
+        () => false,
+      );
+    if (found) stripe = f;
+  }
+  if (!stripe)
+    throw Error("AsBuilt couldn't find Stripe's card form, so it didn't pay.");
+  const number = stripe.locator('#cardNumber, input[name="cardnumber"], input[name="number"]');
+  const skipLink = stripe.getByText("Pay without Link");
+  if (await skipLink.isVisible().catch(() => false)) await skipLink.click();
+  await page.waitForTimeout(1000);
+  if (!(await number.first().isVisible().catch(() => false))) {
+    // Stripe covers the Card row with an invisible button; click it directly.
+    const card = stripe.locator('[data-testid="card-accordion-item-button"]');
+    if (await card.count()) await card.first().dispatchEvent("click");
+  }
+  await number.first().fill(TEST_CARD.number, { timeout: 45000 });
+  await stripe
+    .locator('#cardExpiry, input[name="exp-date"], input[name="expiry"]')
+    .first()
+    .fill(TEST_CARD.expiry, { timeout: 10000 });
+  await stripe
+    .locator('#cardCvc, input[name="cvc"]')
+    .first()
+    .fill(TEST_CARD.cvc, { timeout: 10000 });
+  const optional = [
+    ["#email", TEST_CARD.email],
+    ["#billingName", TEST_CARD.name],
+    ["#billingPostalCode, input[name=\"postal\"], input[name=\"postalCode\"]", TEST_CARD.postal],
+  ];
+  for (const [selector, value] of optional) {
+    const field = stripe.locator(selector).first();
+    if (
+      (await field.isVisible().catch(() => false)) &&
+      !(await field.inputValue().catch(() => ""))
+    )
+      await field.fill(value, { timeout: 5000 });
+  }
+  const submit = stripe.locator('button[type="submit"], .SubmitButton');
+  if (await submit.count()) {
+    await submit.first().click({ timeout: 10000 });
+  } else {
+    // Payment Element: the site's own button submits; the next step clicks it.
+    return;
+  }
+  // Wait for Stripe to finish and the site to move on.
+  const before = page.url();
+  await page
+    .waitForURL((u) => u.href !== before, { timeout: 60000 })
+    .catch(() => {});
 }

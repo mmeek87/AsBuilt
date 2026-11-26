@@ -1,7 +1,19 @@
 import { z } from "zod";
 export const actionSchema = z
   .object({
-    type: z.enum(["click", "fill", "select", "navigate", "menu"]),
+    // "check" ticks a radio button or checkbox by its label. "testPayment"
+    // pays with Stripe's public test card inside Stripe's own payment frame;
+    // it needs an approved test action and never takes a card number from
+    // the plan.
+    type: z.enum([
+      "click",
+      "fill",
+      "select",
+      "navigate",
+      "menu",
+      "check",
+      "testPayment",
+    ]),
     name: z.string().min(1).max(100),
     match: z.enum(["exact", "contains"]).optional(),
     within: z
@@ -293,6 +305,17 @@ export function validateExecution(plan: Plan) {
       );
   }
 
+  const payments = plan.criteria.flatMap((c) =>
+    (c.actions ?? []).filter((a) => a.type === "testPayment"),
+  );
+  if (payments.length && !plan.testActions)
+    throw Error(
+      "Paying with the test card is a test action: approve it for a test site first.",
+    );
+  if (payments.some((a) => a.value !== "" && a.value !== "stripe"))
+    throw Error(
+      'A test payment never takes card details from the check. Leave its value empty (or "stripe"); AsBuilt uses Stripe\'s public test card.',
+    );
   const count = plan.criteria.reduce((n, c) => n + (c.actions?.length || 0), 0);
   if (count > 20) throw Error("Limit each run to 20 actions in total.");
   if (count && plan.execution !== "interactive")
