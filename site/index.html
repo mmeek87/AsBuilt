@@ -73,6 +73,30 @@
     </div>
   </section>
 
+  <section id="demo" aria-labelledby="demo-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="title" id="demo-title">See it catch a real bug in 50 seconds.</h2>
+        <p>A real pull request on a fictional shop. The checkout was supposed to show the order total. AsBuilt noticed it didn't. <a href="https://github.com/mmeek87/asbuilt-demo/pull/1">See the pull request</a>.</p>
+      </div>
+      <figure class="demo">
+        <video controls muted playsinline preload="none" poster="assets/demo/poster.jpg" aria-describedby="demo-transcript-title">
+          <source src="assets/demo/asbuilt-demo.mp4" type="video/mp4">
+          <a href="assets/demo/asbuilt-demo.mp4">Download the demo video</a>
+        </video>
+        <details class="transcript">
+          <summary id="demo-transcript-title">What happens in the video (no sound)</summary>
+          <ol>
+            <li>In an AI assistant with the AsBuilt plugin, the user asks: “Before paying, shoppers should see the order total and that delivery is free, then one clear Pay button.” The assistant proposes four checks and waits for approval. The chat is recreated for the demo.</li>
+            <li>On the real pull request, AsBuilt comments: 6 passed, 2 failed. The order total is missing on desktop and mobile. Screenshots show the checkout with a subtotal and delivery, but no total.</li>
+            <li>The user pastes AsBuilt's fix prompt into the assistant, which adds the missing order total row.</li>
+            <li>The next preview is checked again: all 8 checks pass.</li>
+          </ol>
+        </details>
+      </figure>
+    </div>
+  </section>
+
   <section aria-labelledby="questions-title">
     <div class="wrap">
       <div class="section-head">
