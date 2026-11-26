@@ -1,7 +1,8 @@
 {
   "name": "asbuilt",
+  "displayName": "AsBuilt",
   "version": "1.0.0",
-  "description": "Check what your website actually does: turn your intent into approved checks and get Pass, Fail or Not verified with screenshots on every pull request.",
+  "description": "Check what your AI built actually does: your assistant maps your app's features, you approve checks, and every pull request gets Pass, Fail or Not verified with screenshots.",
   "repository": "https://github.com/mmeek87/AsBuilt",
   "license": "MIT",
   "keywords": [
@@ -10,7 +11,8 @@
     "websites",
     "github-actions",
     "pull-requests",
-    "accessibility"
+    "ai-agents",
+    "qa"
   ],
   "author": {
     "name": "Mel Meek",
