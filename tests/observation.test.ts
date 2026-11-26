@@ -212,3 +212,40 @@ test("sign-in walls and HTTP errors make a missing outcome Not verified, never a
     await browser.close();
   }
 });
+
+test('"must not be visible" fails when shown, passes only when really absent, never from a static page', async () => {
+  const { observe } = await import("../server/observation.mjs");
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const nav = {
+      id: "nav",
+      expected: "Account menu is hidden",
+      kind: "link",
+      value: "Referrals",
+      occurrence: "none",
+    } as const;
+    await page.setContent(
+      '<nav><a href="/r">Referrals</a></nav><h1>Sign in</h1>',
+    );
+    const shown = await observe(page, nav as any, {});
+    assert.equal(shown.status, "fail");
+    assert.match(shown.observed, /should not be shown/);
+    await page.setContent(
+      '<a href="/r" style="display:none">Referrals</a><h1>Sign in</h1>',
+    );
+    assert.equal(
+      (await observe(page, nav as any, {})).status,
+      "pass",
+      "hidden counts as not shown",
+    );
+    await page.setContent("<h1>Sign in</h1>");
+    assert.equal((await observe(page, nav as any, {})).status, "pass");
+    assert.equal(
+      (await observe(page, nav as any, { staticMode: true })).status,
+      "not_verified",
+    );
+  } finally {
+    await browser.close();
+  }
+});

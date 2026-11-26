@@ -22,7 +22,9 @@ export const criterionSchema = z
     value: z.string().max(200),
     expectedUrl: z.string().url().max(2048).optional(),
     match: z.enum(["exact", "contains"]).optional(),
-    occurrence: z.enum(["unique", "at_least_one"]).optional(),
+    // "none": must NOT be visible (privacy, signed-out states). Pair it with
+    // a positive check on the same page so a blank page can't pass.
+    occurrence: z.enum(["unique", "at_least_one", "none"]).optional(),
     within: z
       .object({
         role: z.enum([
