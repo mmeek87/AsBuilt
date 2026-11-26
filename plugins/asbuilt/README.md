@@ -63,7 +63,7 @@ Open `http://127.0.0.1:4310`. The helper reads the local access key from `.data/
 
 ## Limits
 
-"Not verified" means AsBuilt couldn't collect evidence (a login wall, an error page, an unclear check); it's never counted as a pass. Automated checks don't prove backend behavior, full accessibility compliance, or that a whole product is correct. AsBuilt won't make purchases, payments, or real submissions, and it won't test production with user actions. Only test with test accounts and test data.
+"Not verified" means AsBuilt couldn't collect evidence (a login wall, an error page, an unclear check); it's never counted as a pass. Automated checks don't prove backend behavior, full accessibility compliance, or that a whole product is correct. Cart, checkout and payment steps run only on a test site and only if you approve them; payments use Stripe's public test card, which can't charge real money. It won't take actions on production. Only test with test accounts and test data.
 
 ## Support and removal
 

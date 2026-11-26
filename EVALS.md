@@ -57,7 +57,7 @@ Run it with `pnpm eval` (one pass, about 2.5 minutes) or `pnpm eval --repeat 3` 
 
 Example of what a user now sees for the login wall:
 
-> **Not verified.** This page asks for a password. AsBuilt never signs in, so content behind sign-in could not be checked. Use a preview that doesn't need sign-in, or verify this step manually with a test account. What AsBuilt saw: No visible exact heading match found for "Maple Market"…
+> **Not verified.** This page asks for a password, and this check doesn't sign in, so content behind sign-in could not be checked. Check a page that doesn't need sign-in, or add sign-in with a dedicated test account. What AsBuilt saw: No visible exact heading match found for "Maple Market"…
 
 ## What this does and doesn't show
 

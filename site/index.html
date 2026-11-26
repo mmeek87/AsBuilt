@@ -196,7 +196,7 @@
     <span class="k">runs-on</span>: ubuntu-latest
     <span class="k">steps</span>:
       - <span class="k">uses</span>: actions/checkout@v4
-      - <span class="k">uses</span>: mmeek87/asbuilt@main
+      - <span class="k">uses</span>: mmeek87/AsBuilt@v1
         <span class="k">with</span>:
           <span class="k">url</span>: ${{ github.event.deployment_status.environment_url }}</pre>
       </div>
@@ -211,7 +211,7 @@
       </div>
       <ul class="checks">
         <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span><strong>Only your preview.</strong> It can't be pointed at other sites, and private networks are blocked.</span></li>
-        <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span><strong>No purchases, submissions or deletions.</strong> Only the steps you approved run.</span></li>
+        <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span><strong>Nothing risky unless you say so.</strong> Cart, checkout and payment steps stay off. On a test site you can approve them, and they run only with Stripe's test card while your test-site banner is showing.</span></li>
         <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span><strong>Test accounts stay secret.</strong> They come from GitHub secrets, are typed only into your preview, and passwords are hidden in screenshots.</span></li>
         <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span><strong>Measured, not promised.</strong> Zero false passes across 108 checks in 9 test scenarios, including pages designed to mislead it. <a href="https://github.com/mmeek87/AsBuilt/blob/main/EVALS.md">See the evaluation</a>.</span></li>
       </ul>

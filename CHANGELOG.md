@@ -1,9 +1,27 @@
 # Changelog
 
+## 1.0.0 (November 26, 2026)
+
+First release. Use `mmeek87/AsBuilt@v1`.
+
+### New since the GitHub-only pass
+- **Feature map** (`.asbuilt/features.json`): your assistant maps every feature from the code; each PR comment shows coverage and the unchecked features.
+- **Help for every Not verified result**, linked from the comment; issue forms; Discussions; a privacy and support page.
+- **Test actions on a test site:** approve cart, checkout and order steps (one by one, or once for the whole test site in `.asbuilt/settings.json`). They run only with `allow-test-actions: true` in the workflow and while the page shows your test-site marker.
+- **Test payments** with Stripe's public test card inside Stripe's frame; card details never come from a check file.
+- **A second test account** (for example a store), opening the newest matching record (`.../orders/*`), `check`, `reload`, and `remember` to carry a value such as a pickup code between accounts.
+- **Verified end to end on eBarrel's test site:** pay, store picks and marks ready, buyer sees the pickup code, store verifies it, buyer sees it collected (18/18 on desktop and mobile).
+
+### Fixed (found on eBarrel's test site)
+- Sign-in: re-types if a loading page wipes the form; waits for background sign-in; ignores empty alert regions (Next.js route announcer); survives the app's own redirect; quotes the site's error; signs in once per run and reuses the session.
+- Browser networking: idle connections no longer cut after 15 s; IPv4 preferred (GitHub runners can't reach IPv6); pages see the browser as online.
+- A check file that can't run now gets a PR comment explaining why.
+- Screenshots retry on busy pages.
+
 ## Unreleased: GitHub-only AsBuilt (November 26, 2026)
 
 ### New
-- **GitHub Action** (`uses: mmeek87/asbuilt`): checks every preview deployment against `.asbuilt/*.json` plans on desktop and mobile, with screenshots, a job summary, and one PR comment that's updated on reruns. Free on public repositories; no AI calls.
+- **GitHub Action** (`uses: mmeek87/AsBuilt@v1`): checks every preview deployment against `.asbuilt/*.json` plans on desktop and mobile, with screenshots, a job summary, and one PR comment that's updated on reruns. Free on public repositories; no AI calls.
 - **Fix prompt** in the PR comment: one copy-ready prompt covering every mismatch.
 - **One plan file per feature:** every PR rechecks every feature, catching regressions.
 - **Test-account sign-in** before journeys (accounts only from secrets; typed only on the preview; passwords masked).

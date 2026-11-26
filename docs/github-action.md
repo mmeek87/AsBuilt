@@ -9,7 +9,7 @@ AsBuilt runs as a GitHub Action. After every preview deployment of a pull reques
 1. **Your assistant maps the app.** With the AsBuilt plugin, Claude, ChatGPT or Codex reads your code and lists every feature it finds, in plain words, in `.asbuilt/features.json`. You correct the list; you never have to remember every feature yourself.
 2. **You approve checks** for the features that matter most. The assistant writes them to `.asbuilt/<feature>.json` in your branch, so they're reviewed like any other change in the PR.
 3. **Vercel deploys a preview.** GitHub tells the workflow the preview is ready.
-4. **AsBuilt checks the preview** in a real browser, on desktop and mobile, following the plan exactly. It signs in only with a dedicated test account you add as secrets, and never buys anything or makes real submissions.
+4. **AsBuilt checks the preview** in a real browser, on desktop and mobile, following the plan exactly. It signs in only with a dedicated test account you add as secrets. Cart, checkout and order steps run only if you approve them for a test site (see Test actions below).
 5. **You get the results** as a PR comment, in the job summary, and as screenshots in the **asbuilt-evidence** artifact. Each check is a Pass, a Fail, or Not verified, with the reason. The comment also shows coverage: how many features in your map have checks, and which don't yet.
 6. **You fix and push.** The next preview is checked again, and the same comment is updated.
 
@@ -91,7 +91,7 @@ Also available with test actions:
 Not on Vercel? Call the Action from any workflow and pass the preview address:
 
 ```yaml
-- uses: mmeek87/asbuilt@main
+- uses: mmeek87/AsBuilt@v1
   with:
     url: https://your-preview.example.com
 ```

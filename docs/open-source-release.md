@@ -28,13 +28,13 @@ Name: AsBuilt
 
 Tagline: Check what your website actually does
 
-Description: AsBuilt helps builders compare intended website behavior with observable results. Describe your intent, review a concrete plan, and approve checks against a fictional sample or allowed preview. Read reports that distinguish passes, failures, interruptions, and unverified behavior. Runs through your local AsBuilt installation, with local reports and authenticated evidence. Requires Node.js 24 and a running local service. External interactive previews require Docker. Does not test production sites, submit forms, perform transactions, or claim unexecuted checks passed.
+Description: AsBuilt checks whether your website does what you meant to build. Your assistant reads your code and maps every feature in plain words; you correct the list and approve checks. A free GitHub Action opens every preview deployment in a real browser on desktop and mobile and posts one pull request comment: Pass, Fail or Not verified, with screenshots, coverage of your feature map, and a fix prompt. On a test site you approve, it can also run your full order flow: sign in with test accounts, check out and pay with Stripe's test card. Free and open source; no account, no hosted service, no telemetry.
 
 Suggested prompts:
 
-1. “Turn this intended behavior into checks. Show me the plan before running anything.”
-2. “Check the AsBuilt connection and explain what is currently available.”
-3. “Read this AsBuilt report and separate observed failures from missing evidence.”
+1. “Set up AsBuilt on my repo.”
+2. “Draft AsBuilt checks for the unchecked features that matter most.”
+3. “Read the AsBuilt comment on my pull request and tell me what to fix first.”
 
 ## Before publication
 

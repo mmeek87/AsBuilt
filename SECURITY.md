@@ -21,7 +21,7 @@ AsBuilt drives a real browser against websites and can read your GitHub reposito
 
 **Browser isolation.** Each check uses a fresh profile with no permissions or downloads, and service workers and WebSockets are blocked. External interactive pages run in a Docker container with `--network=none`, a read-only filesystem, all capabilities dropped, `no-new-privileges`, and memory, CPU and PID limits. No host mounts or environment variables are passed. Network access goes only through a broker in the parent process.
 
-**Actions.** Only reviewed click, fill, select, navigate and menu actions run. Submit buttons, password fields, ambiguous controls and unreviewed destinations are refused. No purchases, submissions, sign-ins or deletions. Approval is separate for checks, actions and normal network traffic, and editing a plan clears approval.
+**Actions.** Only reviewed click, fill, select, check, navigate, menu, reload and remember steps run. By default, submit buttons, password fields, ambiguous controls, unreviewed destinations and anything that looks like a cart, checkout, order, payment or deletion step are refused. On a test site the user can approve specific steps of that kind as test actions (see Test actions below). Sign-in happens only through the dedicated sign-in step. Approval is separate for checks, actions and normal network traffic, and editing a plan clears approval.
 
 **Integrity of results.** A pass requires an observation plus a screenshot. Blocked resources, script errors, HTTP errors and sign-in walls make a missing outcome Not verified, never Fail or Pass. Product coverage only counts runs whose recorded plan matches the frozen scenario exactly, on both viewports, with screenshots. Deleted or interrupted evidence never counts.
 
