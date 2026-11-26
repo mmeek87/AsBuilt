@@ -291,16 +291,39 @@ async function payWithStripeTestCard(page) {
     )
       await field.fill(value, { timeout: 5000 });
   }
-  const submit = stripe.locator('button[type="submit"], .SubmitButton');
-  if (await submit.count()) {
-    await submit.first().click({ timeout: 10000 });
-  } else {
+  const submit = stripe
+    .locator('button[type="submit"], .SubmitButton')
+    .filter({ visible: true });
+  if (!(await submit.count())) {
     // Payment Element: the site's own button submits; the next step clicks it.
     return;
   }
-  // Wait for Stripe to finish and the site to move on.
+  // Wait for Stripe to finish and the site to move on. Stripe may need a
+  // moment after the last field before Pay accepts the click, so press it
+  // again if nothing has happened.
   const before = page.url();
-  await page
-    .waitForURL((u) => u.href !== before, { timeout: 60000 })
-    .catch(() => {});
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await submit.first().click({ timeout: 10000 }).catch(() => {});
+    const moved = await page
+      .waitForURL((u) => u.href !== before, { timeout: attempt === 2 ? 60000 : 20000 })
+      .then(
+        () => true,
+        () => false,
+      );
+    if (moved) return;
+    // Still processing? Don't press again while Stripe is busy.
+    if (await submit.first().isDisabled().catch(() => false)) {
+      const done = await page
+        .waitForURL((u) => u.href !== before, { timeout: 45000 })
+        .then(
+          () => true,
+          () => false,
+        );
+      if (done) return;
+    }
+  }
+  // Never report the site as broken because the payment step itself stalled.
+  throw Error(
+    "Stripe's payment didn't finish: the page didn't move on after paying with the test card, so the outcome couldn't be checked.",
+  );
 }

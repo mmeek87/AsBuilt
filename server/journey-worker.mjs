@@ -238,7 +238,7 @@ export async function runJourney(
           } catch (error) {
             observation = {
               status: "not_verified",
-              observed: `Journey action or URL checkpoint could not complete. ${/policy|permitted|ambiguous|reviewed/i.test(error.message ?? "") ? error.message : "No later actions were attempted."}`,
+              observed: `Journey action or URL checkpoint could not complete. ${/policy|permitted|ambiguous|reviewed|Stripe|test-site marker|test card/i.test(error.message ?? "") ? error.message : "No later actions were attempted."}`,
             };
           }
         }
