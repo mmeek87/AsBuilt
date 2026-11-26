@@ -2,7 +2,7 @@
   "name": "asbuilt",
   "displayName": "AsBuilt",
   "version": "1.0.0",
-  "description": "Check what your AI built actually does: your assistant maps your app's features, you approve checks, and every pull request gets Pass, Fail or Not verified with screenshots.",
+  "description": "Check that your AI-built web app works as intended: your assistant maps the features, you approve checks, and every pull request gets Pass, Fail or Not verified with screenshots.",
   "repository": "https://github.com/mmeek87/AsBuilt",
   "license": "MIT",
   "keywords": [
