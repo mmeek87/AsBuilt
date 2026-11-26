@@ -57,6 +57,7 @@ Also available with test actions:
 - A second test account: add `secondSignIn` (same shape as `signIn`), mark checkpoints `"as": "second"`, and pass `second-email` / `second-password` from secrets.
 - Open a new record: navigate with a value ending in `/*` and a link name to match; AsBuilt opens the first visible matching link under that address on the preview.
 - `{"type": "reload", "name": "page"}` reloads the page.
+- Carry a value between pages or accounts: `{"type": "remember", "name": "pickupCode", "value": "^[A-Z0-9]{6}$"}` reads the one value on the page that matches the anchored pattern; a later `{"type": "fill", ..., "value": "{{pickupCode}}"}` types it. Values stay in the run's memory only.
 
 ## Setup (about 5 minutes)
 

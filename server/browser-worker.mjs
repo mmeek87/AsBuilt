@@ -1,7 +1,7 @@
 import { runJourney } from "./journey-worker.mjs";
 import { observe, blocker } from "./observation.mjs";
 import { staticHtml } from "./static-fixture.mjs";
-import { perform } from "./interaction-policy.mjs";
+import { perform, reportOnline } from "./interaction-policy.mjs";
 import { chromium, firefox, webkit } from "playwright";
 import { createTunnelProxy } from "./tunnel-proxy.mjs";
 import { createInterface } from "node:readline";
@@ -101,6 +101,7 @@ async function run(plan, credentials, cookies = [], session = []) {
           acceptDownloads: false,
           permissions: [],
         });
+        if (plan.network === "browser") await reportOnline(context);
         if (cookies.length) await context.addCookies(cookies);
         let blocked = 0;
         let pageError = false;

@@ -220,3 +220,38 @@ test("a second account and newest-link opening need test actions and a secondSig
     delete process.env.ASBUILT_ALLOW_TEST_ACTIONS;
   }
 });
+
+test("remembers one value shown on the page and types it later, even in another account's page", async () => {
+  const browser = await chromium.launch();
+  try {
+    const buyer = await browser.newPage();
+    const store = await browser.newPage();
+    const memory = new Map<string, string>();
+    await buyer.setContent(`<h2>Pickup Code</h2><p>Show this code at pickup</p><div><p>K7Q2ZP</p></div><p>Order #ABCDEF12</p>`);
+    await store.setContent(`<label>6-Character Pickup Code <input id=c></label>`);
+    const remember = { type: "remember" as const, name: "pickupCode", value: "^[A-Z0-9]{6}$" };
+    await perform(buyer, remember, [], undefined, memory);
+    assert.equal(memory.get("pickupCode"), "K7Q2ZP");
+    await perform(store, { type: "fill", name: "6-Character Pickup Code", value: "{{pickupCode}}" }, [], undefined, memory);
+    assert.equal(await store.locator("#c").inputValue(), "K7Q2ZP");
+
+    await buyer.setContent(`<p>K7Q2ZP</p><p>Z9Z9Z9</p>`);
+    await assert.rejects(perform(buyer, remember, [], undefined, new Map()), /More than one value/);
+    await assert.rejects(
+      perform(store, { type: "fill", name: "6-Character Pickup Code", value: "{{other}}" }, [], undefined, memory),
+      /Nothing was remembered as “other”/,
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("remembered values must be read before use, with an anchored pattern, and typed only as a whole fill value", () => {
+  const steps = (actions: object[]) =>
+    planSchema.parse({ ...plan(), testActions: undefined, criteria: [{ id: "a", expected: "x", kind: "text", value: "x", actions }] });
+  const ok = steps([{ type: "remember", name: "pickupCode", value: "^[A-Z0-9]{6}$" }, { type: "fill", name: "Code", value: "{{pickupCode}}" }]);
+  assert.doesNotThrow(() => validateExecution(ok));
+  assert.throws(() => validateExecution(steps([{ type: "fill", name: "Code", value: "{{pickupCode}}" }])), /used before a step remembers it/);
+  assert.throws(() => validateExecution(steps([{ type: "remember", name: "pickupCode", value: "[A-Z0-9]{6}" }])), /anchored/);
+  assert.throws(() => validateExecution(steps([{ type: "remember", name: "c", value: "^x$" }, { type: "fill", name: "Code", value: "code {{c}}" }])), /whole fill value/);
+});

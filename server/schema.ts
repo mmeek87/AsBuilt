@@ -14,6 +14,11 @@ export const actionSchema = z
       "check",
       "testPayment",
       "reload",
+      // "remember" reads one short value shown on the page (for example a
+      // pickup code) into a name, so a later "fill" can type it with
+      // "{{name}}", even as the other test account. value is an anchored
+      // pattern the text must match exactly, like "^[A-Z0-9]{6}$".
+      "remember",
     ]),
     name: z.string().min(1).max(100),
     match: z.enum(["exact", "contains"]).optional(),
@@ -332,6 +337,33 @@ export function validateExecution(plan: Plan) {
       );
   }
 
+  // Remembered values: anchored, simple patterns; used only after they're
+  // remembered, and only as a whole fill value.
+  const remembered = new Set<string>();
+  for (const c of plan.criteria)
+    for (const a of c.actions ?? []) {
+      if (a.type === "remember") {
+        if (!plan.journey)
+          throw Error("Remembering a value needs a journey (the value is used by a later step).");
+        if (!/^[a-zA-Z][a-zA-Z0-9]{0,30}$/.test(a.name))
+          throw Error(`"${a.name}" can't be a remembered name: use letters and numbers, like pickupCode.`);
+        if (!/^\^.{1,96}\$$/.test(a.value) || /\\[1-9]|\(\?</.test(a.value))
+          throw Error(`The pattern for "${a.name}" must be anchored with ^ and $, like "^[A-Z0-9]{6}$".`);
+        try {
+          new RegExp(a.value);
+        } catch {
+          throw Error(`The pattern for "${a.name}" isn't a valid pattern.`);
+        }
+        remembered.add(a.name);
+      }
+      const uses = [...a.value.matchAll(/\{\{([^}]*)\}\}/g)].map((m) => m[1]);
+      if (uses.length && a.type !== "remember") {
+        if (a.type !== "fill" || !/^\{\{[a-zA-Z][a-zA-Z0-9]{0,30}\}\}$/.test(a.value))
+          throw Error('A remembered value can only be typed as a whole fill value, like "{{pickupCode}}".');
+        if (!remembered.has(uses[0]))
+          throw Error(`"{{${uses[0]}}}" is used before a step remembers it.`);
+      }
+    }
   const payments = plan.criteria.flatMap((c) =>
     (c.actions ?? []).filter((a) => a.type === "testPayment"),
   );

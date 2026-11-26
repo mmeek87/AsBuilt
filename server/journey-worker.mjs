@@ -1,5 +1,5 @@
 import { observe, blocker } from "./observation.mjs";
-import { perform } from "./interaction-policy.mjs";
+import { perform, reportOnline } from "./interaction-policy.mjs";
 import { journeyFixture } from "./journey-fixture.mjs";
 import { alreadySignedIn, signIn } from "./sign-in.mjs";
 
@@ -43,6 +43,7 @@ export async function runJourney(
         acceptDownloads: false,
         permissions: [],
       });
+      if (plan.network === "browser") await reportOnline(context);
       // Vercel bypass cookie (preview origin only), when provided.
       if (cookies.length) await context.addCookies(cookies);
       const page = await context.newPage();
@@ -130,6 +131,8 @@ export async function runJourney(
     const context = first.context;
     let page = first.page;
     let second;
+    // Values read with "remember", for this viewport's run only.
+    const memory = new Map();
     let initialError = false;
     let signInError = "";
     if (plan.signIn && plan.target !== "sample") {
@@ -224,7 +227,7 @@ export async function runJourney(
                 actions.push(
                   `Attempt ${action.type} “${action.name}” (completion not verified).`,
                 );
-                await perform(page, action, destinations, plan.testActions);
+                await perform(page, action, destinations, plan.testActions, memory);
                 actions[actions.length - 1] =
                   `${action.type} “${action.name}”${action.type === "navigate" ? " to " + action.value : action.type === "click" ? "" : " with “" + action.value + "”"}.`;
               }
@@ -267,7 +270,7 @@ export async function runJourney(
           } catch (error) {
             observation = {
               status: "not_verified",
-              observed: `Journey action or URL checkpoint could not complete. ${/policy|permitted|ambiguous|reviewed|Stripe|test-site marker|test card|Second account|matching link/i.test(error.message ?? "") ? error.message : "No later actions were attempted."}`,
+              observed: `Journey action or URL checkpoint could not complete. ${/policy|permitted|ambiguous|reviewed|Stripe|test-site marker|test card|Second account|matching link|remembered|matches the pattern/i.test(error.message ?? "") ? error.message : "No later actions were attempted."}`,
             };
           }
         }
