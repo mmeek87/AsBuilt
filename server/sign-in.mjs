@@ -91,11 +91,28 @@ export async function signIn(page, config, credentials, origin) {
     reason:
       "The sign-in page sent AsBuilt to another site (for example Google or an identity provider). AsBuilt only types a test account into the preview itself, so it stopped. Use email and password sign-in on the preview for test accounts.",
   };
-  if (!onPreview(page, origin)) return away;
-  await email.fill(credentials.email, { timeout });
-  if (!onPreview(page, origin)) return away;
-  await password.fill(credentials.password, { timeout });
-  if (!onPreview(page, origin)) return away;
+  // Apps that render on the client can wipe a field typed before the page
+  // finishes loading. Type, confirm the value stuck, and retry briefly.
+  for (let attempt = 0; ; attempt++) {
+    if (!onPreview(page, origin)) return away;
+    await email.fill(credentials.email, { timeout });
+    if (!onPreview(page, origin)) return away;
+    await password.fill(credentials.password, { timeout });
+    if (!onPreview(page, origin)) return away;
+    await page.waitForTimeout(300);
+    const kept =
+      (await email.inputValue().catch(() => "")) === credentials.email &&
+      (await password.inputValue().catch(() => "")).length ===
+        credentials.password.length;
+    if (kept) break;
+    if (attempt === 2)
+      return {
+        ok: false,
+        reason:
+          "The sign-in form kept clearing what AsBuilt typed (the page may still have been loading), so it didn't submit.",
+      };
+    await page.waitForTimeout(1000);
+  }
   await Promise.all([
     page.waitForLoadState("load", { timeout: 25000 }).catch(() => {}),
     button.click({ timeout }),

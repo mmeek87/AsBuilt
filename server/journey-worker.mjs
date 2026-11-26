@@ -252,14 +252,20 @@ export async function runJourney(
               observation.observed +
               " Blocked functional resources or script errors prevent attributing this missing outcome to the app.",
           };
+        // Busy pages (carousels, late fonts) can stall a capture once; retry.
+        const capture = (ms) =>
+          page.screenshot({
+            fullPage: false,
+            animations: "disabled",
+            timeout: ms,
+            // Never show typed passwords in evidence.
+            mask: [page.locator('input[type="password"]')],
+          });
         try {
           screenshot = (
-            await page.screenshot({
-              fullPage: false,
-              animations: "disabled",
-              timeout: 10000,
-              // Never show typed passwords in evidence.
-              mask: [page.locator('input[type="password"]')],
+            await capture(10000).catch(async () => {
+              await page.waitForTimeout(1000);
+              return capture(20000);
             })
           ).toString("base64");
         } catch {
