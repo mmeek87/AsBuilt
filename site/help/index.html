@@ -132,7 +132,7 @@
       <h2 id="test-actions-h">Checking cart, checkout and order steps on a test site</h2>
       <p>By default AsBuilt refuses any step that could change real data, like “Add to cart”, “Continue to payment” or “Done picking”. On a test site you can allow the ones you choose:</p>
       <ul>
-        <li><strong>You approve each step.</strong> Your assistant lists every risky step in plain words and records only the ones you approve in the check file, so they show in the pull request.</li>
+        <li><strong>You approve the steps.</strong> Your assistant lists every risky step in plain words and records only the ones you approve in the check file, so they show in the pull request. If you'd rather not be asked each time, choose “approve all steps on this test site”; that's saved once in <code>.asbuilt/settings.json</code>.</li>
         <li><strong>The page has to prove it's a test site.</strong> The check names text that only your test site shows, like a “TEST SITE” banner. Before every step AsBuilt looks for it, and if it isn't there, nothing is clicked.</li>
         <li><strong>The workflow has to allow it.</strong> Add <code>allow-test-actions: true</code> to the AsBuilt step, only in a workflow that never checks your live site.</li>
       </ul>

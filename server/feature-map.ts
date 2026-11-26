@@ -9,6 +9,21 @@ import { z } from "zod";
  * are visible instead of silent.
  */
 export const FEATURE_MAP_FILE = "features.json";
+/** Repository-wide AsBuilt choices, such as a standing test-site approval. */
+export const SETTINGS_FILE = "settings.json";
+
+export const settingsSchema = z
+  .object({
+    testSite: z
+      .object({
+        siteMarker: z.string().trim().min(6).max(200),
+        approveAllTestActions: z.literal(true),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+export type Settings = z.infer<typeof settingsSchema>;
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 

@@ -66,7 +66,13 @@ export const planSchema = z
     testActions: z
       .object({
         siteMarker: z.string().trim().min(6).max(200),
-        approved: z.array(z.string().trim().min(1).max(100)).min(1).max(20),
+        // A list of exact step labels, or "all": the user approved every
+        // cart, checkout and order step on this test site (from
+        // .asbuilt/settings.json), so they aren't asked again.
+        approved: z.union([
+          z.array(z.string().trim().min(1).max(100)).min(1).max(20),
+          z.literal("all"),
+        ]),
       })
       .strict()
       .optional(),
@@ -256,7 +262,9 @@ export function validateExecution(plan: Plan) {
     const named = new Set(
       plan.criteria.flatMap((c) => (c.actions ?? []).map((a) => a.name)),
     );
-    for (const name of plan.testActions.approved) {
+    for (const name of plan.testActions.approved === "all"
+      ? []
+      : plan.testActions.approved) {
       if (/password|log ?in|sign ?in|log ?out|sign ?out/i.test(name))
         throw Error(
           `"${name}" can't be a test action. Sign-in uses the signIn step and a test account from secrets.`,

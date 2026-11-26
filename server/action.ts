@@ -22,7 +22,10 @@ import {
   coverage,
   featureMapSchema,
   FEATURE_MAP_FILE,
+  SETTINGS_FILE,
+  settingsSchema,
   type Coverage,
+  type Settings,
 } from "./feature-map.ts";
 
 const env = process.env;
@@ -301,7 +304,9 @@ export function listPlans(path: string) {
   if (!existsSync(path)) return [];
   if (!statSync(path).isDirectory()) return [path];
   return readdirSync(path)
-    .filter((f) => f.endsWith(".json") && f !== FEATURE_MAP_FILE)
+    .filter(
+      (f) => f.endsWith(".json") && f !== FEATURE_MAP_FILE && f !== SETTINGS_FILE,
+    )
     .sort()
     .map((f) => join(path, f));
 }
@@ -341,6 +346,49 @@ export function combine(runs: { feature: string; report: Report }[]): Report {
  * Reads .asbuilt/features.json when the plan input is a folder. A map that
  * can't be read is reported as a warning; it never blocks the checks.
  */
+export function readSettings(folder: string): Settings {
+  const file = join(folder, SETTINGS_FILE);
+  if (!existsSync(file) || !statSync(folder).isDirectory()) return {};
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    throw Error(`${SETTINGS_FILE} isn't valid JSON.`);
+  }
+  const parsed = settingsSchema.safeParse(raw);
+  if (!parsed.success)
+    throw Error(
+      `${SETTINGS_FILE} doesn't match the expected format: ${parsed.error.issues[0]?.message ?? "unknown problem"}`,
+    );
+  return parsed.data;
+}
+
+/**
+ * A standing approval in settings.json covers every cart, checkout and order
+ * step in checks that target the test environment, so the user isn't asked
+ * per step. It never covers production checks, and the workflow switch and
+ * the on-page test-site marker still apply.
+ */
+export function applySettings(plan: any, settings: Settings) {
+  const site = settings.testSite;
+  if (
+    !site ||
+    plan.environment !== "test" ||
+    plan.execution !== "interactive" ||
+    plan.network !== "browser" ||
+    !plan.networkApproved ||
+    !plan.actionsApproved
+  )
+    return plan;
+  return {
+    ...plan,
+    testActions: {
+      siteMarker: plan.testActions?.siteMarker ?? site.siteMarker,
+      approved: "all",
+    },
+  };
+}
+
 export function readFeatureMap(folder: string) {
   const file = join(folder, FEATURE_MAP_FILE);
   if (!existsSync(file) || !statSync(folder).isDirectory()) return undefined;
@@ -388,6 +436,7 @@ async function main() {
     );
 
   const source = origin === "sample" ? undefined : await eventSource();
+  const settings = readSettings(resolve(planInput));
   const { startVerification } = await import("./runner.ts");
   const { getReport } = await import("./store.ts");
   const deadline = Date.now() + Number(input("timeout-minutes", "10")) * 60_000;
@@ -402,7 +451,7 @@ async function main() {
       } catch {
         throw Error("isn't valid JSON.");
       }
-      const plan = preparePlan(raw, url, source);
+      const plan = applySettings(preparePlan(raw, url, source), settings);
       if ((plan as any).execution === "interactive" && origin !== "sample") {
         env.ASBUILT_INTERACTIVE_PREVIEWS = "true";
         ensureWorkerImage();
