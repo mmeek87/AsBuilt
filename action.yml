@@ -10,8 +10,8 @@ inputs:
     description: The https preview address to check (for example from a Vercel deployment), or "sample" for the bundled demo page.
     required: true
   plan:
-    description: Path to the reviewed plan file in your repository.
-    default: .asbuilt/plan.json
+    description: A reviewed plan file, or a folder of them (one JSON file per feature, up to 10). Every PR rechecks every feature, so earlier features are protected from regressions.
+    default: .asbuilt
   comment:
     description: Post (and update) one summary comment on the pull request. Needs "pull-requests write" permission.
     default: "true"

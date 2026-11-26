@@ -88,7 +88,10 @@ test("the job summary escapes table-breaking text and links screenshots", () => 
   const md = stepSummary(report(), "https://github.com/me/shop/actions/runs/1");
   assert.match(md, /Heading \\\| visible/);
   assert.match(md, /\*\*0 passed · 1 failed · 0 not verified\*\*/);
-  assert.match(md, /asbuilt-evidence\*\* artifact on \[this workflow run\]/);
+  assert.match(
+    md,
+    /asbuilt-evidence\*\* artifact \(`screenshots\/<feature>\/`\) on \[this workflow run\]/,
+  );
 });
 
 test("finds the PR from a Vercel deployment event, then posts one comment and updates it on reruns", async () => {
@@ -176,4 +179,42 @@ test("finds the PR from a Vercel deployment event, then posts one comment and up
     process.env = saved;
     server.close();
   }
+});
+
+test("a plan folder runs one file per feature, in order, and merges results without id collisions", async () => {
+  const { listPlans, combine } = await import("../server/action.ts");
+  const dir = mkdtempSync(join(tmpdir(), "asbuilt-plans-"));
+  writeFileSync(join(dir, "checkout.json"), "{}");
+  writeFileSync(join(dir, "browse.json"), "{}");
+  writeFileSync(join(dir, "notes.md"), "ignored");
+  assert.deepEqual(
+    listPlans(dir).map((f) => f.split("/").pop()),
+    ["browse.json", "checkout.json"],
+  );
+  assert.deepEqual(listPlans(join(dir, "missing")), []);
+  const a = report();
+  const b = { ...report(), status: "interrupted" as const, error: "Timed out" };
+  const merged = combine([
+    { feature: "browse", report: a },
+    { feature: "checkout", report: b },
+  ]);
+  assert.deepEqual(
+    merged.results.map((r) => r.criterion.id),
+    ["browse/h", "checkout/h"],
+  );
+  assert.equal(
+    merged.results[1].criterion.expected,
+    "checkout: Heading | visible",
+  );
+  assert.equal(
+    merged.status,
+    "interrupted",
+    "an unfinished feature is never hidden",
+  );
+  assert.equal(merged.error, "checkout: Timed out");
+  assert.equal(
+    combine([{ feature: "only", report: a }]),
+    a,
+    "single plans are unchanged",
+  );
 });

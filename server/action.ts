@@ -5,12 +5,15 @@
 import {
   appendFileSync,
   existsSync,
+  cpSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Report } from "./schema.ts";
 import { fixPrompt as fixPromptFor } from "./pr-comment.ts";
@@ -155,7 +158,11 @@ const label = {
   not_verified: "⚪ Not verified",
 } as const;
 
-export function stepSummary(report: Report, evidenceUrl?: string) {
+export function stepSummary(
+  report: Report,
+  evidenceUrl?: string,
+  broken: string[] = [],
+) {
   const count = (s: string) =>
     report.results.filter((r) => r.status === s).length;
   const cell = (t: string) =>
@@ -163,7 +170,14 @@ export function stepSummary(report: Report, evidenceUrl?: string) {
   return [
     "## AsBuilt verification",
     "",
-    `**${count("pass")} passed · ${count("fail")} failed · ${count("not_verified")} not verified** on desktop and mobile. Run status: ${report.status}.`,
+    `**${count("pass")} passed · ${count("fail")} failed · ${count("not_verified")} not verified** on desktop and mobile. Run status: ${broken.length ? "some plans couldn't run" : report.status}.`,
+    ...(broken.length
+      ? [
+          "",
+          `**${broken.length} plan file${broken.length === 1 ? "" : "s"} couldn't run**, so ${broken.length === 1 ? "its" : "their"} features were not checked:`,
+          ...broken.map((b) => `- ${cell(b)}`),
+        ]
+      : []),
     "",
     `Target: ${report.plan.target === "sample" ? "bundled sample" : report.plan.target}${report.plan.source ? ` · Commit ${report.plan.source.sha.slice(0, 7)}` : ""}`,
     "",
@@ -185,8 +199,8 @@ export function stepSummary(report: Report, evidenceUrl?: string) {
         ]
       : []),
     evidenceUrl
-      ? `Screenshots for every check are in the **asbuilt-evidence** artifact on [this workflow run](${evidenceUrl}).`
-      : "Screenshots are in the results folder.",
+      ? `Desktop and mobile screenshots for each feature are in the **asbuilt-evidence** artifact (\`screenshots/<feature>/\`) on [this workflow run](${evidenceUrl}).`
+      : "Screenshots are in the results folder under screenshots/<feature>/.",
     "",
     "_Not verified means AsBuilt couldn't collect enough evidence. It isn't a pass. A failure is an observed mismatch, not a diagnosed cause._",
   ].join("\n");
@@ -226,6 +240,46 @@ export async function postComment(report: Report, evidenceUrl?: string) {
   }
 }
 
+/** One plan file, or every *.json in a folder (one file per feature). */
+export function listPlans(path: string) {
+  if (!existsSync(path)) return [];
+  if (!statSync(path).isDirectory()) return [path];
+  return readdirSync(path)
+    .filter((f) => f.endsWith(".json"))
+    .sort()
+    .map((f) => join(path, f));
+}
+const featureName = (file: string) => basename(file).replace(/\.json$/, "");
+
+/** Merge per-feature runs into one report so every view shows one picture. */
+export function combine(runs: { feature: string; report: Report }[]): Report {
+  if (runs.length === 1) return runs[0].report;
+  const first = runs[0].report;
+  const unfinished = runs.find((r) => r.report.status !== "complete");
+  return {
+    ...first,
+    status: unfinished ? unfinished.report.status : "complete",
+    error:
+      runs
+        .filter((r) => r.report.error)
+        .map((r) => `${r.feature}: ${r.report.error}`)
+        .join(" ") || undefined,
+    plan: { ...first.plan, intent: runs.map((r) => r.feature).join(", ") },
+    results: runs.flatMap(({ feature, report }) =>
+      report.results.map((x) => ({
+        ...x,
+        criterion: {
+          ...x.criterion,
+          id: `${feature}/${x.criterion.id}`,
+          expected: `${feature}: ${x.criterion.expected}`,
+        },
+      })),
+    ),
+    blockedRequests: runs.reduce((n, r) => n + r.report.blockedRequests, 0),
+    limitations: [...new Set(runs.flatMap((r) => r.report.limitations))],
+  };
+}
+
 async function main() {
   const url = input("url");
   const origin = previewOrigin(url);
@@ -234,53 +288,83 @@ async function main() {
   );
   mkdirSync(results, { recursive: true, mode: 0o700 });
   // Configure before the runner loads: it reads these at import time.
-  env.ASBUILT_DATA_DIR = results;
+  // Internal run files go in a hidden folder the artifact upload skips.
+  const work = join(results, ".work");
+  env.ASBUILT_DATA_DIR = work;
   if (origin !== "sample") env.ASBUILT_PREVIEW_ORIGINS = origin;
   output("results-dir", results);
 
-  const planPath = resolve(input("plan", ".asbuilt/plan.json"));
-  if (!existsSync(planPath))
+  const planInput = input("plan", ".asbuilt");
+  const files = listPlans(resolve(planInput));
+  if (!files.length)
     throw Error(
-      `No plan found at ${input("plan", ".asbuilt/plan.json")}. Ask Claude or ChatGPT (with the AsBuilt skill) to draft one, review it, and commit it.`,
+      `No plan found at ${planInput}. Ask Claude or ChatGPT (with the AsBuilt skill) to draft one, review it, and commit it as .asbuilt/<feature>.json.`,
     );
-  let raw: unknown;
-  try {
-    raw = JSON.parse(readFileSync(planPath, "utf8"));
-  } catch {
-    throw Error(`${input("plan", ".asbuilt/plan.json")} isn't valid JSON.`);
-  }
-  const plan = preparePlan(
-    raw,
-    url,
-    origin === "sample" ? undefined : await eventSource(),
-  );
-  if ((plan as any).execution === "interactive" && origin !== "sample") {
-    env.ASBUILT_INTERACTIVE_PREVIEWS = "true";
-    ensureWorkerImage();
-  }
+  if (files.length > 10)
+    throw Error(
+      `Found ${files.length} plan files; the limit is 10 per run. Combine related checks.`,
+    );
 
+  const source = origin === "sample" ? undefined : await eventSource();
   const { startVerification } = await import("./runner.ts");
   const { getReport } = await import("./store.ts");
-  const started = startVerification(plan);
   const deadline = Date.now() + Number(input("timeout-minutes", "10")) * 60_000;
-  let report = getReport(started.id);
-  while (["queued", "running"].includes(report.status)) {
-    if (Date.now() > deadline)
-      throw Error("Verification timed out. Nothing was marked as passed.");
-    await new Promise((r) => setTimeout(r, 1000));
-    report = getReport(started.id);
+  const runs: { feature: string; report: Report }[] = [];
+  const broken: string[] = [];
+  for (const file of files) {
+    const feature = featureName(file);
+    try {
+      let raw: unknown;
+      try {
+        raw = JSON.parse(readFileSync(file, "utf8"));
+      } catch {
+        throw Error("isn't valid JSON.");
+      }
+      const plan = preparePlan(raw, url, source);
+      if ((plan as any).execution === "interactive" && origin !== "sample") {
+        env.ASBUILT_INTERACTIVE_PREVIEWS = "true";
+        ensureWorkerImage();
+      }
+      const started = startVerification(plan);
+      let report = getReport(started.id);
+      while (["queued", "running"].includes(report.status)) {
+        if (Date.now() > deadline)
+          throw Error("timed out. Nothing was marked as passed.");
+        await new Promise((r) => setTimeout(r, 1000));
+        report = getReport(started.id);
+      }
+      // Readable evidence: screenshots/<feature>/desktop.png, mobile.png …
+      if (existsSync(join(work, report.id)))
+        cpSync(join(work, report.id), join(results, "screenshots", feature), {
+          recursive: true,
+        });
+      writeFileSync(
+        join(results, `report-${feature}.json`),
+        JSON.stringify(report, null, 2),
+      );
+      runs.push({ feature, report });
+    } catch (e) {
+      const why = (e as Error).message;
+      broken.push(`${feature}: ${why}`);
+      annotate(
+        "error",
+        `Plan ${basename(file)} ${why.startsWith("isn't") || why.startsWith("timed") ? why : `couldn't run: ${why}`}`,
+      );
+    }
   }
+  if (!runs.length) throw Error(`No plan could run. ${broken.join(" ")}`);
+  const report = combine(runs);
   writeFileSync(join(results, "report.json"), JSON.stringify(report, null, 2));
 
   const runUrl = env.GITHUB_RUN_ID
     ? `${env.GITHUB_SERVER_URL || "https://github.com"}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}`
     : undefined;
-  summary(stepSummary(report, runUrl));
+  summary(stepSummary(report, runUrl, broken));
   await postComment(report, runUrl);
 
   const count = (s: string) =>
     report.results.filter((r) => r.status === s).length;
-  output("status", report.status);
+  output("status", broken.length ? "failed" : report.status);
   output("passed", String(count("pass")));
   output("failed", String(count("fail")));
   output("not-verified", String(count("not_verified")));
@@ -294,6 +378,10 @@ async function main() {
     annotate(
       "warning",
       `${count("not_verified")} check(s) could not be verified. See the job summary for why.`,
+    );
+  if (broken.length)
+    throw Error(
+      `${broken.length} plan file(s) couldn't run: ${broken.join(" ")}`,
     );
   if (report.status !== "complete")
     throw Error(
