@@ -52,6 +52,23 @@ export function previewOrigin(url: string) {
 }
 
 /**
+ * A plan may start on a specific page of the preview ("start": "/buyer/orders").
+ * It must be a plain path, so it can only ever point inside the preview.
+ */
+export function startAt(url: string, start: unknown) {
+  if (start === undefined) return url;
+  if (typeof start !== "string" || !/^\/(?!\/)[^\s\\]{0,300}$/.test(start))
+    throw Error(
+      `"start" must be a page path on the preview, like "/buyer/orders".`,
+    );
+  const base = new URL(url);
+  const resolved = new URL(start, base.origin);
+  if (resolved.origin !== base.origin)
+    throw Error(`"start" must stay on the preview.`);
+  return resolved.href;
+}
+
+/**
  * Turn the committed plan file into a runnable plan. Committing the file and
  * merging or approving the PR is the human review, so the Action supplies
  * `approved: true`. Wider permissions (clicks, page network traffic) must be
@@ -64,10 +81,10 @@ export function preparePlan(
 ) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw))
     throw Error("The plan file must contain one JSON object.");
-  const { approved: _ignored, target: _alsoIgnored, ...rest } = raw;
+  const { approved: _ignored, target: _alsoIgnored, start, ...rest } = raw;
   return {
     ...rest,
-    target: url === "sample" ? "sample" : url,
+    target: url === "sample" ? "sample" : startAt(url, start),
     approved: true,
     ...(source ? { source } : {}),
   };

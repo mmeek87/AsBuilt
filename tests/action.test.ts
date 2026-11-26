@@ -218,3 +218,39 @@ test("a plan folder runs one file per feature, in order, and merges results with
     "single plans are unchanged",
   );
 });
+
+test("a plan can start on a page of the preview, but never anywhere else", async () => {
+  const { startAt, preparePlan } = await import("../server/action.ts");
+  const url = "https://shopebarrel.tech/";
+  assert.equal(startAt(url, undefined), url);
+  assert.equal(
+    startAt(url, "/buyer/notifications"),
+    "https://shopebarrel.tech/buyer/notifications",
+  );
+  assert.equal(
+    startAt(url, "/stores?parish=Manchester"),
+    "https://shopebarrel.tech/stores?parish=Manchester",
+  );
+  for (const bad of [
+    "//evil.example/x",
+    "https://evil.example/",
+    "/\\evil.example",
+    "buyer/orders",
+    42,
+    "/a b",
+  ])
+    assert.throws(
+      () => startAt(url, bad),
+      /page path|stay on the preview/,
+      String(bad),
+    );
+  const plan = preparePlan(
+    { intent: "x", criteria: [], start: "/buyer/orders" },
+    url,
+  ) as any;
+  assert.equal(plan.target, "https://shopebarrel.tech/buyer/orders");
+  assert.ok(
+    !("start" in plan),
+    "start is consumed, never passed to the strict schema",
+  );
+});

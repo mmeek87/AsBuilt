@@ -69,6 +69,13 @@ export const planSchema = z
         passwordLabel: z.string().min(1).max(100),
         submit: z.string().min(1).max(100),
         signedInText: z.string().min(1).max(200),
+        // Optional page to open after signing in where signedInText is
+        // shown on every viewport (headers often hide names on mobile).
+        signedInPath: z
+          .string()
+          .regex(/^\/[^\s?#]*$/)
+          .max(300)
+          .optional(),
       })
       .strict()
       .optional(),
