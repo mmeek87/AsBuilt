@@ -16,7 +16,24 @@ import { spawnSync } from "node:child_process";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Report } from "./schema.ts";
-import { coverageLines, fixPrompt as fixPromptFor } from "./pr-comment.ts";
+import {
+  coverageLines,
+  setupLines,
+  checklistLines,
+  fixPrompt as fixPromptFor,
+} from "./pr-comment.ts";
+import {
+  setupNeeds,
+  runMinutes,
+  MAX_CHECK_FILES,
+  productionDeployment,
+  productionNeed,
+  siteCheck,
+  deeperChecklist,
+  setupLinks,
+  type SetupNeed,
+  type ChecklistItem,
+} from "./preflight.ts";
 import { helpLink, HELP_URL } from "./help.ts";
 import {
   coverage,
@@ -190,6 +207,8 @@ export function stepSummary(
   evidenceUrl?: string,
   broken: string[] = [],
   cover?: Coverage,
+  setup: SetupNeed[] = [],
+  checklist: ChecklistItem[] = [],
 ) {
   const count = (s: string) =>
     report.results.filter((r) => r.status === s).length;
@@ -206,6 +225,7 @@ export function stepSummary(
           ...broken.map((b) => `- ${cell(b)}`),
         ]
       : []),
+    ...(setup.length ? ["", ...setupLines(setup)] : []),
     "",
     `Target: ${report.plan.target === "sample" ? "bundled sample" : report.plan.target}${report.plan.source ? ` · Commit ${report.plan.source.sha.slice(0, 7)}` : ""}`,
     "",
@@ -227,6 +247,9 @@ export function stepSummary(
         ]
       : []),
     ...(cover ? [...coverageLines(cover).slice(1), ""] : []),
+    ...(checklistLines(checklist).length
+      ? [...checklistLines(checklist).slice(1), ""]
+      : []),
     evidenceUrl
       ? `Desktop and mobile screenshots for each feature are in the **asbuilt-evidence** artifact (\`screenshots/<feature>/\`) on [this workflow run](${evidenceUrl}).`
       : "Screenshots are in the results folder under screenshots/<feature>/.",
@@ -240,6 +263,8 @@ export async function postComment(
   evidenceUrl?: string,
   broken: string[] = [],
   cover?: Coverage,
+  setup: SetupNeed[] = [],
+  checklist: ChecklistItem[] = [],
 ) {
   const pr = report.plan.source?.pr;
   if (!pr || input("comment", "true") !== "true" || report.mode === "sample")
@@ -247,7 +272,14 @@ export async function postComment(
   const { commentBody } = await import("./pr-comment.ts");
   await upsertComment(
     Number(pr),
-    commentBody(report, { evidenceUrl, marker: MARKER, broken, coverage: cover }),
+    commentBody(report, {
+      evidenceUrl,
+      marker: MARKER,
+      broken,
+      coverage: cover,
+      setup,
+      checklist,
+    }),
   );
 }
 
@@ -256,6 +288,8 @@ export async function postBrokenComment(
   source: { pr?: unknown; sha?: unknown } | undefined,
   broken: string[],
   runUrl?: string,
+  setup: SetupNeed[] = [],
+  checklist: ChecklistItem[] = [],
 ) {
   if (!source?.pr || input("comment", "true") !== "true") return;
   const { brokenCommentBody } = await import("./pr-comment.ts");
@@ -265,6 +299,8 @@ export async function postBrokenComment(
       sha: typeof source.sha === "string" ? source.sha : undefined,
       runUrl,
       marker: MARKER,
+      setup,
+      checklist,
     }),
   );
 }
@@ -305,7 +341,8 @@ export function listPlans(path: string) {
   if (!statSync(path).isDirectory()) return [path];
   return readdirSync(path)
     .filter(
-      (f) => f.endsWith(".json") && f !== FEATURE_MAP_FILE && f !== SETTINGS_FILE,
+      (f) =>
+        f.endsWith(".json") && f !== FEATURE_MAP_FILE && f !== SETTINGS_FILE,
     )
     .sort()
     .map((f) => join(path, f));
@@ -341,7 +378,6 @@ export function combine(runs: { feature: string; report: Report }[]): Report {
   };
 }
 
-
 /**
  * Reads .asbuilt/features.json when the plan input is a folder. A map that
  * can't be read is reported as a warning; it never blocks the checks.
@@ -371,8 +407,11 @@ export function readSettings(folder: string): Settings {
  */
 export function applySettings(plan: any, settings: Settings) {
   const site = settings.testSite;
+  // A standing approval only means something where the workflow allows test
+  // actions; elsewhere it must not turn ordinary checks into test-action ones.
   if (
     !site ||
+    process.env.ASBUILT_ALLOW_TEST_ACTIONS !== "true" ||
     plan.environment !== "test" ||
     plan.execution !== "interactive" ||
     plan.network !== "browser" ||
@@ -430,18 +469,71 @@ async function main() {
     throw Error(
       `No plan found at ${planInput}. Ask Claude or ChatGPT (with the AsBuilt skill) to draft one, review it, and commit it as .asbuilt/<feature>.json.`,
     );
-  if (files.length > 10)
+  if (files.length > MAX_CHECK_FILES)
     throw Error(
-      `Found ${files.length} plan files; the limit is 10 per run. Combine related checks.`,
+      `Found ${files.length} check files; the limit is ${MAX_CHECK_FILES} per run. Combine related checks into one file.`,
     );
 
   const source = origin === "sample" ? undefined : await eventSource();
   const settings = readSettings(resolve(planInput));
+  const event =
+    env.GITHUB_EVENT_PATH && existsSync(env.GITHUB_EVENT_PATH)
+      ? JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, "utf8"))
+      : undefined;
+  const production = productionDeployment(event);
+  const links = setupLinks(env);
+  // Read every file once up front so pre-flight can look at all of them.
+  const parsed = files.map((file) => {
+    try {
+      return { file, raw: JSON.parse(readFileSync(file, "utf8")) as any };
+    } catch {
+      return { file, raw: undefined };
+    }
+  });
+  const markers = parsed.flatMap(({ raw }) =>
+    raw?.testActions?.siteMarker
+      ? [String(raw.testActions.siteMarker)]
+      : raw &&
+          settings.testSite &&
+          env.ASBUILT_ALLOW_TEST_ACTIONS === "true" &&
+          raw.environment === "test"
+        ? [settings.testSite.siteMarker]
+        : [],
+  );
+  const site =
+    origin === "sample"
+      ? { markerMissing: [] as string[] }
+      : await siteCheck(
+          url,
+          markers,
+          env,
+          async (u) => {
+            const { pinnedGet } = await import("./safety.ts");
+            return pinnedGet(u);
+          },
+          links,
+        );
+  const checklist = deeperChecklist({
+    env,
+    raws: parsed.map((p) => p.raw),
+    settingsMarker: settings.testSite?.siteMarker,
+    markerMissing: site.markerMissing,
+    production,
+    links,
+  });
+  for (const m of site.markerMissing)
+    annotate(
+      "warning",
+      `The test-site marker "${m}" isn't in the page's HTML. If your site adds it with JavaScript that's fine; otherwise AsBuilt will stop before every cart or checkout step.`,
+    );
   const { startVerification } = await import("./runner.ts");
   const { getReport } = await import("./store.ts");
-  const deadline = Date.now() + Number(input("timeout-minutes", "10")) * 60_000;
+  const deadline =
+    Date.now() +
+    runMinutes(input("timeout-minutes", ""), files.length) * 60_000;
   const runs: { feature: string; report: Report }[] = [];
   const broken: string[] = [];
+  const setup: SetupNeed[] = [];
   for (const file of files) {
     const feature = featureName(file);
     try {
@@ -450,6 +542,18 @@ async function main() {
         raw = JSON.parse(readFileSync(file, "utf8"));
       } catch {
         throw Error("isn't valid JSON.");
+      }
+      const needs = site.protected
+        ? [{ ...site.protected, feature }]
+        : setupNeeds(feature, raw, env, links);
+      const plan0 = applySettings(raw, settings) as any;
+      if (production && plan0?.testActions && !needs.length)
+        needs.push(productionNeed(feature, production));
+      if (needs.length) {
+        setup.push(...needs);
+        for (const n of needs)
+          annotate("warning", `${feature} needs setup: ${n.problem}`);
+        continue;
       }
       const plan = applySettings(preparePlan(raw, url, source), settings);
       if ((plan as any).execution === "interactive" && origin !== "sample") {
@@ -488,15 +592,21 @@ async function main() {
     : undefined;
   if (!runs.length) {
     const { brokenCommentBody } = await import("./pr-comment.ts");
-    summary(brokenCommentBody(broken, { runUrl }));
-    await postBrokenComment(source as any, broken, runUrl);
+    summary(brokenCommentBody(broken, { runUrl, setup, checklist }));
+    await postBrokenComment(source as any, broken, runUrl, setup, checklist);
+    // Only setup steps missing: say what to do, but don't fail the run.
+    if (!broken.length) {
+      output("status", "needs-setup");
+      return;
+    }
     throw Error(`No plan could run. ${broken.join(" ")}`);
   }
   const report = combine(runs);
   writeFileSync(join(results, "report.json"), JSON.stringify(report, null, 2));
 
   const mapRead = readFeatureMap(resolve(planInput));
-  if (mapRead?.error) annotate("warning", `Feature map skipped: ${mapRead.error}`);
+  if (mapRead?.error)
+    annotate("warning", `Feature map skipped: ${mapRead.error}`);
   const sha = typeof source?.sha === "string" ? source.sha : undefined;
   const mapUrl =
     sha && env.GITHUB_REPOSITORY && /^[a-f0-9]{40}$/.test(sha)
@@ -505,8 +615,8 @@ async function main() {
   const cover = mapRead?.map
     ? coverage(mapRead.map, new Set(runs.map((r) => r.feature)), mapUrl)
     : undefined;
-  summary(stepSummary(report, runUrl, broken, cover));
-  await postComment(report, runUrl, broken, cover);
+  summary(stepSummary(report, runUrl, broken, cover, setup, checklist));
+  await postComment(report, runUrl, broken, cover, setup, checklist);
 
   const count = (s: string) =>
     report.results.filter((r) => r.status === s).length;

@@ -97,6 +97,11 @@ const signInSchema = z
       .regex(/^\/[^\s?#]*$/)
       .max(300)
       .optional(),
+    // Two-step sign-in with an authenticator app (test accounts only): the
+    // code field's exact label and its button. The code is made from the
+    // account's setup key in a repository secret, never from the file.
+    codeLabel: z.string().min(1).max(100).optional(),
+    codeSubmit: z.string().min(1).max(100).optional(),
   })
   .strict();
 
@@ -210,15 +215,20 @@ export function validateExecution(plan: Plan) {
     throw Error(
       'Checkpoints marked "as": "second" need a secondSignIn for the second test account.',
     );
+  // A second account that only looks is no riskier than the first sign-in;
+  // a test-site approval is needed once it takes a step.
+  const secondActs = plan.criteria.some(
+    (c) => c.as === "second" && (c.actions?.length ?? 0) > 0,
+  );
   if (
-    (plan.secondSignIn ||
+    ((plan.secondSignIn && secondActs) ||
       plan.criteria.some((c) =>
         c.actions?.some((a) => a.type === "navigate" && a.value.endsWith("/*")),
       )) &&
     !plan.testActions
   )
     throw Error(
-      "A second account and opening the newest matching link (a URL ending in /*) are test-site features: approve them with testActions first.",
+      "A second account that takes steps, and opening the newest matching link (a URL ending in /*), are test-site features: approve them with testActions first. A second account that only looks needs no approval.",
     );
   if (
     plan.signIn &&
@@ -344,11 +354,17 @@ export function validateExecution(plan: Plan) {
     for (const a of c.actions ?? []) {
       if (a.type === "remember") {
         if (!plan.journey)
-          throw Error("Remembering a value needs a journey (the value is used by a later step).");
+          throw Error(
+            "Remembering a value needs a journey (the value is used by a later step).",
+          );
         if (!/^[a-zA-Z][a-zA-Z0-9]{0,30}$/.test(a.name))
-          throw Error(`"${a.name}" can't be a remembered name: use letters and numbers, like pickupCode.`);
+          throw Error(
+            `"${a.name}" can't be a remembered name: use letters and numbers, like pickupCode.`,
+          );
         if (!/^\^.{1,96}\$$/.test(a.value) || /\\[1-9]|\(\?</.test(a.value))
-          throw Error(`The pattern for "${a.name}" must be anchored with ^ and $, like "^[A-Z0-9]{6}$".`);
+          throw Error(
+            `The pattern for "${a.name}" must be anchored with ^ and $, like "^[A-Z0-9]{6}$".`,
+          );
         try {
           new RegExp(a.value);
         } catch {
@@ -358,8 +374,13 @@ export function validateExecution(plan: Plan) {
       }
       const uses = [...a.value.matchAll(/\{\{([^}]*)\}\}/g)].map((m) => m[1]);
       if (uses.length && a.type !== "remember") {
-        if (a.type !== "fill" || !/^\{\{[a-zA-Z][a-zA-Z0-9]{0,30}\}\}$/.test(a.value))
-          throw Error('A remembered value can only be typed as a whole fill value, like "{{pickupCode}}".');
+        if (
+          a.type !== "fill" ||
+          !/^\{\{[a-zA-Z][a-zA-Z0-9]{0,30}\}\}$/.test(a.value)
+        )
+          throw Error(
+            'A remembered value can only be typed as a whole fill value, like "{{pickupCode}}".',
+          );
         if (!remembered.has(uses[0]))
           throw Error(`"{{${uses[0]}}}" is used before a step remembers it.`);
       }

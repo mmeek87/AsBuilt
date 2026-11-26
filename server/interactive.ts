@@ -403,11 +403,13 @@ export async function runInteractive(report: Report) {
             credentials: {
               email: process.env.ASBUILT_TEST_EMAIL ?? "",
               password: process.env.ASBUILT_TEST_PASSWORD ?? "",
+              totp: process.env.ASBUILT_TEST_TOTP ?? "",
               ...(report.plan.secondSignIn
                 ? {
                     second: {
                       email: process.env.ASBUILT_SECOND_EMAIL ?? "",
                       password: process.env.ASBUILT_SECOND_PASSWORD ?? "",
+                      totp: process.env.ASBUILT_SECOND_TOTP ?? "",
                     },
                   }
                 : {}),

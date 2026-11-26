@@ -19,9 +19,11 @@ _50-second demo on [a real pull request](https://github.com/mmeek87/asbuilt-demo
 
 ## Use it on GitHub (recommended)
 
-1. Copy [`examples/asbuilt-vercel.yml`](examples/asbuilt-vercel.yml) to `.github/workflows/asbuilt.yml`.
-2. Ask your assistant: *"Set up AsBuilt on my repo."* It maps your app's features into `.asbuilt/features.json` and drafts checks, one file per feature, such as `.asbuilt/checkout.json`.
+1. Copy [`examples/asbuilt-vercel.yml`](examples/asbuilt-vercel.yml) to `.github/workflows/asbuilt.yml` (not on Vercel? use [`examples/asbuilt-any-url.yml`](examples/asbuilt-any-url.yml)).
+2. Ask your assistant: *"Set up AsBuilt on my repo."* It maps your app's features into `.asbuilt/features.json` and drafts your first checks, one file per feature. The first ones only look, so they need no test account or secrets: what visitors see, and whether private pages stay private.
 3. Open a pull request. When the preview is ready, AsBuilt runs and comments.
+
+When you want more, AsBuilt can sign in and walk through cart, checkout and the steps after an order, on a test site with a test account. No test site or branches yet? Your assistant explains what they are, why they protect your customers, and helps you set them up. See [Why you want a test site](https://mmeek87.github.io/AsBuilt/help/#test-site). A check that's missing a setup step is listed under **Needs setup** with the exact fix, never as a failure.
 
 Full guide, including protected previews, test-account sign-in and every option: **[docs/github-action.md](docs/github-action.md)**.
 
@@ -48,7 +50,7 @@ pnpm build
 pnpm start
 ```
 
-Open **http://127.0.0.1:4310**. Copy the access key from `.data/token` into the unlock form (or use `ASBUILT_TOKEN` if you explicitly configured it). Leave “Remember this device for 30 days” checked to stay signed in across server restarts. Uncheck it on a shared browser; that session lasts at most eight hours and ends on server restart. Sign out revokes this browser’s session. Clearing cookies, expiry or changing the access key requires unlocking again. This key is local authentication, not a GitHub or model key. Do not commit or share it. For a different machine, change the project path above.
+`pnpm start` prints a one-time unlock link (it works once, for 15 minutes) and the access key. Open the link, or open **http://127.0.0.1:4310** and paste the key (also saved in `.data/token`, or your `ASBUILT_TOKEN` if you configured one). Keep that terminal window open while you use the app. Leave “Remember this device for 30 days” checked to stay signed in across server restarts. Uncheck it on a shared browser; that session lasts at most eight hours and ends on server restart. Sign out revokes this browser’s session. Clearing cookies, expiry or changing the access key requires unlocking again. This key is local authentication, not a GitHub or model key. Do not commit or share it. For a different machine, change the project path above.
 
 Choose **Sample project → Use an example → Create review plan**, review the five checks, approve, and run. The real Chromium run should produce **6 passes, 2 failures, and 2 not-verified results** across desktop and mobile. The sample intentionally lacks the exact text “Free cancellation”; email delivery is unsupported. These are fixture results, never claims about a real application.
 

@@ -35,6 +35,18 @@ const token =
 if (token.length < 32)
   throw Error("ASBUILT_TOKEN must be at least 32 characters.");
 const sessions = sessionStore(join(dataDir, "sessions.json"), token);
+// A one-time unlock link printed at start, so nobody has to find a hidden
+// key file. Single use, 15 minutes, and only on this computer's loopback.
+let launch: { code: string; expires: number } | undefined = {
+  code: randomBytes(24).toString("hex"),
+  expires: Date.now() + 15 * 60_000,
+};
+function useLaunchCode(value: string) {
+  if (!launch || Date.now() > launch.expires || !equal(value, launch.code))
+    return false;
+  launch = undefined;
+  return true;
+}
 const sessionCookie = (req: express.Request) =>
   String(req.headers.cookie || "")
     .split(";")
@@ -69,10 +81,15 @@ app.use((req, res, next) => {
   next();
 });
 app.post("/api/session", (req, res) => {
-  if (!equal(String(req.body?.token || ""), token))
-    return res
-      .status(401)
-      .json({ error: "Use the access key from your local .data/token file." });
+  const viaLaunch =
+    typeof req.body?.launch === "string" && useLaunchCode(req.body.launch);
+  if (!viaLaunch && !equal(String(req.body?.token || ""), token))
+    return res.status(401).json({
+      error:
+        viaLaunch === false && req.body?.launch
+          ? "That unlock link was already used or has expired. Restart AsBuilt for a new one, or paste the access key it printed."
+          : "Use the access key AsBuilt printed when it started (also in your local .data/token file).",
+    });
   const remembered = req.body?.remember === true;
   const session = sessions.issue(remembered);
   res.setHeader(
@@ -273,6 +290,17 @@ app.use(
 );
 app.listen(port, "127.0.0.1", () =>
   console.log(
-    `AsBuilt is ready at ${origin}\nUnlock with ${process.env.ASBUILT_TOKEN ? "your configured ASBUILT_TOKEN" : `the key in ${tokenPath}`}.\nLocal single-operator mode; do not expose this server publicly.`,
+    [
+      `AsBuilt is ready.`,
+      ``,
+      `  Open this one-time link to unlock (works once, for 15 minutes):`,
+      `  ${origin}/#unlock=${launch?.code}`,
+      ``,
+      process.env.ASBUILT_TOKEN
+        ? `  Or unlock with your configured ASBUILT_TOKEN.`
+        : `  Or paste this access key into the unlock form:\n  ${token}\n  (saved in ${tokenPath}; don't share it)`,
+      ``,
+      `Keep this window open while you use AsBuilt. Local single-operator mode; do not expose this server publicly.`,
+    ].join("\n"),
   ),
 );

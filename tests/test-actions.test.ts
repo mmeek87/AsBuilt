@@ -102,6 +102,7 @@ test("a standing test-site approval covers every step except sign-in, only for t
   assert.deepEqual(listPlans(dir).map((f) => f.split("/").pop()), ["checkout.json"], "settings.json is never run as a check");
   const settings = readSettings(dir);
   const { testActions: _t, ...base } = plan();
+  process.env.ASBUILT_ALLOW_TEST_ACTIONS = "true"; // the workflow switch; a standing approval needs it
   const applied = applySettings(base, settings);
   assert.deepEqual(applied.testActions, { siteMarker: "TEST SITE", approved: "all" });
   assert.equal(applySettings({ ...base, environment: "production" }, settings).testActions, undefined);
@@ -207,7 +208,7 @@ test("opens the newest matching link under a reviewed address, never elsewhere",
   }
 });
 
-test("a second account and newest-link opening need test actions and a secondSignIn", () => {
+test("a second account that takes steps, and newest-link opening, need test actions and a secondSignIn", () => {
   process.env.ASBUILT_ALLOW_TEST_ACTIONS = "true";
   try {
     const signIn = { path: "/login", emailLabel: "Email", passwordLabel: "Password", submit: "Sign in", signedInText: "Sign out" };
@@ -215,7 +216,10 @@ test("a second account and newest-link opening need test actions and a secondSig
     assert.throws(() => validateExecution(plan({ signIn, criteria: [...plan().criteria, store] })), /need a secondSignIn/);
     assert.doesNotThrow(() => validateExecution(plan({ signIn, secondSignIn: signIn, criteria: [...plan().criteria, store] })));
     const { testActions: _t, ...noTest } = plan({ signIn, secondSignIn: signIn });
-    assert.throws(() => validateExecution(planSchema.parse(noTest)), /test-site features/);
+    const looks = { ...noTest, criteria: [{ ...store, actions: undefined }] };
+    assert.doesNotThrow(() => validateExecution(planSchema.parse(looks)), "a second account that only looks needs no approval");
+    const acts = { ...noTest, criteria: [{ ...store, actions: [{ type: "click" as const, name: "Done picking", value: "" }] }] };
+    assert.throws(() => validateExecution(planSchema.parse(acts)), /test-site features/);
   } finally {
     delete process.env.ASBUILT_ALLOW_TEST_ACTIONS;
   }

@@ -1,0 +1,52 @@
+# Copy to .github/workflows/asbuilt.yml in your app's repository.
+# For any host (Netlify, Render, Railway, Fly, your own server) or one fixed
+# test address. It checks your .asbuilt/*.json checks against that address:
+#   - on every pull request and every push to main, at the address saved in
+#     the repository variable ASBUILT_URL
+#     (Settings → Secrets and variables → Actions → Variables → New variable)
+#   - any time from the Actions tab: AsBuilt → Run workflow, with any address.
+# Use a preview or test address, not your live site. A fixed address shows
+# whatever is deployed there right now, which may not include a pull request's
+# changes yet; AsBuilt checks what it sees there.
+# Free on public repositories; uses your included minutes on private ones.
+name: AsBuilt
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      url:
+        description: The https address to check (leave empty to use ASBUILT_URL)
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: write # to post the summary comment
+
+jobs:
+  verify:
+    if: inputs.url != '' || vars.ASBUILT_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mmeek87/AsBuilt@v1
+        with:
+          url: ${{ inputs.url || vars.ASBUILT_URL }}
+          # Secrets you haven't added yet are simply empty: checks that need
+          # them are listed under "Needs setup" with the fix. Add a secret and
+          # the next run uses it; nothing to edit here.
+          # Create them with `gh secret set NAME` (it asks for the value) or in
+          # GitHub: Settings → Secrets and variables → Actions.
+          vercel-bypass-secret: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          test-email: ${{ secrets.ASBUILT_TEST_EMAIL }}
+          test-password: ${{ secrets.ASBUILT_TEST_PASSWORD }}
+          test-totp-secret: ${{ secrets.ASBUILT_TEST_TOTP }}
+          second-email: ${{ secrets.ASBUILT_SECOND_EMAIL }}
+          second-password: ${{ secrets.ASBUILT_SECOND_PASSWORD }}
+          second-totp-secret: ${{ secrets.ASBUILT_SECOND_TOTP }}
+          # The one deliberate switch: only if this workflow ever reaches just
+          # your test site (test data, test payments), never your live site.
+          # allow-test-actions: true

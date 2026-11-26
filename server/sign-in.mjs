@@ -10,6 +10,8 @@
 // Credentials arrive over the worker's private channel, are never logged,
 // never put into results, and every reason returned here omits them.
 
+import { totp } from "./totp.mjs";
+
 const timeout = 10000;
 const onPreview = (page, origin) => {
   try {
@@ -160,16 +162,21 @@ async function signInSteps(page, config, credentials, origin, failedHosts) {
     errorShown.waitFor({ state: "visible", timeout: 20000 }),
   ]).catch(() => {});
   await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
-  if (onPreview(page, origin) && new URL(page.url()).pathname === url.pathname) {
-    const said = await errorShown
-      .innerText({ timeout: 1000 })
-      .catch(() => "");
+  if (
+    onPreview(page, origin) &&
+    new URL(page.url()).pathname === url.pathname
+  ) {
+    const said = await errorShown.innerText({ timeout: 1000 }).catch(() => "");
     const message = said.replace(/\s+/g, " ").trim().slice(0, 160);
     if (message && !message.includes(credentials.email))
       return {
         ok: false,
         reason: `Sign-in didn't go through. The site said: “${message}”. Check the test account in your repository secrets.`,
       };
+  }
+  if (config.codeLabel) {
+    const step = await codeStep(page, config, credentials, origin);
+    if (!step.ok) return step;
   }
   if (config.signedInPath) {
     const proof = new URL(config.signedInPath, origin);
@@ -216,6 +223,68 @@ async function signInSteps(page, config, credentials, origin, failedHosts) {
       reason:
         "After signing in, the browser left the preview, so AsBuilt stopped.",
     };
+  return { ok: true };
+}
+
+// The authenticator-app step of a two-step sign-in, for test accounts whose
+// setup key is a repository secret. Same narrowness as the password step:
+// one exactly labeled field and one exactly named button, on the preview.
+async function codeStep(page, config, credentials, origin) {
+  if (!credentials.totp)
+    return {
+      ok: false,
+      reason:
+        "This sign-in asks for an authenticator code, but no setup key was provided. Add the test account's authenticator setup key as the repository secret ASBUILT_TEST_TOTP (or ASBUILT_SECOND_TOTP for the second account).",
+    };
+  const field = page
+    .getByLabel(config.codeLabel, { exact: true })
+    .filter({ visible: true });
+  const button = page
+    .getByRole("button", {
+      name: config.codeSubmit ?? config.submit,
+      exact: true,
+    })
+    .filter({ visible: true });
+  try {
+    await field.first().waitFor({ state: "visible", timeout: 15000 });
+  } catch {
+    return {
+      ok: false,
+      reason: `After the password, AsBuilt didn't see a "${config.codeLabel}" field for the authenticator code. Check codeLabel in the check, or whether this account uses two-step sign-in.`,
+    };
+  }
+  if ((await field.count()) !== 1 || (await button.count()) !== 1)
+    return {
+      ok: false,
+      reason: `AsBuilt couldn't find exactly one "${config.codeLabel}" field and one "${config.codeSubmit ?? config.submit}" button for the authenticator code, so it didn't type anything.`,
+    };
+  if (!onPreview(page, origin))
+    return {
+      ok: false,
+      reason: "The code step isn't on the preview, so AsBuilt stopped.",
+    };
+  let code;
+  try {
+    code = totp(credentials.totp);
+  } catch {
+    return {
+      ok: false,
+      reason:
+        "The authenticator setup key in the repository secret isn't valid. It should be the text key shown when setting up the authenticator (letters A–Z and digits 2–7).",
+    };
+  }
+  const before = new URL(page.url()).pathname;
+  await field.fill(code, { timeout });
+  if (!onPreview(page, origin))
+    return {
+      ok: false,
+      reason: "The code step left the preview, so AsBuilt stopped.",
+    };
+  await button.click({ timeout });
+  await page
+    .waitForURL((u) => u.pathname !== before, { timeout: 20000 })
+    .catch(() => {});
+  await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
   return { ok: true };
 }
 

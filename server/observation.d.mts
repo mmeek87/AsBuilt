@@ -9,3 +9,7 @@ export function blocker(
   page: Page,
   documentStatus?: number,
 ): Promise<string>;
+export function failureContext(
+  page: import("playwright").Page,
+  c: { kind: string; value: string },
+): Promise<string>;

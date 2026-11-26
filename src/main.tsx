@@ -171,7 +171,20 @@ function App() {
     }
   }
   useEffect(() => {
-    void load();
+    // One-time link printed by `pnpm start`: unlock without the key file.
+    // The code is in the fragment, so it is never sent in a request URL,
+    // and it is cleared from the address bar before anything else runs.
+    const code = /^#unlock=([a-f0-9]{48})$/.exec(location.hash)?.[1];
+    if (code) {
+      window.history.replaceState(
+        null,
+        "",
+        location.pathname + location.search,
+      );
+      void api("/api/session", { launch: code, remember: true })
+        .catch(() => undefined)
+        .then(load);
+    } else void load();
   }, []);
   useEffect(() => {
     heading.current?.focus();
@@ -375,8 +388,9 @@ function App() {
                 aria-describedby="key-help"
               />
               <p id="key-help" className="hint">
-                For the local app, use the key in <code>.data/token</code>. For
-                the online app, use the hosted access key you configured.
+                Easiest: open the one-time link that <code>pnpm start</code>{" "}
+                printed in your terminal. Or paste the key it printed, also
+                saved in <code>.data/token</code>.
               </p>
               <label className="remember-device">
                 <input

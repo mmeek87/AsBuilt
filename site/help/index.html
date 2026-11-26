@@ -65,7 +65,7 @@
     <section class="help-item" id="protected" aria-labelledby="protected-h">
       <h2 id="protected-h">The preview is protected (HTTP 401 or 403)</h2>
       <p>The preview asked for a login before showing anything, so AsBuilt saw a lock screen instead of your site. On Vercel this is usually Deployment Protection.</p>
-      <p><strong>What to do:</strong> In Vercel, open your project's <em>Settings → Deployment Protection</em> and copy the <em>Protection Bypass for Automation</em> secret. In GitHub, add it as the repository secret <code>VERCEL_AUTOMATION_BYPASS_SECRET</code>, then uncomment the <code>vercel-bypass-secret</code> line in <code>.github/workflows/asbuilt.yml</code>. AsBuilt sends it only to your preview.</p>
+      <p><strong>What to do:</strong> In Vercel, open your project's <em>Settings → Deployment Protection</em> and copy the <em>Protection Bypass for Automation</em> secret. In GitHub, add it as the repository secret <code>VERCEL_AUTOMATION_BYPASS_SECRET</code>, The current workflow template already passes it (in an older workflow, uncomment the <code>vercel-bypass-secret</code> line). AsBuilt sends it only to your preview.</p>
     </section>
     <section class="help-item" id="site-error" aria-labelledby="site-error-h">
       <h2 id="site-error-h">The page returned an error (HTTP 500, 502 and similar)</h2>
@@ -80,7 +80,7 @@
     <section class="help-item" id="sign-in" aria-labelledby="sign-in-h">
       <h2 id="sign-in-h">Sign-in didn't work</h2>
       <p>AsBuilt tried to sign in with your test account but couldn't confirm it worked. The reason names what went wrong: a field it couldn't find, a page that didn't load, or no proof of being signed in afterwards.</p>
-      <p><strong>What to do:</strong> Make sure the test account exists on the preview's database and has no two-step verification. Check that the field and button names in the check match what's on screen exactly, for example “Email” and “Sign in”. If a cookie banner covers the form, add its decline button as <code>dismiss</code>.</p>
+      <p><strong>What to do:</strong> Make sure the test account exists on the preview's database. If it uses two-step sign-in with an authenticator app, add its setup key as the secret <code>ASBUILT_TEST_TOTP</code> and the code field's label as <code>codeLabel</code> in the check; text-message codes and CAPTCHAs aren't supported. Check that the field and button names in the check match what's on screen exactly, for example “Email” and “Sign in”. If a cookie banner covers the form, add its decline button as <code>dismiss</code>.</p>
     </section>
     <section class="help-item" id="needs-javascript" aria-labelledby="needs-javascript-h">
       <h2 id="needs-javascript-h">The check ran without JavaScript</h2>
@@ -135,8 +135,34 @@
         <li><strong>You approve the steps.</strong> Your assistant lists every risky step in plain words and records only the ones you approve in the check file, so they show in the pull request. If you'd rather not be asked each time, choose “approve all steps on this test site”; that's saved once in <code>.asbuilt/settings.json</code>.</li>
         <li><strong>The page has to prove it's a test site.</strong> The check names text that only your test site shows, like a “TEST SITE” banner. Before every step AsBuilt looks for it, and if it isn't there, nothing is clicked.</li>
         <li><strong>The workflow has to allow it.</strong> Add <code>allow-test-actions: true</code> to the AsBuilt step, only in a workflow that never checks your live site.</li>
+        <li><strong>Never on Production.</strong> When GitHub says the deployment being checked is a Production deployment, AsBuilt takes no cart or checkout steps at all, whatever the banner or switch say.</li>
       </ul>
       <p><strong>Payments and a second account:</strong> a check can pay with Stripe's public test card (live Stripe declines it, so it can't charge real money), and can use a second test account, like a store, for steps such as marking the order ready. Only Stripe is supported for payments today.</p>
+    </section>
+    <section class="help-item" id="needs-setup" aria-labelledby="needs-setup-h">
+      <h2 id="needs-setup-h">Needs setup</h2>
+      <p>AsBuilt skipped a check because one setup step is missing, so it didn't run it rather than report something misleading. Nothing is wrong with your app, and the run doesn't fail. The comment names the exact step:</p>
+      <ul>
+        <li><strong>A test account.</strong> The check signs in, but the workflow has no test account. Add one as repository secrets: in a terminal in your project folder run <code>gh secret set ASBUILT_TEST_EMAIL</code> and <code>gh secret set ASBUILT_TEST_PASSWORD</code> (each asks for the value without showing it), or use GitHub's Settings → Secrets and variables → Actions → New repository secret. The current workflow template already passes them; the next run uses them. Use an account made for testing, never a real person's.</li>
+        <li><strong>A second account</strong> (for example a store): the same, with <code>ASBUILT_SECOND_EMAIL</code> and <code>ASBUILT_SECOND_PASSWORD</code>.</li>
+        <li><strong>The test-site switch.</strong> The check takes cart, checkout or order steps, which AsBuilt only takes on a test site. If this workflow only ever reaches your test site, add <code>allow-test-actions: true</code>. If you don't have a test site yet, see below.</li>
+      </ul>
+      <p>Never paste a password into a chat with your assistant. It can give you the commands; you type the values.</p>
+    </section>
+    <section class="help-item" id="test-site" aria-labelledby="test-site-h">
+      <h2 id="test-site-h">Why you want a test site, and how to get one</h2>
+      <p><strong>A test site is a copy of your app where nothing is real:</strong> fake products, fake customers, test payments that can't charge a card. You can click every button without hurting anyone. Without one, the only safe thing to check is what a signed-out visitor sees, because a check that adds to cart would add to real carts.</p>
+      <p><strong>Branches go with it.</strong> A branch is a draft copy of your code. Changes go there first, a pull request shows what changed, and AsBuilt checks the draft's preview before anything reaches your live site. If you've been changing your live site directly, your assistant can open your first branch for you and explain each step.</p>
+      <p><strong>What a test site needs,</strong> each separate from your live site:</p>
+      <ol>
+        <li><strong>Its own address</strong>: a preview link per pull request (Vercel and Netlify make these automatically) or one fixed test address.</li>
+        <li><strong>Its own database</strong>: for example a second Supabase project, with its keys in your host's <em>Preview</em> settings and your live keys left in <em>Production</em>. Fill it with fake data.</li>
+        <li><strong>Test payment keys</strong>: Stripe's test-mode keys in Preview only. Test mode can't charge real cards.</li>
+        <li><strong>Messages that go nowhere real</strong>: test emails and texts off, or sent to a test inbox.</li>
+        <li><strong>A visible banner</strong> like “TEST SITE · test data only”, shown only on the test site. AsBuilt looks for it before every cart or checkout step, and clicks nothing if it isn't there.</li>
+        <li><strong>Test accounts</strong> for each role that matters, created on the test database.</li>
+      </ol>
+      <p>Ask your assistant (with the AsBuilt skill): <em>“Help me set up a test site for AsBuilt.”</em> It checks what you already have, does the code parts on a branch, and tells you the few steps only you can do in your own accounts.</p>
     </section>
     <section class="help-item" id="ask" aria-labelledby="ask-h">
       <h2 id="ask-h">Still stuck?</h2>

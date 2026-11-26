@@ -335,3 +335,48 @@ test("an empty alert region (a route announcer) doesn't end the wait, and a late
     await browser.close();
   }
 });
+
+import { totp, base32 } from "../server/totp.mjs";
+
+test("authenticator codes match the standard (RFC 6238) and reject a bad setup key", () => {
+  const key = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"; // "12345678901234567890"
+  assert.equal(totp(key, 59_000), "287082");
+  assert.equal(totp(key, 1_111_111_109_000), "081804");
+  assert.equal(totp("gezd gnbv gy3t qojq gezd gnbv gy3t qojq", 59_000), "287082", "spaces and lower case are fine");
+  assert.throws(() => base32("not-a-key!"), /base32/);
+});
+
+test("two-step sign-in types the current authenticator code for a test account, never without its key", async () => {
+  const key = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    let codeSent = "";
+    await page.route("**/*", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.origin !== origin) return route.abort();
+      const post = route.request().method() === "POST";
+      if (url.pathname === "/session" && post)
+        return route.fulfill({ contentType: "text/html", body: `<form method="post" action="/mfa"><label>Authentication code <input name="code"></label><button>Verify</button></form>` });
+      if (url.pathname === "/mfa" && post) {
+        codeSent = new URLSearchParams(route.request().postData() ?? "").get("code") ?? "";
+        return route.fulfill({ contentType: "text/html", body: "<h1>Admin</h1><button>Sign out</button>" });
+      }
+      if (url.pathname === "/admin")
+        return route.fulfill({ contentType: "text/html", body: "<h1>Admin</h1><button>Sign out</button>" });
+      return route.fulfill({ contentType: "text/html", body: form() });
+    });
+    const mfa = { ...config, codeLabel: "Authentication code", codeSubmit: "Verify" };
+    const missing = await signIn(page, mfa, account, origin);
+    assert.equal(missing.ok, false);
+    assert.match(missing.reason, /ASBUILT_TEST_TOTP/);
+    assert.equal(codeSent, "", "nothing typed into the code step without a key");
+
+    const outcome = await signIn(page, mfa, { ...account, totp: key }, origin);
+    assert.deepEqual(outcome, { ok: true });
+    assert.match(codeSent, /^\d{6}$/);
+    assert.doesNotMatch(JSON.stringify(outcome), new RegExp(codeSent), "the code is never in the result");
+  } finally {
+    await browser.close();
+  }
+});

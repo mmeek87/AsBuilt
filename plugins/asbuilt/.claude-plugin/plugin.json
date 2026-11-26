@@ -1,7 +1,7 @@
 {
   "name": "asbuilt",
   "displayName": "AsBuilt",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Make sure what AI builds works as intended: your assistant maps the features, you approve checks, and every pull request gets Pass, Fail or Not verified with screenshots.",
   "repository": "https://github.com/mmeek87/AsBuilt",
   "license": "MIT",
