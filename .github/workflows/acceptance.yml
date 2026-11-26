@@ -30,6 +30,8 @@ jobs:
           if [ -z "$url" ]; then
             echo "::notice::GitHub Pages isn't enabled yet, so the live acceptance check was skipped. Enable it in Settings → Pages (Source: GitHub Actions)."
           fi
+          # The fictional test shop lives under /shop/ (the homepage is at the root).
+          [ -n "$url" ] && url="${url%/}/shop/"
           echo "url=$url" >> "$GITHUB_OUTPUT"
       - name: Write plans for the live site
         if: steps.site.outputs.url != ''

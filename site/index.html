@@ -1,1 +1,213 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Maple test shop</title><style>body{font:18px/1.5 system-ui;color:#1d2b28;background:#f7f6f0;margin:0;padding:32px 20px}main{max-width:620px;margin:auto}small{letter-spacing:.08em;color:#5a6662}a,button{display:inline-block;margin:6px 8px 6px 0;padding:10px 14px;font:inherit;border-radius:6px}button{background:#245d49;color:#fff;border:0}label{display:block;margin:14px 0 4px}input{display:block;padding:10px;font:inherit;width:100%;max-width:320px}</style><main><small>FICTIONAL TEST SHOP FOR ASBUILT · NOTHING IS FOR SALE</small><h1>Choose your region</h1><p id="region"></p><script>document.getElementById("region").textContent="Sending to "+(localStorage.getItem("region")||"no region");</script><button type="button" onclick="localStorage.setItem('region','Ontario');document.getElementById('region').textContent='Sending to Ontario'">Ontario</button><button type="button" onclick="localStorage.setItem('region','Quebec');document.getElementById('region').textContent='Sending to Quebec'">Quebec</button><p><a href="store/">Maple Market</a> <a href="login/">Sign in</a> <a href="account/">Your account</a></p></main></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AsBuilt: check that what your AI built actually works</title>
+<meta name="description" content="Tell your AI assistant what a feature should do. AsBuilt checks every preview in a real browser, on desktop and mobile, and shows what works, what doesn't, and what it couldn't check. Free and open source on GitHub.">
+<meta property="og:title" content="AsBuilt: check that what your AI built actually works">
+<meta property="og:description" content="Independent, evidence-based checks for apps built with AI. Free and open source on GitHub.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Crect width='28' height='28' rx='7' fill='%23252522'/%3E%3Cpath d='M8 8h5v3h-2v9H8zm12 12h-5v-3h2V8h3z' fill='%23ffe17a'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to main content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="./" aria-label="AsBuilt home">
+      <svg width="26" height="26" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="currentColor"/><path d="M8 8h5v3h-2v9H8zm12 12h-5v-3h2V8h3z" fill="#ffe17a"/></svg>
+      asbuilt
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      <ul>
+        <li class="optional"><a href="#how">How it works</a></li>
+        <li><a href="example/">Example report</a></li>
+        <li class="optional"><a href="https://github.com/mmeek87/AsBuilt/blob/main/docs/github-action.md">Docs</a></li>
+        <li><a href="https://github.com/mmeek87/AsBuilt">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow">Free and open source · Runs on GitHub</span>
+        <h1 class="display">Know what your AI actually built.</h1>
+        <p class="lede">Tell your assistant what a feature should do. AsBuilt opens every preview in a real browser, on desktop and mobile, and shows you what works, what doesn't, and what it couldn't check, with a screenshot for every answer.</p>
+        <div class="actions">
+          <a class="btn primary" href="#setup">Add it to your repo
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="btn secondary" href="example/">See a real report</a>
+        </div>
+        <p class="fine">No servers, no AI bills, no accounts. Works with Claude, ChatGPT and Codex.</p>
+      </div>
+
+      <figure class="card" aria-labelledby="peek-caption" style="margin:0">
+        <div class="card-head">
+          <span class="avatar"><svg width="14" height="14" viewBox="0 0 28 28" aria-hidden="true"><path d="M8 8h5v3h-2v9H8zm12 12h-5v-3h2V8h3z" fill="#ffe17a"/></svg></span>
+          <span><strong style="color:var(--ink);font-weight:600">asbuilt</strong> commented on your pull request</span>
+        </div>
+        <div class="card-body">
+          <h3>AsBuilt verification</h3>
+          <div class="tally" aria-label="Summary">
+            <span class="status pass">14 passed</span>
+            <span class="status fail">2 failed</span>
+            <span class="status nv">0 not verified</span>
+          </div>
+          <ul class="rows">
+            <li><span class="status pass">Pass</span><span class="what">Choosing Ontario updates the region</span><span class="seen">Saw “Sending to Ontario” · desktop and mobile</span></li>
+            <li><span class="status pass">Pass</span><span class="what">Ontario stays selected on the store page</span><span class="seen">Saw “Sending to Ontario” after opening Maple Market</span></li>
+            <li><span class="status pass">Pass</span><span class="what">A signed-in shopper sees their orders</span><span class="seen">Signed in with the test account · saw “Your orders”</span></li>
+            <li><span class="status fail">Fail</span><span class="what">Gift cards are offered</span><span class="seen">No “Gift cards available” on the page</span></li>
+          </ul>
+          <div class="prompt-peek">
+            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="4" width="9" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3 11V3.5A1.5 1.5 0 0 1 4.5 2H10" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
+            Fix prompt for Claude or ChatGPT, ready to copy
+          </div>
+        </div>
+        <figcaption id="peek-caption" class="sr-only">A sample AsBuilt pull request comment from a real run against a fictional test shop: 14 passed, 2 failed, 0 not verified.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section aria-labelledby="questions-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="title" id="questions-title">Three questions, answered with evidence.</h2>
+        <p>AI writes the code fast. AsBuilt doesn't take its word that the code works. It checks the running app.</p>
+      </div>
+      <div class="grid-3">
+        <div class="tile">
+          <p class="question">Did I build what I intended?</p>
+          <p>Each feature's expectations live in your repository, in plain language you approved.</p>
+        </div>
+        <div class="tile">
+          <p class="question">Does it actually work?</p>
+          <p>A real browser follows each step on desktop and mobile, and takes a screenshot of every check.</p>
+        </div>
+        <div class="tile">
+          <p class="question">Did I break something else?</p>
+          <p>Every pull request rechecks every earlier feature, so regressions surface before they ship.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" aria-labelledby="how-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="title" id="how-title">How it works</h2>
+        <p>Your assistant does the thinking. AsBuilt does the checking, with fixed rules and no AI, so it can't grade its own homework.</p>
+      </div>
+      <ol class="grid-3" style="list-style:none;margin:0;padding:0">
+        <li class="tile">
+          <div class="num" aria-hidden="true">1</div>
+          <h3>Describe the feature</h3>
+          <p>Ask Claude, ChatGPT or Codex with the AsBuilt skill: “Draft checks for this feature.” You review them, and they're saved as one small file per feature.</p>
+          <div class="step-art">.asbuilt/checkout.json</div>
+        </li>
+        <li class="tile">
+          <div class="num" aria-hidden="true">2</div>
+          <h3>Push and preview</h3>
+          <p>When your preview deploys, AsBuilt opens it in a real browser and follows your steps: clicks, pages, even signing in with a test account.</p>
+          <div class="step-art">Desktop 1440 px · Mobile 390 px</div>
+        </li>
+        <li class="tile">
+          <div class="num" aria-hidden="true">3</div>
+          <h3>Read the evidence</h3>
+          <p>One comment on your pull request lists what passed, what failed and why, with screenshots and a fix prompt you can paste back to your assistant.</p>
+          <div class="step-art">Updated on every push, never duplicated</div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section aria-labelledby="honest-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 class="title" id="honest-title">Honest about what it knows.</h2>
+        <p>Most tools say pass or fail. AsBuilt also tells you when it couldn't look, and when the answer is yours to decide.</p>
+      </div>
+      <div class="grid-4">
+        <div class="tile"><span class="status pass">Passed</span><p>Seen working on desktop and mobile, with a screenshot.</p></div>
+        <div class="tile"><span class="status fail">Failed</span><p>The app did something different from what you said you wanted.</p></div>
+        <div class="tile"><span class="status nv">Not verified</span><p>It couldn't check, and it says why: the page needs sign-in, the site was down, the preview is protected.</p></div>
+        <div class="tile"><span class="status ask">Question for you</span><p>It noticed something you never specified. Your answer becomes a check.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="setup" aria-labelledby="setup-title">
+    <div class="wrap grid-2" style="align-items:start;gap:48px">
+      <div>
+        <h2 class="title" id="setup-title">Set up in about five minutes.</h2>
+        <p class="lede" style="margin-top:16px">Add one workflow file to your repository. Or ask your assistant to “set up AsBuilt on my repo” and approve the pull request it opens.</p>
+        <ul class="checks" style="margin-top:28px">
+          <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span><strong>Free on public repositories.</strong> Private ones use your GitHub Actions allowance (set a $0 budget to be sure).</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span><strong>Built for Vercel previews,</strong> including protected ones, using Vercel's automation bypass.</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span><strong>Nothing to install or host.</strong> It runs on GitHub's computers.</span></li>
+        </ul>
+        <p class="small muted" style="margin-top:24px">Full guide: <a href="https://github.com/mmeek87/AsBuilt/blob/main/docs/github-action.md">AsBuilt on GitHub</a></p>
+      </div>
+      <div>
+        <p class="small muted" style="margin:0 0 8px"><code>.github/workflows/asbuilt.yml</code></p>
+<pre class="code" id="workflow" tabindex="0" role="region" aria-label="Example workflow file"><span class="k">name</span>: AsBuilt
+<span class="k">on</span>: deployment_status
+<span class="k">permissions</span>:
+  <span class="k">contents</span>: read
+  <span class="k">pull-requests</span>: write
+<span class="k">jobs</span>:
+  <span class="k">verify</span>:
+    <span class="k">if</span>: github.event.deployment_status.state == 'success'
+    <span class="k">runs-on</span>: ubuntu-latest
+    <span class="k">steps</span>:
+      - <span class="k">uses</span>: actions/checkout@v4
+      - <span class="k">uses</span>: mmeek87/asbuilt@main
+        <span class="k">with</span>:
+          <span class="k">url</span>: ${{ github.event.deployment_status.environment_url }}</pre>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="safe-title">
+    <div class="wrap grid-2" style="gap:48px;align-items:start">
+      <div>
+        <h2 class="title" id="safe-title">Careful by design.</h2>
+        <p class="lede" style="margin-top:16px">It's your app and your users' trust, so AsBuilt only does what you reviewed.</p>
+      </div>
+      <ul class="checks">
+        <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span><strong>Only your preview.</strong> It can't be pointed at other sites, and private networks are blocked.</span></li>
+        <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span><strong>No purchases, submissions or deletions.</strong> Only the steps you approved run.</span></li>
+        <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span><strong>Test accounts stay secret.</strong> They come from GitHub secrets, are typed only into your preview, and passwords are hidden in screenshots.</span></li>
+        <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span><strong>Measured, not promised.</strong> Zero false passes across 108 checks in 9 test scenarios, including pages designed to mislead it. <a href="https://github.com/mmeek87/AsBuilt/blob/main/EVALS.md">See the evaluation</a>.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section aria-labelledby="cta-title">
+    <div class="wrap narrow" style="text-align:center">
+      <h2 class="title" id="cta-title">See exactly what you'd get.</h2>
+      <p class="lede" style="margin:16px auto 28px">A real AsBuilt report from a run against our fictional test shop, with every screenshot.</p>
+      <div class="actions" style="justify-content:center">
+        <a class="btn primary" href="example/">Open the example report</a>
+        <a class="btn secondary" href="https://github.com/mmeek87/AsBuilt">View on GitHub</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span>AsBuilt · MIT licensed · Built by <a href="https://github.com/mmeek87">Mel Meek</a></span>
+    <ul>
+      <li><a href="https://github.com/mmeek87/AsBuilt/blob/main/SECURITY.md">Security</a></li>
+      <li><a href="https://github.com/mmeek87/AsBuilt/blob/main/EVALS.md">Evaluation</a></li>
+      <li><a href="shop/">Test shop</a></li>
+    </ul>
+  </div>
+</footer>
+</body>
+</html>
