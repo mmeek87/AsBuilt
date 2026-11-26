@@ -136,11 +136,33 @@ test("MCP initializes, exposes shared tools and returns honest drafts", async ()
   expect(tools.tools.map((t) => t.name).sort()).toEqual([
     "capture_intent",
     "check_verification",
+    "establish_product_baseline",
     "generate_criteria",
     "get_connection_status",
+    "get_product_context",
+    "get_product_review",
     "get_report",
+    "list_product_reviews",
+    "revise_product_baseline",
+    "run_product_scenario",
+    "save_product_review",
     "start_verification",
   ]);
+  const byName = Object.fromEntries(tools.tools.map((t) => [t.name, t]));
+  // Read tools are marked read-only; nothing is destructive; only runs reach the web.
+  for (const name of [
+    "get_product_context",
+    "get_product_review",
+    "list_product_reviews",
+  ])
+    expect(byName[name].annotations?.readOnlyHint).toBe(true);
+  for (const t of tools.tools)
+    expect(t.annotations?.destructiveHint).toBe(false);
+  expect(byName.run_product_scenario.annotations?.openWorldHint).toBe(true);
+  // Approval is a required literal true, never optional or defaulted.
+  expect(byName.run_product_scenario.inputSchema.required).toContain(
+    "approved",
+  );
   const r = await client.callTool({
     name: "generate_criteria",
     arguments: { intent: 'Show a heading called "Welcome".' },
@@ -545,7 +567,7 @@ test("stdio MCP bridge works from another directory and shares HTTP reports", as
   });
   try {
     await client.connect(transport);
-    expect((await client.listTools()).tools).toHaveLength(6);
+    expect((await client.listTools()).tools).toHaveLength(13);
     const status = await client.callTool({
       name: "get_connection_status",
       arguments: {},
