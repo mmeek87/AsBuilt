@@ -19,6 +19,7 @@ import type { Report } from "./schema.ts";
 import {
   coverageLines,
   setupLines,
+  checklistLines,
   fixPrompt as fixPromptFor,
 } from "./pr-comment.ts";
 import {
@@ -28,7 +29,10 @@ import {
   productionDeployment,
   productionNeed,
   siteCheck,
+  deeperChecklist,
+  setupLinks,
   type SetupNeed,
+  type ChecklistItem,
 } from "./preflight.ts";
 import { helpLink, HELP_URL } from "./help.ts";
 import {
@@ -204,6 +208,7 @@ export function stepSummary(
   broken: string[] = [],
   cover?: Coverage,
   setup: SetupNeed[] = [],
+  checklist: ChecklistItem[] = [],
 ) {
   const count = (s: string) =>
     report.results.filter((r) => r.status === s).length;
@@ -242,6 +247,9 @@ export function stepSummary(
         ]
       : []),
     ...(cover ? [...coverageLines(cover).slice(1), ""] : []),
+    ...(checklistLines(checklist).length
+      ? [...checklistLines(checklist).slice(1), ""]
+      : []),
     evidenceUrl
       ? `Desktop and mobile screenshots for each feature are in the **asbuilt-evidence** artifact (\`screenshots/<feature>/\`) on [this workflow run](${evidenceUrl}).`
       : "Screenshots are in the results folder under screenshots/<feature>/.",
@@ -256,6 +264,7 @@ export async function postComment(
   broken: string[] = [],
   cover?: Coverage,
   setup: SetupNeed[] = [],
+  checklist: ChecklistItem[] = [],
 ) {
   const pr = report.plan.source?.pr;
   if (!pr || input("comment", "true") !== "true" || report.mode === "sample")
@@ -269,6 +278,7 @@ export async function postComment(
       broken,
       coverage: cover,
       setup,
+      checklist,
     }),
   );
 }
@@ -279,6 +289,7 @@ export async function postBrokenComment(
   broken: string[],
   runUrl?: string,
   setup: SetupNeed[] = [],
+  checklist: ChecklistItem[] = [],
 ) {
   if (!source?.pr || input("comment", "true") !== "true") return;
   const { brokenCommentBody } = await import("./pr-comment.ts");
@@ -289,6 +300,7 @@ export async function postBrokenComment(
       runUrl,
       marker: MARKER,
       setup,
+      checklist,
     }),
   );
 }
@@ -469,6 +481,7 @@ async function main() {
       ? JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, "utf8"))
       : undefined;
   const production = productionDeployment(event);
+  const links = setupLinks(env);
   // Read every file once up front so pre-flight can look at all of them.
   const parsed = files.map((file) => {
     try {
@@ -490,10 +503,24 @@ async function main() {
   const site =
     origin === "sample"
       ? { markerMissing: [] as string[] }
-      : await siteCheck(url, markers, env, async (u) => {
-          const { pinnedGet } = await import("./safety.ts");
-          return pinnedGet(u);
-        });
+      : await siteCheck(
+          url,
+          markers,
+          env,
+          async (u) => {
+            const { pinnedGet } = await import("./safety.ts");
+            return pinnedGet(u);
+          },
+          links,
+        );
+  const checklist = deeperChecklist({
+    env,
+    raws: parsed.map((p) => p.raw),
+    settingsMarker: settings.testSite?.siteMarker,
+    markerMissing: site.markerMissing,
+    production,
+    links,
+  });
   for (const m of site.markerMissing)
     annotate(
       "warning",
@@ -518,7 +545,7 @@ async function main() {
       }
       const needs = site.protected
         ? [{ ...site.protected, feature }]
-        : setupNeeds(feature, raw, env);
+        : setupNeeds(feature, raw, env, links);
       const plan0 = applySettings(raw, settings) as any;
       if (production && plan0?.testActions && !needs.length)
         needs.push(productionNeed(feature, production));
@@ -565,8 +592,8 @@ async function main() {
     : undefined;
   if (!runs.length) {
     const { brokenCommentBody } = await import("./pr-comment.ts");
-    summary(brokenCommentBody(broken, { runUrl, setup }));
-    await postBrokenComment(source as any, broken, runUrl, setup);
+    summary(brokenCommentBody(broken, { runUrl, setup, checklist }));
+    await postBrokenComment(source as any, broken, runUrl, setup, checklist);
     // Only setup steps missing: say what to do, but don't fail the run.
     if (!broken.length) {
       output("status", "needs-setup");
@@ -588,8 +615,8 @@ async function main() {
   const cover = mapRead?.map
     ? coverage(mapRead.map, new Set(runs.map((r) => r.feature)), mapUrl)
     : undefined;
-  summary(stepSummary(report, runUrl, broken, cover, setup));
-  await postComment(report, runUrl, broken, cover, setup);
+  summary(stepSummary(report, runUrl, broken, cover, setup, checklist));
+  await postComment(report, runUrl, broken, cover, setup, checklist);
 
   const count = (s: string) =>
     report.results.filter((r) => r.status === s).length;

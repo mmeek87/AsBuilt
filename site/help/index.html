@@ -65,7 +65,7 @@
     <section class="help-item" id="protected" aria-labelledby="protected-h">
       <h2 id="protected-h">The preview is protected (HTTP 401 or 403)</h2>
       <p>The preview asked for a login before showing anything, so AsBuilt saw a lock screen instead of your site. On Vercel this is usually Deployment Protection.</p>
-      <p><strong>What to do:</strong> In Vercel, open your project's <em>Settings → Deployment Protection</em> and copy the <em>Protection Bypass for Automation</em> secret. In GitHub, add it as the repository secret <code>VERCEL_AUTOMATION_BYPASS_SECRET</code>, then uncomment the <code>vercel-bypass-secret</code> line in <code>.github/workflows/asbuilt.yml</code>. AsBuilt sends it only to your preview.</p>
+      <p><strong>What to do:</strong> In Vercel, open your project's <em>Settings → Deployment Protection</em> and copy the <em>Protection Bypass for Automation</em> secret. In GitHub, add it as the repository secret <code>VERCEL_AUTOMATION_BYPASS_SECRET</code>, The current workflow template already passes it (in an older workflow, uncomment the <code>vercel-bypass-secret</code> line). AsBuilt sends it only to your preview.</p>
     </section>
     <section class="help-item" id="site-error" aria-labelledby="site-error-h">
       <h2 id="site-error-h">The page returned an error (HTTP 500, 502 and similar)</h2>
@@ -143,7 +143,7 @@
       <h2 id="needs-setup-h">Needs setup</h2>
       <p>AsBuilt skipped a check because one setup step is missing, so it didn't run it rather than report something misleading. Nothing is wrong with your app, and the run doesn't fail. The comment names the exact step:</p>
       <ul>
-        <li><strong>A test account.</strong> The check signs in, but the workflow has no test account. Add one as repository secrets: in a terminal in your project folder run <code>gh secret set ASBUILT_TEST_EMAIL</code> and <code>gh secret set ASBUILT_TEST_PASSWORD</code> (each asks for the value without showing it), or use GitHub's Settings → Secrets and variables → Actions → New repository secret. Then uncomment <code>test-email</code> and <code>test-password</code> in the workflow. Use an account made for testing, never a real person's.</li>
+        <li><strong>A test account.</strong> The check signs in, but the workflow has no test account. Add one as repository secrets: in a terminal in your project folder run <code>gh secret set ASBUILT_TEST_EMAIL</code> and <code>gh secret set ASBUILT_TEST_PASSWORD</code> (each asks for the value without showing it), or use GitHub's Settings → Secrets and variables → Actions → New repository secret. The current workflow template already passes them; the next run uses them. Use an account made for testing, never a real person's.</li>
         <li><strong>A second account</strong> (for example a store): the same, with <code>ASBUILT_SECOND_EMAIL</code> and <code>ASBUILT_SECOND_PASSWORD</code>.</li>
         <li><strong>The test-site switch.</strong> The check takes cart, checkout or order steps, which AsBuilt only takes on a test site. If this workflow only ever reaches your test site, add <code>allow-test-actions: true</code>. If you don't have a test site yet, see below.</li>
       </ul>

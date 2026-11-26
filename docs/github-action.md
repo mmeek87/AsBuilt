@@ -128,11 +128,11 @@ Outputs: `status`, `passed`, `failed`, `not-verified`, `results-dir`.
 
 ## Protected Vercel previews
 
-If your previews use Vercel Deployment Protection, copy the project's **Protection Bypass for Automation** secret (Vercel → Project → Settings → Deployment Protection), add it to your GitHub repository as the secret `VERCEL_AUTOMATION_BYPASS_SECRET`, and uncomment the `vercel-bypass-secret` line in the workflow. AsBuilt sends it only to the preview's own address. Without it, protected pages report **Not verified: protected or needs sign-in**, never Fail.
+If your previews use Vercel Deployment Protection, copy the project's **Protection Bypass for Automation** secret (Vercel → Project → Settings → Deployment Protection), add it to your GitHub repository as the secret `VERCEL_AUTOMATION_BYPASS_SECRET`, and the next run uses it (the current template already passes it; in an older workflow, uncomment the `vercel-bypass-secret` line). AsBuilt sends it only to the preview's own address. Without it, protected pages report **Not verified: protected or needs sign-in**, never Fail.
 
 ## Signing in with a test account
 
-To check pages behind a login, create a **dedicated test account** in your app (never a real person's), add it as repository secrets `ASBUILT_TEST_EMAIL` and `ASBUILT_TEST_PASSWORD`, uncomment the two `test-…` lines in the workflow, and add a `signIn` block to the plan:
+To check pages behind a login, create a **dedicated test account** in your app (never a real person's), add it as repository secrets `ASBUILT_TEST_EMAIL` and `ASBUILT_TEST_PASSWORD`, and add a `signIn` block to the plan:
 
 ```json
 {

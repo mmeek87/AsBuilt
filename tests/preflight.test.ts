@@ -91,3 +91,45 @@ test("pre-flight warns when the test-site marker isn't in the page, without skip
   assert.deepEqual((await siteCheck("https://t.example.com/", ["TEST SITE · Test data only", "TEST SITE · Test data only"], {}, page(200, {}, html))).markerMissing, []);
   assert.deepEqual((await siteCheck("https://t.example.com/", ["STAGING"], {}, page(200, {}, html))).markerMissing, ["STAGING"]);
 });
+
+import { setupLinks, deeperChecklist } from "../server/preflight.ts";
+import { checklistLines } from "../server/pr-comment.ts";
+
+const ghEnv = {
+  GITHUB_REPOSITORY: "mel/shop",
+  GITHUB_SERVER_URL: "https://github.com",
+  GITHUB_WORKFLOW_REF: "mel/shop/.github/workflows/asbuilt.yml@refs/heads/main",
+};
+
+test("fixes link straight to the right page in the user's own repository", () => {
+  const links = setupLinks(ghEnv);
+  assert.equal(links.newSecret, "https://github.com/mel/shop/settings/secrets/actions/new");
+  assert.equal(links.workflow, "https://github.com/mel/shop/edit/main/.github/workflows/asbuilt.yml");
+  const fix = setupNeeds("orders", { signIn }, {}, links)[0].fix;
+  assert.match(fix, /\[add them in GitHub\]\(https:\/\/github\.com\/mel\/shop\/settings\/secrets\/actions\/new\): `ASBUILT_TEST_EMAIL`, then `ASBUILT_TEST_PASSWORD`/);
+  assert.match(fix, /\[your workflow file\]\(https:\/\/github\.com\/mel\/shop\/edit\/main\/\.github\/workflows\/asbuilt\.yml\)/);
+  assert.deepEqual(setupLinks({ GITHUB_REPOSITORY: "bad repo name" }), {}, "nothing odd ever becomes a link");
+  assert.equal(setupLinks({ ...ghEnv, GITHUB_SERVER_URL: "javascript:alert(1)" }).newSecret, "https://github.com/mel/shop/settings/secrets/actions/new");
+});
+
+test("the deeper-checks checklist shows progress and disappears when everything is ready", () => {
+  const links = setupLinks(ghEnv);
+  const start = deeperChecklist({ env: {}, raws: [{ criteria: [] }], markerMissing: [], links });
+  const text = checklistLines(start).join("\n");
+  assert.match(text, /Deeper checks: 0 of 3 ready/);
+  assert.match(text, /Everything above works without them/);
+  assert.match(text, /⬜ \*\*Test account:\*\*.*settings\/secrets\/actions\/new/);
+  assert.match(text, /⬜ \*\*Test-site banner:\*\*/);
+  assert.match(text, /⬜ \*\*Test-site switch:\*\*.*\[your workflow file\]/);
+
+  const store = deeperChecklist({ env: {}, raws: [{ secondSignIn: signIn }], markerMissing: [] });
+  assert.ok(store.some((i) => i.label.startsWith("Second test account")), "a second account is listed only when a check uses one");
+
+  const env = { ASBUILT_TEST_EMAIL: "a", ASBUILT_TEST_PASSWORD: "b", ASBUILT_ALLOW_TEST_ACTIONS: "true" };
+  const almost = deeperChecklist({ env, raws: [{ testActions: { siteMarker: "TEST SITE" } }], markerMissing: ["TEST SITE"] });
+  assert.match(checklistLines(almost).join("\n"), /2 of 3 ready[\s\S]*didn't find “TEST SITE”/);
+  const done = deeperChecklist({ env, raws: [{ testActions: { siteMarker: "TEST SITE" } }], markerMissing: [] });
+  assert.deepEqual(checklistLines(done), []);
+  const prod = deeperChecklist({ env, raws: [{ testActions: { siteMarker: "TEST SITE" } }], markerMissing: [], production: "Production" });
+  assert.match(checklistLines(prod).join("\n"), /never run on production/);
+});

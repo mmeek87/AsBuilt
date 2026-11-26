@@ -9,6 +9,8 @@ Get to a first real result faster, and make the deeper checks easier to set up. 
 - **Any host:** `examples/asbuilt-any-url.yml` checks one saved address (repository variable `ASBUILT_URL`) on every pull request and push, or any address from the Actions tab.
 
 ### Easier deep setup
+- **No workflow editing for secrets.** The workflow templates pass every AsBuilt secret already; an unset one just means **Needs setup**. Add a secret and the next run uses it. Only `allow-test-actions` stays a deliberate edit.
+- **Deeper checks checklist** in every comment until it's done ("2 of 3 ready"), each step linking straight to the right page in your repository: the New secret page, your workflow file.
 - **Needs setup instead of a failed run.** A check that signs in without a test account, uses a second account without one, or takes cart and checkout steps without `allow-test-actions` is skipped and listed under **Needs setup** with the exact fix (including `gh secret set` commands). It no longer fails the run.
 - **Test sites and branches, explained.** The skill finds out what you have, explains test sites, branches and secrets in plain words, and helps set them up; new help sections [Needs setup](https://mmeek87.github.io/AsBuilt/help/#needs-setup) and [Why you want a test site](https://mmeek87.github.io/AsBuilt/help/#test-site).
 - **Local app unlocks from a link.** `pnpm start` prints a one-time unlock link (single use, 15 minutes) and the access key, so you don't have to find `.data/token`.

@@ -1,7 +1,7 @@
 import type { Report } from "./schema.ts";
 import { helpLink, HELP_URL } from "./help.ts";
 import type { Coverage } from "./feature-map.ts";
-import type { SetupNeed } from "./preflight.ts";
+import type { SetupNeed, ChecklistItem } from "./preflight.ts";
 
 const label = { pass: "Pass", fail: "Fail", not_verified: "Not verified" };
 
@@ -29,6 +29,7 @@ export function commentBody(
     broken?: string[];
     coverage?: Coverage;
     setup?: SetupNeed[];
+    checklist?: ChecklistItem[];
   } = {},
 ) {
   if (r.status !== "complete" || r.mode === "sample" || !r.plan.source?.pr)
@@ -74,6 +75,7 @@ export function commentBody(
         ]
       : []),
     ...coverageLines(options.coverage),
+    ...checklistLines(options.checklist),
     "",
     LIMITS_LINE,
     "",
@@ -155,6 +157,19 @@ export function setupLines(setup: SetupNeed[]) {
   ];
 }
 
+/** Progress toward the deeper checks; nothing once everything is ready. */
+export function checklistLines(items: ChecklistItem[] = []) {
+  if (!items.length || items.every((i) => i.done)) return [];
+  const ready = items.filter((i) => i.done).length;
+  return [
+    "",
+    `**Deeper checks: ${ready} of ${items.length} ready.** With these, AsBuilt can sign in and walk through cart, checkout and order steps on your test site. Everything above works without them.`,
+    ...items.map((i) =>
+      i.done ? `- ✅ ${i.label}` : `- ⬜ **${i.label}:** ${i.how}`,
+    ),
+  ];
+}
+
 /**
  * Posted when no check file could run, so the pull request shows why
  * instead of only a failed workflow.
@@ -166,6 +181,7 @@ export function brokenCommentBody(
     runUrl?: string;
     marker?: string;
     setup?: SetupNeed[];
+    checklist?: ChecklistItem[];
   } = {},
 ) {
   return [
@@ -176,6 +192,8 @@ export function brokenCommentBody(
     "",
     ...brokenLines(broken),
     ...setupLines(options.setup ?? []),
+    ...checklistLines(options.checklist),
+    ...(options.checklist?.some((i) => !i.done) ? [""] : []),
     ...(options.sha && /^[a-f0-9]{40}$/.test(options.sha)
       ? [`Commit: ${options.sha}`, ""]
       : []),

@@ -52,6 +52,6 @@ Give the user one of these, in plain steps:
 - **Terminal (fastest, if they have the GitHub CLI):** in the project folder run `gh secret set ASBUILT_TEST_EMAIL`, then `gh secret set ASBUILT_TEST_PASSWORD`. Each asks them to type the value, which doesn't show on screen. (If `gh` isn't installed or signed in: `brew install gh` then `gh auth login` on a Mac.)
 - **GitHub website:** the repository → Settings → Secrets and variables → Actions → New repository secret. Name `ASBUILT_TEST_EMAIL`, value the test account's email; repeat for `ASBUILT_TEST_PASSWORD`.
 
-Then uncomment the matching lines in `.github/workflows/asbuilt.yml` (or do it for them on the branch). A second account uses `ASBUILT_SECOND_EMAIL` and `ASBUILT_SECOND_PASSWORD`. A protected Vercel preview uses `VERCEL_AUTOMATION_BYPASS_SECRET` (Vercel: Project → Settings → Deployment Protection → Protection Bypass for Automation).
+The current workflow templates already pass every AsBuilt secret, so adding the secret is enough; the next run uses it. (An older workflow may have those lines commented out; uncomment them for the user on a branch.) A second account uses `ASBUILT_SECOND_EMAIL` and `ASBUILT_SECOND_PASSWORD`. A protected Vercel preview uses `VERCEL_AUTOMATION_BYPASS_SECRET` (Vercel: Project → Settings → Deployment Protection → Protection Bypass for Automation).
 
 If a run reports **Needs setup**, it's naming exactly one of these missing steps. Walk the user through that step; it isn't a problem with their app.
