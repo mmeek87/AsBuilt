@@ -1,0 +1,41 @@
+name: Something looks wrong
+description: AsBuilt gave a result you think is wrong, or it didn't run.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please **leave out passwords, secrets, private code and personal data**. Screenshots are welcome if they show nothing private.
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      placeholder: The checkout check should pass because the total is shown before payment.
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: What AsBuilt said
+      description: Copy the result line from the pull request comment or job summary.
+    validations:
+      required: true
+  - type: textarea
+    id: plan
+    attributes:
+      label: Your check file
+      description: The contents of the .asbuilt/<feature>.json file involved.
+      render: json
+  - type: input
+    id: run
+    attributes:
+      label: Link to the workflow run
+      placeholder: https://github.com/you/your-app/actions/runs/...
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where were you using AsBuilt?
+      options:
+        - GitHub Action on pull requests
+        - Local service on my computer
+        - Not sure

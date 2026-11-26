@@ -7,16 +7,16 @@ AsBuilt runs as a GitHub Action. After every preview deployment of a pull reques
 ## How it works
 
 1. **You describe the feature** to Claude or ChatGPT, with the AsBuilt skill installed. That's the agent part: your assistant turns your words and the PR's changes into concrete, observable checks.
-2. **You review the checks.** The assistant writes them to `.asbuilt/plan.json` in your branch, so they're reviewed like any other change in the PR.
+2. **You review the checks.** The assistant writes them to `.asbuilt/<feature>.json` in your branch, so they're reviewed like any other change in the PR.
 3. **Vercel deploys a preview.** GitHub tells the workflow the preview is ready.
-4. **AsBuilt checks the preview** in a real browser, on desktop and mobile, following the plan exactly. It never signs in, submits forms or buys anything.
+4. **AsBuilt checks the preview** in a real browser, on desktop and mobile, following the plan exactly. It signs in only with a dedicated test account you add as secrets, and never buys anything or makes real submissions.
 5. **You get the results** as a PR comment, in the job summary, and as screenshots in the **asbuilt-evidence** artifact. Each check is a Pass, a Fail, or Not verified, with the reason.
 6. **You fix and push.** The next preview is checked again, and the same comment is updated.
 
 ## Setup (about 5 minutes)
 
 1. Copy [`examples/asbuilt-vercel.yml`](../examples/asbuilt-vercel.yml) to `.github/workflows/asbuilt.yml` in your app's repository.
-2. Add a plan at `.asbuilt/plan.json`. Ask your assistant: _"Use AsBuilt to draft checks for this PR."_ Or start from this:
+2. Add checks at `.asbuilt/<feature>.json` (one file per feature). Ask your assistant: _"Use AsBuilt to draft checks for this PR."_ Or start from this:
 
    ```json
    {
@@ -63,7 +63,7 @@ Not on Vercel? Call the Action from any workflow and pass the preview address:
 | Input              | Default              | Purpose                                                            |
 | ------------------ | -------------------- | ------------------------------------------------------------------ |
 | `url`              | (required)           | The https preview address, or `sample` for the built-in demo page. |
-| `plan`             | `.asbuilt/plan.json` | Your reviewed plan.                                                |
+| `plan`             | `.asbuilt`           | Folder of reviewed check files, or a single file.                  |
 | `comment`          | `true`               | Post one PR comment and update it on each run.                     |
 | `fail-on-mismatch` | `true`               | Fail the check when a mismatch is observed.                        |
 | `timeout-minutes`  | `10`                 | Stop and report "interrupted" (never "passed").                    |

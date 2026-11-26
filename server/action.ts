@@ -17,6 +17,7 @@ import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Report } from "./schema.ts";
 import { fixPrompt as fixPromptFor } from "./pr-comment.ts";
+import { helpLink, HELP_URL } from "./help.ts";
 
 const env = process.env;
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -202,7 +203,7 @@ export function stepSummary(
     "| --- | --- | --- | --- |",
     ...report.results.map(
       (r) =>
-        `| ${label[r.status]} | ${r.viewport} | ${cell(r.criterion.expected)} | ${cell(r.observed)} |`,
+        `| ${label[r.status]} | ${r.viewport} | ${cell(r.criterion.expected)} | ${cell(r.observed)}${r.status === "not_verified" ? ` [What this means](${helpLink(r.observed)})` : ""} |`,
     ),
     "",
     ...(fixPromptFor(report)
@@ -219,7 +220,7 @@ export function stepSummary(
       ? `Desktop and mobile screenshots for each feature are in the **asbuilt-evidence** artifact (\`screenshots/<feature>/\`) on [this workflow run](${evidenceUrl}).`
       : "Screenshots are in the results folder under screenshots/<feature>/.",
     "",
-    "_Not verified means AsBuilt couldn't collect enough evidence. It isn't a pass. A failure is an observed mismatch, not a diagnosed cause._",
+    `_Not verified means AsBuilt couldn't collect enough evidence. It isn't a pass. A failure is an observed mismatch, not a diagnosed cause._ [Help and questions](${HELP_URL})`,
   ].join("\n");
 }
 

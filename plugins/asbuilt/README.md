@@ -64,7 +64,7 @@ Open `http://127.0.0.1:4310`. The helper reads the local access key from `.data/
 
 ## Support and removal
 
-Report problems or ask questions in [GitHub Issues](https://github.com/mmeek87/AsBuilt/issues). Leave out passwords, private code, and personal data. Privacy details: https://mmeek87.github.io/AsBuilt/privacy/
+Every "Not verified" result links to its explanation on the [help page](https://mmeek87.github.io/AsBuilt/help/). Ask questions in [GitHub Discussions](https://github.com/mmeek87/AsBuilt/discussions) and report problems in [GitHub Issues](https://github.com/mmeek87/AsBuilt/issues/new/choose). Leave out passwords, private code, and personal data. AsBuilt is maintained by one person; expect a reply within about a week. Privacy details: https://mmeek87.github.io/AsBuilt/privacy/
 
 To remove AsBuilt, uninstall the plugin in your assistant and delete `.github/workflows/asbuilt.yml` and the `.asbuilt` folder from your repository.
 

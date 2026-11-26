@@ -221,6 +221,10 @@ Tests use only the fictional local sample and mocked model/GitHub responses. The
 
 Reports and screenshots are in `.data/`; browser-test screenshots are in `test-results/`. These are ignored by Git. Reports persist across restarts; interrupted runs are marked as interrupted and need a new run. The MVP allows one browser run and one planning request at a time, with a 200-report cap. Use Past reviews → Delete to permanently remove a review and its screenshots after confirmation. Running reviews cannot be deleted. There is no automatic retention policy.
 
+## Help and support
+
+Every "Not verified" result links to what it means and how to fix it on the [help page](https://mmeek87.github.io/AsBuilt/help/). Ask questions in [Discussions](https://github.com/mmeek87/AsBuilt/discussions) and report problems with the [issue forms](https://github.com/mmeek87/AsBuilt/issues/new/choose). AsBuilt is maintained by one person in her spare time; expect a reply within about a week. Security problems go through the [security policy](SECURITY.md).
+
 ## Troubleshooting
 
 | Symptom | Likely cause and fix |
@@ -228,7 +232,7 @@ Reports and screenshots are in `.data/`; browser-test screenshots are in `test-r
 | `Build AsBuilt first: pnpm build` at the root URL | The UI hasn't been built. Run `pnpm build`, then `pnpm start`. |
 | Every run ends **Interrupted** with "Install the selected engine" | Playwright's browser is missing: `pnpm exec playwright install chromium`. If browsers live elsewhere, set `PLAYWRIGHT_BROWSERS_PATH`. |
 | "This preview is not approved" | Add the site's exact origin (for example `https://preview.example.com`) to `ASBUILT_PREVIEW_ORIGINS`, then restart. |
-| Results say **Not verified: this page asks for a password** | AsBuilt never signs in. Use a preview that doesn't need sign-in, or check that step manually with a test account. |
+| Results say **Not verified: this page asks for a password** | The check doesn't sign in. Check a page that doesn't need sign-in, or add sign-in with a dedicated test account ([help](https://mmeek87.github.io/AsBuilt/help/#sign-in-wall)). |
 | Results say **Not verified: the page returned HTTP 5xx** | The site was down or erroring during the run. Retry when it's available; this isn't a confirmed defect. |
 | `pnpm mcp:check` says "Start AsBuilt first" | Start the service. For a custom data folder, set `ASBUILT_TOKEN_FILE` to its `token` file. |
 | GitHub errors mention an expired key or missing access | Check `GITHUB_APP_ID` and the private key, and that the app is installed on that repository (private repositories need explicit selection). |

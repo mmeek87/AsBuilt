@@ -1,4 +1,5 @@
 import type { Report } from "./schema.ts";
+import { helpLink, HELP_URL } from "./help.ts";
 
 const label = { pass: "Pass", fail: "Fail", not_verified: "Not verified" };
 
@@ -45,7 +46,10 @@ export function commentBody(
     "",
     ...r.results.map(
       (x) =>
-        `- **${label[x.status]} · ${x.viewport}** Expected: ${inert(x.criterion.expected)}\n  Observed: ${inert(x.observed)}`,
+        `- **${label[x.status]} · ${x.viewport}** Expected: ${inert(x.criterion.expected)}\n  Observed: ${inert(x.observed)}` +
+        (x.status === "not_verified"
+          ? `\n  [What this means and how to fix it](${helpLink(x.observed)})`
+          : ""),
     ),
     ...(fixPrompt(r)
       ? [
@@ -62,7 +66,7 @@ export function commentBody(
     "",
     `Limitations: ${r.limitations.join(" ")}`,
     "",
-    "“Not verified” means AsBuilt could not collect enough evidence; it is not a pass. A failure is an observed mismatch, not a diagnosed root cause.",
+    `“Not verified” means AsBuilt could not collect enough evidence; it is not a pass. A failure is an observed mismatch, not a diagnosed root cause. [Help and questions](${HELP_URL})`,
     "",
     options.evidenceUrl
       ? `Report ID: ${r.id}. [Desktop and mobile screenshots](${options.evidenceUrl}) are attached to the workflow run (visible to people with repository access).`

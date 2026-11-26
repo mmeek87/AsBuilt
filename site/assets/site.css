@@ -194,3 +194,8 @@ details.block ul { margin: 0; padding-left: 20px; color: var(--ink-2); font-size
 .prose li + li { margin-top: 6px; }
 .prose code { font-size: 0.9em; background: var(--wash); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
 .prose a { color: var(--ink); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.toc { margin: 28px 0 8px; padding: 16px 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.toc ul { margin: 0; padding-left: 18px; }
+.toc li { font-size: 15px; }
+.help-item { scroll-margin-top: 24px; padding-top: 4px; }
+.help-item:target h2 { background: linear-gradient(transparent 60%, var(--accent) 60%); display: inline; }

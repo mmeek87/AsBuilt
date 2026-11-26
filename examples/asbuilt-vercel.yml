@@ -1,6 +1,6 @@
 # Copy to .github/workflows/asbuilt.yml in your app's repository.
 # Runs after Vercel finishes a preview deployment for a pull request,
-# checks it against .asbuilt/plan.json, and comments on the PR.
+# checks it against your .asbuilt/*.json checks, and comments on the PR.
 # Free on public repositories; uses your included minutes on private ones.
 name: AsBuilt
 

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: What does my result mean?
+    url: https://mmeek87.github.io/AsBuilt/help/
+    about: Every Not verified reason, explained, with what to do next.
+  - name: Ask a question
+    url: https://github.com/mmeek87/AsBuilt/discussions
+    about: Setup help, ideas, and anything that isn't a bug.
+  - name: Report a security problem privately
+    url: https://github.com/mmeek87/AsBuilt/security/advisories/new
+    about: Please don't open a public issue for security problems.
