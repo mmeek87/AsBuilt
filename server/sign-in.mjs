@@ -155,3 +155,27 @@ export async function signIn(page, config, credentials, origin) {
     };
   return { ok: true };
 }
+
+/**
+ * Is this browser already signed in? Used to reuse one sign-in across checks
+ * and viewports in a run, so a test account isn't signed in dozens of times
+ * (sites rate-limit that). Observes the same proof as signIn.
+ */
+export async function alreadySignedIn(page, config, origin) {
+  try {
+    const proof = new URL(config.signedInPath ?? "/", origin);
+    if (proof.origin !== origin) return false;
+    await page.goto(proof.href, { waitUntil: "load", timeout: 25000 });
+    await page
+      .waitForLoadState("networkidle", { timeout: 5000 })
+      .catch(() => {});
+    if (!onPreview(page, origin)) return false;
+    await page
+      .getByText(config.signedInText, { exact: false })
+      .first()
+      .waitFor({ state: "visible", timeout });
+    return onPreview(page, origin);
+  } catch {
+    return false;
+  }
+}

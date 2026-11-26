@@ -68,6 +68,29 @@ export function workerEnv(
     env.PLAYWRIGHT_BROWSERS_PATH = source.PLAYWRIGHT_BROWSERS_PATH;
   return env;
 }
+/**
+ * One sign-in per test account per run: the first journey that signs in
+ * hands back the preview's session cookies, and later journeys reuse them.
+ * Kept in memory only, never in reports, logs or files.
+ */
+const sessions = new Map<string, unknown[]>();
+const sessionKey = (plan: Report["plan"]) =>
+  plan.signIn && plan.target !== "sample"
+    ? `${new URL(plan.target).origin} ${process.env.ASBUILT_TEST_EMAIL ?? ""}`
+    : "";
+const cookieSchema = z
+  .object({
+    name: z.string().min(1).max(256),
+    value: z.string().max(8192),
+    domain: z.string().max(253),
+    path: z.string().max(1024),
+    expires: z.number(),
+    httpOnly: z.boolean(),
+    secure: z.boolean(),
+    sameSite: z.enum(["Strict", "Lax", "None"]),
+  })
+  .strip();
+
 const resultSchema = z.object({
   type: z.literal("result"),
   index: z.number().int().min(0).max(11),
@@ -257,6 +280,16 @@ export async function runInteractive(report: Report) {
       report.browserVersion = z.string().max(100).parse(message.version);
       return;
     }
+    if (message.type === "session") {
+      const key = sessionKey(report.plan);
+      if (!key) throw Error("Unexpected session.");
+      const host = new URL(report.plan.target).hostname;
+      const cookies = z.array(cookieSchema).max(50).parse(message.cookies);
+      if (cookies.some((c) => c.domain.replace(/^\./, "") !== host))
+        throw Error("Session cookies must belong to the preview.");
+      sessions.set(key, cookies);
+      return;
+    }
     if (message.type === "fatal") {
       failure = sample
         ? `The sample worker failed. Install the selected engine with pnpm exec playwright install ${report.plan.browser ?? "chromium"}.`
@@ -374,6 +407,9 @@ export async function runInteractive(report: Report) {
           }
         : {}),
       ...(cookies.length ? { cookies } : {}),
+      ...(sessions.get(sessionKey(report.plan))?.length
+        ? { session: sessions.get(sessionKey(report.plan)) }
+        : {}),
     });
     const code = await exit;
     await chain;

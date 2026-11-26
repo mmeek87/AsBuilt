@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { chromium, type Page } from "playwright";
-import { signIn } from "../server/sign-in.mjs";
+import { alreadySignedIn, signIn } from "../server/sign-in.mjs";
 import { validateExecution, planSchema } from "../server/schema.ts";
 
 const origin = "https://shop.asbuilt.invalid";
@@ -268,6 +268,19 @@ test("re-types when the page wipes the form while it finishes loading", async ()
     const outcome = await signIn(page, config, account, origin);
     assert.deepEqual(outcome, { ok: true });
     assert.match(posted, /buyer%40test\.example/);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("a reused session is trusted only when the signed-in proof is visible on the preview", async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await shop(page, form());
+    assert.equal(await alreadySignedIn(page, { ...config, signedInPath: "/account" }, origin), true);
+    assert.equal(await alreadySignedIn(page, { ...config, signedInPath: "/login" }, origin), false, "a sign-in page isn't proof");
+    assert.equal(await alreadySignedIn(page, { ...config, signedInPath: "https://elsewhere.invalid/account" }, origin), false);
   } finally {
     await browser.close();
   }

@@ -1,7 +1,7 @@
 import { observe, blocker } from "./observation.mjs";
 import { perform } from "./interaction-policy.mjs";
 import { journeyFixture } from "./journey-fixture.mjs";
-import { signIn } from "./sign-in.mjs";
+import { alreadySignedIn, signIn } from "./sign-in.mjs";
 
 // One browser context per viewport. Checkpoints run in order and retain only this run's state.
 export async function runJourney(
@@ -11,7 +11,11 @@ export async function runJourney(
   send,
   credentials,
   cookies = [],
+  session = [],
 ) {
+  // A session from an earlier sign-in in this run (cookies for the preview
+  // only). Reused when it still works; otherwise AsBuilt signs in again.
+  let sessionCookies = session;
   const destinations = plan.criteria.flatMap((c) =>
     (c.actions ?? [])
       .filter((a) => a.type === "navigate" || (a.type === "menu" && !!a.value))
@@ -120,16 +124,37 @@ export async function runJourney(
     let initialError = false;
     let signInError = "";
     if (plan.signIn && plan.target !== "sample") {
-      const outcome = await signIn(
-        page,
-        plan.signIn,
-        credentials,
-        new URL(plan.target).origin,
-      ).catch(() => ({
-        ok: false,
-        reason: "Signing in with the test account didn't complete.",
-      }));
-      if (!outcome.ok) signInError = outcome.reason;
+      const origin = new URL(plan.target).origin;
+      let reused = false;
+      if (sessionCookies.length) {
+        await context.addCookies(sessionCookies).catch(() => {});
+        reused = await alreadySignedIn(page, plan.signIn, origin);
+        if (!reused) await context.clearCookies().catch(() => {});
+        if (!reused && cookies.length)
+          await context.addCookies(cookies).catch(() => {});
+      }
+      if (!reused) {
+        const outcome = await signIn(
+          page,
+          plan.signIn,
+          credentials,
+          origin,
+        ).catch(() => ({
+          ok: false,
+          reason: "Signing in with the test account didn't complete.",
+        }));
+        if (!outcome.ok) signInError = outcome.reason;
+        else {
+          // Keep only the preview's own cookies, and only on the worker's
+          // private channel: never in results, logs or screenshots.
+          const host = new URL(origin).hostname;
+          sessionCookies = (await context.cookies(origin)).filter(
+            (c) => c.domain.replace(/^\./, "") === host,
+          );
+          if (sessionCookies.length)
+            send({ type: "session", cookies: sessionCookies });
+        }
+      }
     }
     try {
       if (signInError) throw Error("sign-in failed");
