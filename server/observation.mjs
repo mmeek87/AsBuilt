@@ -229,11 +229,12 @@ export async function failureContext(page, c) {
           const el = walker.currentNode.parentElement;
           if (!t || !el || !visible(el)) continue;
           lines.push(t);
+          // Loading text: a short "-ing…" phrase that ends in an ellipsis
+          // ("Verifying…", "Saving..."), or a bare "Loading" / "Please wait".
+          // Labels like "Sending to" don't count.
           if (
-            /^(loading|verifying|saving|processing|sending|submitting|please wait|working)\b.{0,30}(…|\.\.\.)?$/i.test(
-              t,
-            ) ||
-            (/(…|\.\.\.)$/.test(t) && t.length < 40 && /ing\b/i.test(t))
+            (t.length < 40 && /(…|\.\.\.)$/.test(t) && /\b\w+ing\b/i.test(t)) ||
+            /^(loading|please wait)$/i.test(t)
           )
             loading.push(t);
         }

@@ -265,7 +265,7 @@ test("a failure says what the page was doing: still busy, and the closest wordin
     assert.match(reworded.observed, /Closest visible heading: “Stores in the Dominican Republic”/);
     assert.doesNotMatch(reworded.observed, /busy/);
 
-    await page.setContent(`<main><p>Nothing related</p></main>`);
+    await page.setContent(`<header><span>Sending to</span><span>no region</span><p>Sending to no region</p></header><main><p>Nothing related</p></main>`);
     const plain = await observe(page, { id: "x", expected: "x", kind: "heading", value: "Order total" } as any);
     assert.doesNotMatch(plain.observed, /Closest|busy/, "no context when nothing relevant is on the page");
   } finally {
