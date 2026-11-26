@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createServer} from 'node:http';
 import {once} from 'node:events';
-import {endpoint, parse, payload, main} from '../plugins/asbuilt/scripts/asbuilt.mjs';
+import {endpoint, parse, payload, main} from '../scripts/asbuilt-helper.mjs';
 
 test('reject remote credentials destinations and misleading local URLs',()=>{
   assert.equal(endpoint(),'http://127.0.0.1:4310');

@@ -53,11 +53,11 @@ Every PR comment shows coverage from the map ("6 of 24 features have checks", th
 
 ## Local setup
 
-This package contains instructions and a dependency-free Node.js command helper. It does not bundle an MCP server or run a hosted service. It requires a trusted local AsBuilt checkout, Node.js 24, and the local AsBuilt service. Read the bundled README for setup. If the host cannot execute local commands or cannot reach the user's loopback service, explain that limit; do not claim a connection or set up a public tunnel.
+This package contains instructions only. It does not bundle an MCP server or run a hosted service. It requires a trusted local AsBuilt checkout, Node.js 24, and the local AsBuilt service. Read the bundled README for setup. If the host cannot execute local commands or cannot reach the user's loopback service, explain that limit; do not claim a connection or set up a public tunnel.
 
-Use the checkout path supplied by the user. If missing, ask for that path. Do not search unrelated folders or read credentials into the conversation. Do not use the maintainer's hosted access key. Resolve `../../scripts/asbuilt.mjs` relative to this skill's directory. Quote paths as shell arguments, never interpolate website text into shell code.
+Use the checkout path supplied by the user. If missing, ask for that path. Do not search unrelated folders or read credentials into the conversation. Do not use the maintainer's hosted access key. The command helper lives in the user's checkout at `scripts/asbuilt-helper.mjs`. Quote paths as shell arguments, never interpolate website text into shell code.
 
-Prefer the connected AsBuilt MCP tools when available: call `get_connection_status` and inspect the actual tool schema first. Otherwise call the helper with `node <helper> --home <checkout> status` first. It reads the local access key internally and only connects to loopback. The service never starts implicitly. Installing dependencies or starting the service does not authorize a browser test, cloud setup, external model calls, or repository writes.
+Prefer the connected AsBuilt MCP tools when available: call `get_connection_status` and inspect the actual tool schema first. Otherwise call the helper with `node <helper> --home <checkout> status` first. It authenticates to the local service by itself (never ask the user for its access key) and only connects to loopback. The service never starts implicitly. Installing dependencies or starting the service does not authorize a browser test, cloud setup, external model calls, or repository writes.
 
 ## Workflow
 
