@@ -58,6 +58,18 @@ export const planSchema = z
     browser: z.enum(["chromium", "firefox", "webkit"]).optional(),
     environment: z.enum(["test", "production"]).optional(),
     networkApproved: z.literal(true).optional(),
+    // Test actions: on a test site only, the user may approve specific
+    // actions AsBuilt normally refuses (add to cart, checkout, order steps).
+    // Each approved action name is listed here, so it shows in the PR diff.
+    // Before every action, the page must show siteMarker (for example a
+    // "TEST SITE" banner); if it doesn't, nothing is clicked.
+    testActions: z
+      .object({
+        siteMarker: z.string().trim().min(6).max(200),
+        approved: z.array(z.string().trim().min(1).max(100)).min(1).max(20),
+      })
+      .strict()
+      .optional(),
     readUrls: z.array(z.string().url().max(2048)).max(20).optional(),
     // Sign in with a dedicated test account first. Labels and text only;
     // the account itself comes from secrets, never from the plan.
@@ -225,6 +237,36 @@ export function validateExecution(plan: Plan) {
         .map((a) => a.value),
     ]),
   ];
+  if (plan.testActions) {
+    if (
+      plan.execution !== "interactive" ||
+      !plan.actionsApproved ||
+      plan.environment !== "test" ||
+      plan.network !== "browser" ||
+      !plan.networkApproved ||
+      plan.publicReadOnly
+    )
+      throw Error(
+        'Test actions run only on a test site: the check needs "execution": "interactive", "actionsApproved": true, "environment": "test", "network": "browser" and "networkApproved": true.',
+      );
+    if (process.env.ASBUILT_ALLOW_TEST_ACTIONS !== "true")
+      throw Error(
+        "This check uses test actions, which are turned off for this repository. If this workflow only ever checks a test site, add allow-test-actions: true to the AsBuilt step in the workflow.",
+      );
+    const named = new Set(
+      plan.criteria.flatMap((c) => (c.actions ?? []).map((a) => a.name)),
+    );
+    for (const name of plan.testActions.approved) {
+      if (/password|log ?in|sign ?in|log ?out|sign ?out/i.test(name))
+        throw Error(
+          `"${name}" can't be a test action. Sign-in uses the signIn step and a test account from secrets.`,
+        );
+      if (!named.has(name))
+        throw Error(
+          `Approved test action "${name}" isn't used by any step in this check. Approve only the steps the check takes.`,
+        );
+    }
+  }
   for (const raw of urls) {
     const url = new URL(raw);
     if (
@@ -233,9 +275,10 @@ export function validateExecution(plan: Plan) {
       url.username ||
       url.password ||
       url.hash ||
-      /(?:delete|logout|checkout|payment|purchase|submit|admin|auth)(?:\b|_)/i.test(
-        url.pathname,
-      )
+      (!plan.testActions &&
+        /(?:delete|logout|checkout|payment|purchase|submit|admin|auth)(?:\b|_)/i.test(
+          url.pathname,
+        ))
     )
       throw Error(
         "Journey URLs must be reviewed same-origin HTTPS destinations without credentials or sensitive operations.",

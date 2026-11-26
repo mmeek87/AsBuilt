@@ -208,7 +208,7 @@ async function run(plan, credentials, cookies = []) {
             };
           } else {
             for (const action of actions) {
-              await perform(page, action);
+              await perform(page, action, [], plan.testActions);
               log.push(
                 `${action.type === "click" ? "Click" : action.type === "fill" ? "Fill" : "Select"} “${action.name}”${action.type === "click" ? "" : ` with “${action.value}”`}.`,
               );

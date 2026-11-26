@@ -42,6 +42,10 @@ AsBuilt drives a real browser against websites and can read your GitHub reposito
 | Zod below 4.6.6 could exhaust memory on oversized collections ([GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5)) | High (advisory) | Upgraded to Zod 4.6.7; removing the hosted Vercel packages also removed a second vulnerable copy. `pnpm audit --prod`: no known vulnerabilities (November 26, 2026). |
 | A full artifact quota failed the whole check | Low (availability) | Screenshot upload is best effort and never changes results. |
 
+### Test actions
+
+Cart, checkout, order and payment-like steps are refused unless a check file lists each one under `testActions.approved` (visible in review), the workflow sets `allow-test-actions: true`, the plan targets a test environment with approved browser networking, and the page shows the plan's test-site marker immediately before each action. Sign-in labels can't be approved as test actions. Card entry in third-party payment frames is not supported.
+
 ## Residual risks and limits
 
 - **Single shared key.** Anyone with the key has full operator rights, including through MCP. There are no per-user identities, roles or audit log. Don't share the key, and don't expose the service publicly.

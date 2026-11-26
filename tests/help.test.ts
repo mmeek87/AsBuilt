@@ -34,3 +34,8 @@ test("a PR with no runnable check file is told why, inertly", () => {
   assert.match(body, /help\/#plan-couldnt-run/);
   assert.match(body, /- `checkout: This check runs in interactive mode\. \[x\]\(https:\/\/evil\.example\) @someone`/);
 });
+
+test("blocked risky steps link to the test actions help", () => {
+  assert.match(helpLink("Journey action or URL checkpoint could not complete. This action is outside the allowed interaction policy. On a test site, the user can approve it as a test action."), /#test-actions$/);
+  assert.match(helpLink("The page doesn't show the test-site marker “TEST SITE”, so AsBuilt didn't act."), /#test-actions$/);
+});

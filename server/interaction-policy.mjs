@@ -1,8 +1,31 @@
 const sensitive =
   /\b(cart|favorite|buy|purchase|pay|checkout|order|delete|remove|send|publish|transfer|subscribe|book|confirm|submit|login|password)\b|sign in|log in/i;
-export async function perform(page, action, destinations = []) {
-  if (sensitive.test(action.name))
-    throw Error("This action is outside the allowed interaction policy.");
+export async function perform(
+  page,
+  action,
+  destinations = [],
+  testActions = undefined,
+) {
+  // Actions AsBuilt normally refuses run only when the user approved this
+  // exact action as a test action, and only while the page proves it's a
+  // test site.
+  const approvedTest = !!testActions?.approved?.includes(action.name);
+  if (sensitive.test(action.name) && !approvedTest)
+    throw Error(
+      "This action is outside the allowed interaction policy. On a test site, the user can approve it as a test action.",
+    );
+  if (testActions) {
+    const marker = page
+      .getByText(testActions.siteMarker, { exact: false })
+      .filter({ visible: true });
+    try {
+      await marker.first().waitFor({ state: "visible", timeout: 5000 });
+    } catch {
+      throw Error(
+        `The page doesn't show the test-site marker “${testActions.siteMarker}”, so AsBuilt didn't act. Test actions only run on a page that proves it's a test site.`,
+      );
+    }
+  }
   const root = action.within
     ? page
         .getByRole(action.within.role, {
@@ -136,12 +159,14 @@ export async function perform(page, action, destinations = []) {
   await locator.first().waitFor({ state: "visible", timeout: 3000 });
   if ((await locator.count()) !== 1)
     throw Error("The action target is ambiguous. Use an exact unique label.");
-  const permitted = await locator.evaluate((el, type) => {
+  const permitted = await locator.evaluate((el, [type, approved]) => {
     if (type === "click")
       return (
         el instanceof HTMLButtonElement &&
-        !el.form &&
-        (el.type === "button" || !el.hasAttribute("type"))
+        // An approved test action may submit its form (for example
+        // "Continue to payment"); anything else must not.
+        (approved ||
+          (!el.form && (el.type === "button" || !el.hasAttribute("type"))))
       );
     if (type === "select")
       return el instanceof HTMLSelectElement && !el.disabled;
@@ -153,7 +178,7 @@ export async function perform(page, action, destinations = []) {
       !el.readOnly &&
       !/password|cc-|one-time-code/i.test(el.autocomplete || "")
     );
-  }, action.type);
+  }, [action.type, approvedTest]);
   if (!permitted) {
     const details = await locator.evaluate((el) => ({
       tag: el.tagName.toLowerCase(),

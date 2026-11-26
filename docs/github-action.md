@@ -34,6 +34,24 @@ AsBuilt runs as a GitHub Action. After every preview deployment of a pull reques
 
 The map is optional. Without it, AsBuilt still runs every check file; it just can't show coverage.
 
+## Test actions (test sites only)
+
+AsBuilt refuses steps that could change real data, such as adding to a cart, checking out or marking an order ready. On a test site you can allow specific steps:
+
+```json
+"testActions": {
+  "siteMarker": "TEST SITE · Test database and test payments only",
+  "approved": ["Add to cart", "Continue to payment"]
+}
+```
+
+- `approved` lists each step you agreed to, by its exact label. Nothing else that looks risky runs.
+- `siteMarker` is text only your test site shows. AsBuilt checks for it before every step and stops if it's missing.
+- The check also needs `execution: "interactive"`, `actionsApproved: true`, `environment: "test"`, `network: "browser"` and `networkApproved: true`.
+- The workflow must opt in with `allow-test-actions: true`. Add it only to a workflow that never checks your live site.
+
+Not supported yet: typing a card inside a payment provider's frame, and journeys that need two accounts.
+
 ## Setup (about 5 minutes)
 
 1. Copy [`examples/asbuilt-vercel.yml`](../examples/asbuilt-vercel.yml) to `.github/workflows/asbuilt.yml` in your app's repository.
