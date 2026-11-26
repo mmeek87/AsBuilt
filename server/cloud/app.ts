@@ -9,6 +9,7 @@ import { cloudConfig } from "./config.ts";
 import * as defaultStorage from "./database.ts";
 import { runCloud } from "./worker.ts";
 import { makeMcp } from "../mcp.ts";
+import { productService } from "../product-review.ts";
 import {
   planSchema,
   validateExecution,
@@ -46,7 +47,7 @@ export function createCloudApp(
   const schedule = deps.schedule || waitUntil;
   const app = express();
   app.disable("x-powered-by");
-  app.use(express.json({ limit: "64kb" }));
+  app.use(express.json({ limit: "1mb" }));
   app.use((req, res, next) => {
     res.set({
       "Cache-Control": "no-store",
@@ -237,6 +238,13 @@ export function createCloudApp(
     Readable.fromWeb(result.stream as any).pipe(res);
   });
   async function dispatch(name: string, args: any) {
+    if (name === "establish_product_baseline") return products.establish(args);
+    if (name === "get_product_context") return products.context(args.id);
+    if (name === "revise_product_baseline") return products.revise(args);
+    if (name === "save_product_review") return products.save(args);
+    if (name === "list_product_reviews") return products.list();
+    if (name === "get_product_review") return products.get(args.id);
+    if (name === "run_product_scenario") return products.run(args);
     switch (name) {
       case "get_connection_status":
         return status();
@@ -269,6 +277,36 @@ export function createCloudApp(
         throw Error("Unknown tool.");
     }
   }
+  const products = productService(
+    storage.productStorage,
+    storage.getReport,
+    start,
+  );
+  app.get("/api/products", async (_req, res) =>
+    res.json(await products.list()),
+  );
+  app.post("/api/products", async (req, res) =>
+    res.status(201).json(await products.save(req.body)),
+  );
+  app.post("/api/products/baseline", async (req, res) =>
+    res.status(201).json(await products.establish(req.body)),
+  );
+  app.get("/api/products/:id/context", async (req, res) =>
+    res.json(await products.context(req.params.id)),
+  );
+  app.post("/api/products/:id/revise", async (req, res) =>
+    res
+      .status(201)
+      .json(await products.revise({ ...req.body, parentId: req.params.id })),
+  );
+  app.get("/api/products/:id", async (req, res) =>
+    res.json(await products.get(req.params.id)),
+  );
+  app.post("/api/products/:id/run", async (req, res) =>
+    res
+      .status(202)
+      .json(await products.run({ ...req.body, id: req.params.id })),
+  );
   app.post("/mcp", async (req, res) => {
     if (
       !equal(

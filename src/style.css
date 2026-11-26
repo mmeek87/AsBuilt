@@ -1073,6 +1073,7 @@ textarea {
   }
   .app-nav nav {
     flex-direction: row;
+    flex-wrap: wrap;
     gap: 6px;
   }
   .nav-item {
@@ -1291,6 +1292,10 @@ textarea {
     font-size: 12px;
   }
 }
+.product-coverage { overflow-wrap: anywhere; }
+.product-coverage details { margin: 20px 0; }
+.product-coverage .review-list button { flex-wrap: wrap; }
+.product-coverage .review-list small { display: block; flex-basis: 100%; }
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

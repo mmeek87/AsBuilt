@@ -1,6 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { createHash, randomBytes } from "node:crypto";
 import type { Report } from "../schema.ts";
+import type { ProductReview, ProductStorage } from "../product-review.ts";
 export const digest = (s: string) =>
   createHash("sha256").update(s).digest("hex");
 export const db = () => neon(process.env.DATABASE_URL!);
@@ -8,6 +9,7 @@ export async function migrate() {
   const sql = db();
   await sql`CREATE TABLE IF NOT EXISTS asbuilt_sessions (digest text PRIMARY KEY, key_hash text NOT NULL, expires timestamptz NOT NULL)`;
   await sql`CREATE TABLE IF NOT EXISTS asbuilt_reports (id uuid PRIMARY KEY, created_at timestamptz NOT NULL DEFAULT now(), report jsonb NOT NULL)`;
+  await sql`CREATE TABLE IF NOT EXISTS asbuilt_product_reviews (id uuid PRIMARY KEY, created_at timestamptz NOT NULL DEFAULT now(), review jsonb NOT NULL)`;
   await sql`CREATE TABLE IF NOT EXISTS asbuilt_slot (id integer PRIMARY KEY CHECK (id=1), run_id uuid NOT NULL, expires timestamptz NOT NULL)`;
   await sql`CREATE TABLE IF NOT EXISTS asbuilt_budget (day date PRIMARY KEY, count integer NOT NULL)`;
   await sql`CREATE TABLE IF NOT EXISTS asbuilt_login_limit (bucket bigint PRIMARY KEY, count integer NOT NULL)`;
@@ -95,3 +97,22 @@ export async function release(id: string) {
 export async function remove(id: string) {
   await db()`DELETE FROM asbuilt_reports WHERE id=${id}::uuid`;
 }
+export const productStorage: ProductStorage = {
+  async list() {
+    const rows =
+      await db()`SELECT review FROM asbuilt_product_reviews ORDER BY created_at DESC LIMIT 100`;
+    return rows.map((r) => r.review as ProductReview);
+  },
+  async get(id) {
+    const rows =
+      await db()`SELECT review FROM asbuilt_product_reviews WHERE id=${id}::uuid`;
+    if (!rows.length) throw Error("Product review not found.");
+    return rows[0].review as ProductReview;
+  },
+  async create(review) {
+    await db()`INSERT INTO asbuilt_product_reviews(id,review) VALUES (${review.id}::uuid,${JSON.stringify(review)}::jsonb)`;
+  },
+  async appendRun(id, run) {
+    await db()`UPDATE asbuilt_product_reviews SET review=jsonb_set(review,'{runs}',(review->'runs') || ${JSON.stringify([run])}::jsonb) WHERE id=${id}::uuid`;
+  },
+};

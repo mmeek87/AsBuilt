@@ -21,6 +21,7 @@ import {
 } from "./github.ts";
 import { preparePlan, agentConfigured } from "./agent.ts";
 import { makeMcp, dispatch } from "./mcp.ts";
+import { localProducts } from "./product-review-store.ts";
 const app = express();
 const port = Number(process.env.PORT || 4310);
 const origin = `http://127.0.0.1:${port}`;
@@ -42,7 +43,7 @@ const equal = (a: string, b: string) =>
   Buffer.byteLength(a) === Buffer.byteLength(b) &&
   timingSafeEqual(Buffer.from(a), Buffer.from(b));
 app.disable("x-powered-by");
-app.use(express.json({ limit: "64kb" }));
+app.use(express.json({ limit: "1mb" }));
 app.use((req, res, next) => {
   res.set({
     "X-Content-Type-Options": "nosniff",
@@ -115,6 +116,31 @@ app.get("/api/config", (_req, res) =>
 );
 app.get("/api/repositories", async (_req, res) =>
   res.json(await listRepositories()),
+);
+app.get("/api/products", async (_req, res) =>
+  res.json(await localProducts.list()),
+);
+app.post("/api/products", async (req, res) =>
+  res.status(201).json(await localProducts.save(req.body)),
+);
+app.post("/api/products/baseline", async (req, res) =>
+  res.status(201).json(await localProducts.establish(req.body)),
+);
+app.get("/api/products/:id/context", async (req, res) =>
+  res.json(await localProducts.context(req.params.id)),
+);
+app.post("/api/products/:id/revise", async (req, res) =>
+  res
+    .status(201)
+    .json(await localProducts.revise({ ...req.body, parentId: req.params.id })),
+);
+app.get("/api/products/:id", async (req, res) =>
+  res.json(await localProducts.get(req.params.id)),
+);
+app.post("/api/products/:id/run", async (req, res) =>
+  res
+    .status(202)
+    .json(await localProducts.run({ ...req.body, id: req.params.id })),
 );
 app.post("/api/source", async (req, res) =>
   res.json(await inspectSource(z.string().url().parse(req.body.url))),

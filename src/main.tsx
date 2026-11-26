@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Criterion, Report } from "../server/schema.ts";
 import "./style.css";
+import { ProductReviews } from "./product-reviews.tsx";
 type Config = {
   hosting?: "vercel";
   executionEnabled?: boolean;
@@ -125,9 +126,9 @@ function App() {
       null,
     ),
     [commentApproved, setCommentApproved] = useState(false);
-  const [view, setView] = useState<"review" | "history" | "connections">(
-    "review",
-  );
+  const [view, setView] = useState<
+    "review" | "history" | "connections" | "products"
+  >("review");
   const [execution, setExecution] = useState<"static" | "interactive">(
     "static",
   );
@@ -239,6 +240,17 @@ function App() {
         </div>
         <nav aria-label="Workspace">
           <button
+            className={view === "products" ? "nav-item active" : "nav-item"}
+            aria-current={view === "products" ? "page" : undefined}
+            onClick={() => {
+              setView("products");
+              setError("");
+            }}
+          >
+            <Icon name="file" />
+            Product coverage
+          </button>
+          <button
             className={view === "review" ? "nav-item active" : "nav-item"}
             aria-current={view === "review" ? "page" : undefined}
             onClick={() => {
@@ -306,15 +318,17 @@ function App() {
         <span className="breadcrumb">
           Workspace <span>/</span>{" "}
           <strong>
-            {view === "history"
-              ? "Past reviews"
-              : view === "connections"
-                ? "Connections"
-                : step === 0
-                  ? "New review"
-                  : step === 1
-                    ? "Review plan"
-                    : "Verification report"}
+            {view === "products"
+              ? "Product coverage"
+              : view === "history"
+                ? "Past reviews"
+                : view === "connections"
+                  ? "Connections"
+                  : step === 0
+                    ? "New review"
+                    : step === 1
+                      ? "Review plan"
+                      : "Verification report"}
           </strong>
         </span>
         <span className="version">
@@ -373,6 +387,18 @@ function App() {
           <p role="status">Opening your workspace…</p>
         ) : (
           <>
+            {view === "products" && (
+              <ProductReviews
+                openRun={(id) =>
+                  void action("Opening evidence…", async () => {
+                    setReport(await api(`/api/runs/${id}`));
+                    setComment(null);
+                    setStep(2);
+                    setView("review");
+                  })
+                }
+              />
+            )}
             {view === "history" && (
               <section className="utility-page">
                 <h1 ref={heading} tabIndex={-1}>
