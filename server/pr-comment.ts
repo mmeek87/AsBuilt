@@ -81,7 +81,7 @@ export function commentBody(
 }
 
 /** One plain sentence replaces the per-mode limitation list in comments. */
-export const LIMITS_LINE = `AsBuilt checks what a browser can see on your preview. It doesn't check payments, emails or anything only your server knows, and it signs in only with a test account you add. “Not verified” is never a pass. [What AsBuilt can and can't check](${HELP_URL}#limits)`;
+export const LIMITS_LINE = `AsBuilt checks what a browser can see on your preview. It doesn't check emails or anything only your server knows, signs in only with a test account you add, and takes cart or checkout steps only when you approve them for a test site. “Not verified” is never a pass. [What AsBuilt can and can't check](${HELP_URL}#limits)`;
 
 /** Which features in the feature map have checks, and which don't yet. */
 export function coverageLines(c?: Coverage) {

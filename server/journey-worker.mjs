@@ -170,7 +170,7 @@ export async function runJourney(
                 actions.push(
                   `Attempt ${action.type} “${action.name}” (completion not verified).`,
                 );
-                await perform(page, action, destinations);
+                await perform(page, action, destinations, plan.testActions);
                 actions[actions.length - 1] =
                   `${action.type} “${action.name}”${action.type === "navigate" ? " to " + action.value : action.type === "click" ? "" : " with “" + action.value + "”"}.`;
               }
