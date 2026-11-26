@@ -183,8 +183,15 @@ export async function runJourney(
               // Otherwise wait for the page to go quiet, then allow a short
               // grace period for late rendering. Busy pages (constant
               // polling) keep a long allowance.
-              observation = await observe(page, c, { waitMs: 300 });
-              if (observation.status !== "pass") {
+              // Absence checks always settle first: "not there yet" isn't "not there".
+              if (c.occurrence === "none") {
+                await page
+                  .waitForLoadState("networkidle", { timeout: 5000 })
+                  .catch(() => {});
+                await page.waitForTimeout(1500);
+                observation = await observe(page, c, { waitMs: 0 });
+              } else observation = await observe(page, c, { waitMs: 300 });
+              if (observation.status !== "pass" && c.occurrence !== "none") {
                 const settled = await page
                   .waitForLoadState("networkidle", { timeout: 5000 })
                   .then(
@@ -210,7 +217,9 @@ export async function runJourney(
             };
           }
         }
-        if (observation.status === "fail") {
+        // A visible item that must not be shown is a definite observation;
+        // blocked resources can't make something appear.
+        if (observation.status === "fail" && c.occurrence !== "none") {
           const reason = await blocker(page, documentStatus);
           if (reason)
             observation = {
@@ -218,7 +227,25 @@ export async function runJourney(
               observed: `${reason} What AsBuilt saw: ${observation.observed}`,
             };
         }
-        if (observation.status === "fail" && (criticalBlocked || pageErrors))
+        // An absence "pass" proves nothing if the page errored, was blocked or
+        // is a sign-in/HTTP-error page.
+        if (observation.status === "pass" && c.occurrence === "none") {
+          const reason =
+            (await blocker(page, documentStatus)) ||
+            (criticalBlocked || pageErrors
+              ? "Blocked resources or script errors mean the page may not have finished rendering."
+              : "");
+          if (reason)
+            observation = {
+              status: "not_verified",
+              observed: `${reason} So "not shown" can't be confirmed. What AsBuilt saw: ${observation.observed}`,
+            };
+        }
+        if (
+          observation.status === "fail" &&
+          c.occurrence !== "none" &&
+          (criticalBlocked || pageErrors)
+        )
           observation = {
             status: "not_verified",
             observed:

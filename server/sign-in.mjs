@@ -53,6 +53,16 @@ export async function signIn(page, config, credentials, origin) {
       reason:
         "The sign-in page sent AsBuilt to another site (for example Google or an identity provider). AsBuilt only types a test account into the preview itself, so it stopped. Use email and password sign-in on the preview for test accounts.",
     };
+  // Close a consent banner that could cover the form, only if it's showing.
+  if (config.dismiss) {
+    const banner = page
+      .getByRole("button", { name: config.dismiss, exact: true })
+      .filter({ visible: true });
+    if ((await banner.count()) === 1) {
+      await banner.click({ timeout }).catch(() => {});
+      await banner.waitFor({ state: "hidden", timeout: 3000 }).catch(() => {});
+    }
+  }
   const email = page.getByLabel(config.emailLabel, { exact: true });
   const password = page.getByLabel(config.passwordLabel, { exact: true });
   const button = page.getByRole("button", { name: config.submit, exact: true });
@@ -90,6 +100,25 @@ export async function signIn(page, config, credentials, origin) {
     page.waitForLoadState("load", { timeout: 25000 }).catch(() => {}),
     button.click({ timeout }),
   ]);
+  if (config.signedInPath) {
+    const proof = new URL(config.signedInPath, origin);
+    if (proof.origin !== origin)
+      return {
+        ok: false,
+        reason: "The signed-in check page must be on the preview itself.",
+      };
+    try {
+      await page.goto(proof.href, { waitUntil: "load", timeout: 25000 });
+      await page
+        .waitForLoadState("networkidle", { timeout: 5000 })
+        .catch(() => {});
+    } catch {
+      return {
+        ok: false,
+        reason: `After signing in, AsBuilt couldn't open ${config.signedInPath} to confirm it worked.`,
+      };
+    }
+  }
   try {
     await page
       .getByText(config.signedInText, { exact: false })
@@ -98,7 +127,7 @@ export async function signIn(page, config, credentials, origin) {
   } catch {
     return {
       ok: false,
-      reason: `After signing in, AsBuilt didn't see "${config.signedInText}". The test account may be wrong or locked, or sign-in needs a step AsBuilt doesn't support (such as a one-time code or CAPTCHA).`,
+      reason: `After signing in, AsBuilt didn't see "${config.signedInText}"${config.signedInPath ? ` on ${config.signedInPath}` : ""}. The test account may be wrong or locked, or sign-in needs a step AsBuilt doesn't support (such as a one-time code or CAPTCHA).`,
     };
   }
   if (new URL(page.url()).origin !== origin)

@@ -74,6 +74,25 @@ async function observeSingle(page, c, { staticMode = false, waitMs = 0 } = {}) {
         ? page.getByLabel(c.value, { exact })
         : page.getByRole(c.kind, { name: c.value, exact });
   const visible = locator.filter({ visible: true });
+  // "Must not be visible": never wait for the item to appear, and never
+  // conclude absence from a static (JavaScript-off) page.
+  if (c.occurrence === "none") {
+    const shown = await visible.count();
+    if (shown)
+      return {
+        status: "fail",
+        observed: `Found ${shown} visible ${c.kind} match(es) for “${c.value}”, which should not be shown here.`,
+      };
+    return staticMode
+      ? {
+          status: "not_verified",
+          observed: `No visible ${c.kind} “${c.value}” in a static (JavaScript-off) page; it could still appear once scripts run.`,
+        }
+      : {
+          status: "pass",
+          observed: `No visible ${mode} ${c.kind} match for “${c.value}” after the page settled (none allowed).`,
+        };
+  }
   if (waitMs) {
     try {
       await visible.first().waitFor({ state: "visible", timeout: waitMs });

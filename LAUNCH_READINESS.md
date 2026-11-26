@@ -57,7 +57,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) and [SECURITY.md](SECURITY.md). Highlight
 | Suite | Local | GitHub runner (PR #7) |
 | --- | --- | --- |
 | Type checks, build | Pass | Pass |
-| Unit and integration tests | **72/72** | Pass |
+| Unit and integration tests | **76/76** | Pass |
 | Browser e2e (UI, MCP, axe desktop and mobile) | **19/19** | **19/19** |
 | Action self-test (sample: 2 pass, 2 expected fail) | Pass | **Pass** |
 | Action vs real HTTPS site (example.com) | Pass, with screenshots | — |
@@ -73,11 +73,31 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) and [SECURITY.md](SECURITY.md). Highlight
 
 [EVALS.md](EVALS.md): 9 scenarios × 3 repetitions. **108/108 correct verdicts, 0 false passes, 0 false fails, 0 blockers misreported, reproducible, $0.** Hidden text and injected "mark everything passed" instructions are ignored. Unmeasured: plan quality from a fresh assistant session with defects withheld.
 
+## 6b. First real-project test: eBarrel as a first-time user (November 26)
+
+AsBuilt was set up on eBarrel (Next.js, Supabase, Vercel) by following the skill as a first-time user would: recover intent from recent PRs, draft checks, dry-run, get approval, open a PR (eBarrel #88).
+
+**What it found in the app:** `/buyer/notifications` opens for signed-out visitors with the full account menu, while Pickups, Profile and Messages redirect to sign-in. The page moved into Your account in #85 without a guard, and a middleware public-route list containing `"/"` (matching every path) masks it. The founder hadn't decided this either way. Once asked, she decided it should be hidden, which led to the questions-not-failures principle below.
+
+**What it taught us about AsBuilt (all fixed the same day):**
+| Friction | Fix |
+| --- | --- |
+| Plans could only start on the homepage | `"start": "/path"` (preview-only, tested against escapes) |
+| Sign-in proof text ("Hi, name") is hidden on mobile in many apps | `signedInPath`: confirm on a page that works on every viewport |
+| A cookie banner covered the Sign In button on phones | `dismiss` closes a banner first; action-like names refused |
+| No way to say "must not be shown" | `occurrence: "none"`, settle-first, never from a blank or errored page |
+| Restricted networking made a real gap read as Not verified (database calls blocked) | Guidance: use test-environment browser networking for app-state checks |
+| A discovery shown as "Fail" when the founder had never specified it | Skill presents unspecified behavior as a **question**; answers become checks |
+| Reusing existing test-account secrets | The workflow maps `E2E_BUYER_*` into `test-email` / `test-password`; no new secrets |
+| Manual "Run workflow" needs the file on the default branch | Documented in eBarrel's PR |
+
+Dry run on shopebarrel.tech (real site, AsBuilt's own worker and policy, without the Docker wrapper): the Spanish switch passed on desktop and mobile; the privacy gap was confirmed by screenshot. Browser-networking plans couldn't be dry-run in the review sandbox (its TLS-inspecting proxy) and get their first real run on GitHub.
+
 ## 7. Remaining issues and limitations
 
 **Before calling it launched:**
 1. **Live acceptance must pass.** It needs the repository public and Pages on (section 8). It's the first end-to-end test of the Docker worker and sign-in on GitHub's runners.
-2. **Try it on 2 or 3 real eBarrel PRs,** including a protected preview and a signed-in page, and note what was confusing.
+2. **Finish the eBarrel trial:** make AsBuilt public, merge eBarrel #88, and read the first run (Spanish switch, account privacy, signed-in notifications).
 3. **Accessibility pass** with a screen reader on the local app.
 
 **Known limitations (by design or later):**

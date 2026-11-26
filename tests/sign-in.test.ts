@@ -55,10 +55,84 @@ test("signs in with the test account on the preview and confirms it by observati
     const outcome = await signIn(page, config, account, origin);
     assert.deepEqual(outcome, { ok: true });
     assert.match(posted, /buyer%40test\.example/);
-    assert.equal(new URL(page.url()).origin, origin, "still on the preview after signing in");
+    assert.equal(
+      new URL(page.url()).origin,
+      origin,
+      "still on the preview after signing in",
+    );
   } finally {
     await browser.close();
   }
+});
+
+test("confirms sign-in on a separate proof page when the header hides it (e.g. on mobile)", async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.route("**/*", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname === "/login")
+        return route.fulfill({ contentType: "text/html", body: form() });
+      if (url.pathname === "/session")
+        return route.fulfill({
+          contentType: "text/html",
+          body: '<header><span style="display:none">Hi, Buyer</span></header><h1>Home</h1>',
+        });
+      if (url.pathname === "/buyer/orders")
+        return route.fulfill({
+          contentType: "text/html",
+          body: "<h1>Your pickups</h1>",
+        });
+      return route.fulfill({ contentType: "text/html", body: "<h1>Home</h1>" });
+    });
+    const withProof = {
+      ...config,
+      signedInText: "Your pickups",
+      signedInPath: "/buyer/orders",
+    };
+    assert.deepEqual(await signIn(page, withProof, account, origin), {
+      ok: true,
+    });
+    const hiddenOnly = { ...config, signedInText: "Hi, Buyer" };
+    const outcome = await signIn(page, hiddenOnly, account, origin);
+    assert.equal(outcome.ok, false, "hidden text is never accepted as proof");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("closes a consent banner that covers the form, and refuses action-like dismiss names", async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({
+      viewport: { width: 390, height: 500 },
+    });
+    const banner =
+      '<div id="b" style="position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6)"><button onclick="document.getElementById(\'b\').remove()">Essential Only</button></div>';
+    await shop(page, form(banner));
+    const outcome = await signIn(
+      page,
+      { ...config, dismiss: "Essential Only" },
+      account,
+      origin,
+    );
+    assert.deepEqual(outcome, { ok: true });
+  } finally {
+    await browser.close();
+  }
+  for (const bad of ["Place order", "Pay now", "Delete account", "Submit"])
+    assert.throws(
+      () =>
+        planSchema.parse({
+          intent: "x",
+          target: "https://shop.example.com/",
+          approved: true,
+          criteria: [{ id: "a", expected: "a", kind: "text", value: "a" }],
+          signIn: { ...config, dismiss: bad },
+        }),
+      /banner/,
+      bad,
+    );
 });
 
 test("sign-in failures are explained, never passed, and never echo the account", async () => {

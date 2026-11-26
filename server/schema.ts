@@ -22,7 +22,9 @@ export const criterionSchema = z
     value: z.string().max(200),
     expectedUrl: z.string().url().max(2048).optional(),
     match: z.enum(["exact", "contains"]).optional(),
-    occurrence: z.enum(["unique", "at_least_one"]).optional(),
+    // "none": must NOT be visible (privacy, signed-out states). Pair it with
+    // a positive check on the same page so a blank page can't pass.
+    occurrence: z.enum(["unique", "at_least_one", "none"]).optional(),
     within: z
       .object({
         role: z.enum([
@@ -69,6 +71,27 @@ export const planSchema = z
         passwordLabel: z.string().min(1).max(100),
         submit: z.string().min(1).max(100),
         signedInText: z.string().min(1).max(200),
+        // Optional consent/banner button to close first, if it's showing
+        // (e.g. "Essential Only"). Never a consequential action.
+        dismiss: z
+          .string()
+          .min(1)
+          .max(60)
+          .refine(
+            (name) =>
+              !/\b(buy|purchase|pay|checkout|order|delete|remove|send|publish|transfer|subscribe|book|confirm|submit|sign|log)\b/i.test(
+                name,
+              ),
+            "dismiss may only close a banner, not take an action",
+          )
+          .optional(),
+        // Optional page to open after signing in where signedInText is
+        // shown on every viewport (headers often hide names on mobile).
+        signedInPath: z
+          .string()
+          .regex(/^\/[^\s?#]*$/)
+          .max(300)
+          .optional(),
       })
       .strict()
       .optional(),

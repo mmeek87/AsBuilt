@@ -213,6 +213,13 @@ async function run(plan, credentials, cookies = []) {
                 `${action.type === "click" ? "Click" : action.type === "fill" ? "Fill" : "Select"} “${action.name}”${action.type === "click" ? "" : ` with “${action.value}”`}.`,
               );
             }
+            if (c.occurrence === "none" && plan.execution !== "static") {
+              // "Not there yet" isn't "not there": let the page settle first.
+              await page
+                .waitForLoadState("networkidle", { timeout: 5000 })
+                .catch(() => {});
+              await page.waitForTimeout(1500);
+            }
             observation = await observe(page, c, {
               staticMode:
                 plan.execution === "static" && plan.target !== "sample",
@@ -229,12 +236,24 @@ async function run(plan, credentials, cookies = []) {
                 : "An action or navigation could not complete safely. Subsequent actions were not attempted.",
           };
         }
-        if (observation.status === "fail") {
+        if (observation.status === "fail" && c.occurrence !== "none") {
           const reason = await blocker(page, documentStatus);
           if (reason)
             observation = {
               status: "not_verified",
               observed: `${reason} What AsBuilt saw: ${observation.observed}`,
+            };
+        }
+        if (observation.status === "pass" && c.occurrence === "none") {
+          const reason =
+            (await blocker(page, documentStatus)) ||
+            (pageError || blocked
+              ? "Blocked resources or script errors mean the page may not have finished rendering."
+              : "");
+          if (reason)
+            observation = {
+              status: "not_verified",
+              observed: `${reason} So "not shown" can't be confirmed. What AsBuilt saw: ${observation.observed}`,
             };
         }
         try {
