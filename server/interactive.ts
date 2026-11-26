@@ -44,6 +44,26 @@ export function workerCommand(sample: boolean, id: string) {
         ],
       };
 }
+/**
+ * Minimal environment for the browser worker. Host secrets are never passed.
+ * The local sample worker also needs Playwright's browser location when the
+ * operator (or CI) installs browsers outside the default cache; without it
+ * every interactive sample run ends "interrupted". The Docker worker is
+ * unaffected: its image bundles browsers and docker receives no -e flags.
+ */
+export function workerEnv(
+  sample: boolean,
+  source: NodeJS.ProcessEnv = process.env,
+) {
+  const env: Record<string, string | undefined> = {
+    PATH: source.PATH,
+    HOME: source.HOME,
+    TMPDIR: source.TMPDIR,
+  };
+  if (sample && source.PLAYWRIGHT_BROWSERS_PATH)
+    env.PLAYWRIGHT_BROWSERS_PATH = source.PLAYWRIGHT_BROWSERS_PATH;
+  return env;
+}
 const resultSchema = z.object({
   type: z.literal("result"),
   index: z.number().int().min(0).max(11),
@@ -98,11 +118,7 @@ export async function runInteractive(report: Report) {
   const child = spawn(spec.command, spec.args, {
     stdio: ["pipe", "pipe", "pipe"],
     detached: true,
-    env: {
-      PATH: process.env.PATH,
-      HOME: process.env.HOME,
-      TMPDIR: process.env.TMPDIR,
-    },
+    env: workerEnv(sample),
   });
   let stderr = "";
   child.stderr.on("data", (chunk) => {

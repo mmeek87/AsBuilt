@@ -292,6 +292,29 @@ test("external interactive workers have no network, secrets or host mounts", asy
   );
 });
 
+test("worker environment forwards only the browser location, never secrets", async () => {
+  const { workerEnv } = await import("../server/interactive.ts");
+  const host = {
+    PATH: "/bin",
+    HOME: "/home/u",
+    TMPDIR: "/tmp",
+    PLAYWRIGHT_BROWSERS_PATH: "/opt/browsers",
+    ASBUILT_TOKEN: "secret-secret-secret-secret-secret",
+    OPENAI_API_KEY: "sk-test",
+    GITHUB_PRIVATE_KEY_PATH: "/keys/app.pem",
+  };
+  const sample = workerEnv(true, host);
+  assert.deepEqual(Object.keys(sample).sort(), [
+    "HOME",
+    "PATH",
+    "PLAYWRIGHT_BROWSERS_PATH",
+    "TMPDIR",
+  ]);
+  assert.equal(sample.PLAYWRIGHT_BROWSERS_PATH, "/opt/browsers");
+  // The Docker path never needs host browser paths.
+  assert.ok(!("PLAYWRIGHT_BROWSERS_PATH" in workerEnv(false, host)));
+});
+
 test("versioned assets and scoped image CDN do not open API or script access", async () => {
   const { interactiveResourceAllowed: allowed } =
     await import("../server/safety.ts");
