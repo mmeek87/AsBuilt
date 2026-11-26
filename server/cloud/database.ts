@@ -110,6 +110,9 @@ export const productStorage: ProductStorage = {
     return rows[0].review as ProductReview;
   },
   async create(review) {
+    const [{ count }] =
+      await db()`SELECT count(*)::int AS count FROM asbuilt_product_reviews`;
+    if (count >= 100) throw Error("Product review limit reached.");
     await db()`INSERT INTO asbuilt_product_reviews(id,review) VALUES (${review.id}::uuid,${JSON.stringify(review)}::jsonb)`;
   },
   async appendRun(id, run) {

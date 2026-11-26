@@ -25,7 +25,7 @@ export function parse(argv) {
     else rest.push(a);
   }
   const [command, input, ...extra] = rest;
-  if (!Object.hasOwn(commands, command ?? '')) throw Error('Commands: status, capture <json>, plan <json>, run <json> --approved, progress <id>, report <id>. Supply --home /absolute/path/to/AsBuilt.');
+  if (!Object.hasOwn(commands, command ?? '')) throw Error('Commands: status, capture <json>, plan <json>, run <json> --approved, progress <id>, report <id>, baseline <json>, context <id>, revise <json>, save-product <json>, products, product <id>, run-scenario <json> --approved. Supply --home /absolute/path/to/AsBuilt.');
   if (extra.length || (['status','products'].includes(command) ? input !== undefined : !input)) throw Error('Unexpected or missing command arguments.');
   if (!home || !isAbsolute(home)) throw Error('--home must name the absolute path to your local AsBuilt checkout.');
   if (!['run','run-scenario'].includes(command) && (approved || actionsApproved || networkApproved)) throw Error('Approval flags are only valid for run or run-scenario.');
@@ -40,7 +40,8 @@ export function payload(options) {
   }
   const path = resolve(options.input);
   const text = readFileSync(path,'utf8');
-  if (Buffer.byteLength(text) > (['save-product','baseline','revise'].includes(options.command) ? 900000 : 64000)) throw Error('Input must be smaller than 64 KB.');
+  const limit = ['save-product','baseline','revise'].includes(options.command) ? 900000 : 64000;
+  if (Buffer.byteLength(text) > limit) throw Error(`Input must be smaller than ${limit / 1000} KB.`);
   const body = JSON.parse(text);
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw Error('Input must be a JSON object.');
   if (['run','run-scenario'].includes(options.command)) {
