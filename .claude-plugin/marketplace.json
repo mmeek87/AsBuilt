@@ -1,12 +1,16 @@
 {
   "name": "asbuilt",
-  "owner": { "name": "AsBuilt contributors" },
+  "description": "AsBuilt: check what your website actually does, on every pull request.",
+  "owner": {
+    "name": "Mel Meek",
+    "url": "https://github.com/mmeek87"
+  },
   "plugins": [
     {
       "name": "asbuilt",
       "source": "./plugins/asbuilt",
-      "description": "Review your intent, run approved local checks, and inspect website evidence.",
-      "version": "0.3.2"
+      "description": "Check what your website actually does: turn your intent into approved checks and get Pass, Fail or Not verified with screenshots on every pull request.",
+      "version": "0.4.0"
     }
   ]
 }
