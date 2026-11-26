@@ -8,6 +8,7 @@ export function signIn(
     submit: string;
     signedInText: string;
     signedInPath?: string;
+    dismiss?: string;
   },
   credentials: { email: string; password: string } | undefined,
   origin: string,

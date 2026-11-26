@@ -69,6 +69,20 @@ export const planSchema = z
         passwordLabel: z.string().min(1).max(100),
         submit: z.string().min(1).max(100),
         signedInText: z.string().min(1).max(200),
+        // Optional consent/banner button to close first, if it's showing
+        // (e.g. "Essential Only"). Never a consequential action.
+        dismiss: z
+          .string()
+          .min(1)
+          .max(60)
+          .refine(
+            (name) =>
+              !/\b(buy|purchase|pay|checkout|order|delete|remove|send|publish|transfer|subscribe|book|confirm|submit|sign|log)\b/i.test(
+                name,
+              ),
+            "dismiss may only close a banner, not take an action",
+          )
+          .optional(),
         // Optional page to open after signing in where signedInText is
         // shown on every viewport (headers often hide names on mobile).
         signedInPath: z

@@ -53,6 +53,16 @@ export async function signIn(page, config, credentials, origin) {
       reason:
         "The sign-in page sent AsBuilt to another site (for example Google or an identity provider). AsBuilt only types a test account into the preview itself, so it stopped. Use email and password sign-in on the preview for test accounts.",
     };
+  // Close a consent banner that could cover the form, only if it's showing.
+  if (config.dismiss) {
+    const banner = page
+      .getByRole("button", { name: config.dismiss, exact: true })
+      .filter({ visible: true });
+    if ((await banner.count()) === 1) {
+      await banner.click({ timeout }).catch(() => {});
+      await banner.waitFor({ state: "hidden", timeout: 3000 }).catch(() => {});
+    }
+  }
   const email = page.getByLabel(config.emailLabel, { exact: true });
   const password = page.getByLabel(config.passwordLabel, { exact: true });
   const button = page.getByRole("button", { name: config.submit, exact: true });

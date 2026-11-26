@@ -101,6 +101,40 @@ test("confirms sign-in on a separate proof page when the header hides it (e.g. o
   }
 });
 
+test("closes a consent banner that covers the form, and refuses action-like dismiss names", async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({
+      viewport: { width: 390, height: 500 },
+    });
+    const banner =
+      '<div id="b" style="position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6)"><button onclick="document.getElementById(\'b\').remove()">Essential Only</button></div>';
+    await shop(page, form(banner));
+    const outcome = await signIn(
+      page,
+      { ...config, dismiss: "Essential Only" },
+      account,
+      origin,
+    );
+    assert.deepEqual(outcome, { ok: true });
+  } finally {
+    await browser.close();
+  }
+  for (const bad of ["Place order", "Pay now", "Delete account", "Submit"])
+    assert.throws(
+      () =>
+        planSchema.parse({
+          intent: "x",
+          target: "https://shop.example.com/",
+          approved: true,
+          criteria: [{ id: "a", expected: "a", kind: "text", value: "a" }],
+          signIn: { ...config, dismiss: bad },
+        }),
+      /banner/,
+      bad,
+    );
+});
+
 test("sign-in failures are explained, never passed, and never echo the account", async () => {
   const browser = await chromium.launch();
   try {
