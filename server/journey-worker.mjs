@@ -1,4 +1,4 @@
-import { observe } from "./observation.mjs";
+import { observe, blocker } from "./observation.mjs";
 import { perform } from "./interaction-policy.mjs";
 import { journeyFixture } from "./journey-fixture.mjs";
 
@@ -26,6 +26,15 @@ export async function runJourney(browser, plan, resource, send) {
       pageErrors = 0,
       stopped = false;
     const page = await context.newPage();
+    // Status of the document currently shown, so a 5xx page isn't read as a missing feature.
+    let documentStatus;
+    page.on("response", (response) => {
+      if (
+        response.request().isNavigationRequest() &&
+        response.frame() === page.mainFrame()
+      )
+        documentStatus = response.status();
+    });
     const scriptErrorMessages = [];
     page.on("pageerror", (error) => {
       pageErrors++;
@@ -159,6 +168,14 @@ export async function runJourney(browser, plan, resource, send) {
               observed: `Journey action or URL checkpoint could not complete. ${/policy|permitted|ambiguous|reviewed/i.test(error.message ?? "") ? error.message : "No later actions were attempted."}`,
             };
           }
+        }
+        if (observation.status === "fail") {
+          const reason = await blocker(page, documentStatus);
+          if (reason)
+            observation = {
+              status: "not_verified",
+              observed: `${reason} What AsBuilt saw: ${observation.observed}`,
+            };
         }
         if (observation.status === "fail" && (criticalBlocked || pageErrors))
           observation = {

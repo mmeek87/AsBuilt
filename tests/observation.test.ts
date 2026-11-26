@@ -186,3 +186,29 @@ test("blocked resource evidence aggregates origins without retaining URL secrets
     /password|private-token|key=|secret|fragment/,
   );
 });
+
+test("sign-in walls and HTTP errors make a missing outcome Not verified, never a defect", async () => {
+  const { blocker } = await import("../server/observation.mjs");
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(
+      '<h1>Sign in</h1><label>Password<input type="password"></label>',
+    );
+    assert.match(await blocker(page), /asks for a password/);
+    await page.setContent(
+      '<h1>Notebook</h1><input type="password" style="display:none">',
+    );
+    assert.equal(
+      await blocker(page),
+      "",
+      "hidden password fields are not a wall",
+    );
+    assert.match(await blocker(page, 503), /HTTP 503/);
+    // An ordinary missing outcome on a working page stays a real failure.
+    await page.setContent("<h1>Notebook</h1><p>Sold by Pine Depot</p>");
+    assert.equal(await blocker(page, 200), "");
+  } finally {
+    await browser.close();
+  }
+});

@@ -1,5 +1,5 @@
 import { runJourney } from "./journey-worker.mjs";
-import { observe } from "./observation.mjs";
+import { observe, blocker } from "./observation.mjs";
 import { staticHtml } from "./static-fixture.mjs";
 import { perform } from "./interaction-policy.mjs";
 import { chromium, firefox, webkit } from "playwright";
@@ -160,6 +160,14 @@ async function run(plan) {
         });
         const page = await context.newPage();
         page.setDefaultTimeout(3000);
+        let documentStatus;
+        page.on("response", (response) => {
+          if (
+            response.request().isNavigationRequest() &&
+            response.frame() === page.mainFrame()
+          )
+            documentStatus = response.status();
+        });
         page.on("pageerror", () => {
           pageError = true;
         });
@@ -219,6 +227,14 @@ async function run(plan) {
                 ? error.message
                 : "An action or navigation could not complete safely. Subsequent actions were not attempted.",
           };
+        }
+        if (observation.status === "fail") {
+          const reason = await blocker(page, documentStatus);
+          if (reason)
+            observation = {
+              status: "not_verified",
+              observed: `${reason} What AsBuilt saw: ${observation.observed}`,
+            };
         }
         try {
           screenshot = (

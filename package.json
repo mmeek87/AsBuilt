@@ -12,6 +12,7 @@
     "start": "node --env-file-if-exists=.env --import tsx server/index.ts",
     "test": "tsx --test tests/*.test.ts tests/*.test.mjs",
     "test:e2e": "playwright test",
+    "eval": "tsx evals/run.ts",
     "mcp": "tsx server/stdio.ts",
     "format": "prettier --write src server tests *.ts *.json *.md",
     "mcp:check": "tsx scripts/check-mcp.ts",
