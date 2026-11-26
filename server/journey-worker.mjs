@@ -179,7 +179,22 @@ export async function runJourney(
                   waitUntil: "domcontentloaded",
                   timeout: 10000,
                 });
-              observation = await observe(page, c, { waitMs: 10000 });
+              // Look first: if it's already there, don't wait at all.
+              // Otherwise wait for the page to go quiet, then allow a short
+              // grace period for late rendering. Busy pages (constant
+              // polling) keep a long allowance.
+              observation = await observe(page, c, { waitMs: 300 });
+              if (observation.status !== "pass") {
+                const settled = await page
+                  .waitForLoadState("networkidle", { timeout: 5000 })
+                  .then(
+                    () => true,
+                    () => false,
+                  );
+                observation = await observe(page, c, {
+                  waitMs: settled ? 2000 : 8000,
+                });
+              }
               if (c.expectedUrl)
                 observation.observed += ` URL checkpoint: ${page.url() === c.expectedUrl ? "matches the reviewed destination" : "does not match the reviewed destination"}.`;
               if (page.url() !== c.expectedUrl && c.expectedUrl)

@@ -161,4 +161,19 @@ export const scenarios: Scenario[] = [
     },
     mobile: { ...allPass },
   },
+  {
+    id: "slow-render",
+    category: "Correctly implemented (slow)",
+    description:
+      "Product details render 1.5 seconds after the page loads, as a slow app might. Faster waiting must not turn this into a failure.",
+    page: site({
+      "/product": ok(
+        shell(
+          '<h1>Notebook</h1><div id="details"></div>',
+          "setTimeout(() => { document.getElementById('details').innerHTML = '<p>Sold by Maple Market</p><p>In stock</p>'; }, 1500);",
+        ),
+      ),
+    }),
+    expected: { ...allPass },
+  },
 ];
