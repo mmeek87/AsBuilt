@@ -130,6 +130,8 @@ export async function runJourney(
     const context = first.context;
     let page = first.page;
     let second;
+    // Values read with "remember", for this viewport's run only.
+    const memory = new Map();
     let initialError = false;
     let signInError = "";
     if (plan.signIn && plan.target !== "sample") {
@@ -224,7 +226,7 @@ export async function runJourney(
                 actions.push(
                   `Attempt ${action.type} “${action.name}” (completion not verified).`,
                 );
-                await perform(page, action, destinations, plan.testActions);
+                await perform(page, action, destinations, plan.testActions, memory);
                 actions[actions.length - 1] =
                   `${action.type} “${action.name}”${action.type === "navigate" ? " to " + action.value : action.type === "click" ? "" : " with “" + action.value + "”"}.`;
               }
@@ -267,7 +269,7 @@ export async function runJourney(
           } catch (error) {
             observation = {
               status: "not_verified",
-              observed: `Journey action or URL checkpoint could not complete. ${/policy|permitted|ambiguous|reviewed|Stripe|test-site marker|test card|Second account|matching link/i.test(error.message ?? "") ? error.message : "No later actions were attempted."}`,
+              observed: `Journey action or URL checkpoint could not complete. ${/policy|permitted|ambiguous|reviewed|Stripe|test-site marker|test card|Second account|matching link|remembered|matches the pattern/i.test(error.message ?? "") ? error.message : "No later actions were attempted."}`,
             };
           }
         }

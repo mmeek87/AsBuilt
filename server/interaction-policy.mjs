@@ -5,7 +5,15 @@ export async function perform(
   action,
   destinations = [],
   testActions = undefined,
+  memory = new Map(),
 ) {
+  if (action.type === "remember") return remember(page, action, memory);
+  if (action.type === "fill" && /^\{\{[a-zA-Z][a-zA-Z0-9]{0,30}\}\}$/.test(action.value)) {
+    const name = action.value.slice(2, -2);
+    if (!memory.has(name))
+      throw Error(`Nothing was remembered as “${name}”, so nothing was typed.`);
+    action = { ...action, value: memory.get(name) };
+  }
   // Actions AsBuilt normally refuses run only when the user approved this
   // exact action as a test action, and only while the page proves it's a
   // test site.
@@ -381,4 +389,41 @@ async function openNewestMatching(page, root, action, destinations) {
     timeout: 15000,
     waitUntil: "domcontentloaded",
   });
+}
+
+/**
+ * Read one short value shown on the page, such as a pickup code. The text of
+ * the smallest visible element(s) must match the reviewed anchored pattern,
+ * and every match must be the same value; otherwise nothing is remembered.
+ * The value stays in this run's memory only.
+ */
+async function remember(page, action, memory) {
+  const pattern = action.value;
+  const read = async () =>
+    page.locator("body").evaluate((body, source) => {
+      const re = new RegExp(source);
+      const found = new Set();
+      for (const el of body.querySelectorAll("*")) {
+        if (!(el instanceof HTMLElement) || !el.offsetParent && getComputedStyle(el).position !== "fixed") continue;
+        const text = (el.innerText || "").trim();
+        if (!re.test(text)) continue;
+        // Only the innermost element holding the value counts.
+        if ([...el.children].some((child) => re.test((child.innerText || "").trim()))) continue;
+        found.add(text);
+      }
+      return [...found];
+    }, pattern);
+  let values = await read();
+  for (let i = 0; i < 5 && values.length === 0; i++) {
+    await page.waitForTimeout(2000);
+    values = await read();
+  }
+  if (values.length !== 1)
+    throw Error(
+      values.length
+        ? `More than one value on the page matches the pattern for “${action.name}”, so nothing was remembered.`
+        : `No value on the page matches the pattern for “${action.name}”, so nothing was remembered.`,
+    );
+  if (values[0].length > 100) throw Error("The remembered value is too long.");
+  memory.set(action.name, values[0]);
 }
