@@ -15,6 +15,7 @@
     "mcp": "tsx server/stdio.ts",
     "format": "prettier --write src server tests *.ts *.json *.md",
     "mcp:check": "tsx scripts/check-mcp.ts",
+    "mcp:check-flow": "tsx scripts/check-mcp-product-flow.ts",
     "cloud:migrate": "node --env-file-if-exists=.env.cloud --import tsx scripts/cloud-migrate.ts",
     "cloud:prepare-browser": "node --env-file-if-exists=.env.cloud --import tsx scripts/prepare-cloud-browser.ts",
     "plugin:package": "python3 scripts/package-plugin.py",
@@ -48,4 +49,3 @@
   "packageManager": "pnpm@11.25.0",
   "license": "MIT"
 }
-
