@@ -1,6 +1,6 @@
 # AsBuilt
 
-Check what your website actually does. You describe what you meant to build, your assistant turns that into checks you approve, and AsBuilt opens the real site and reports each check as **Pass**, **Fail**, or **Not verified**, with screenshots.
+Check what your AI built actually does. Your assistant reads your code and lists every feature in plain words, so you don't have to remember them all. You approve checks for what matters, and on every pull request AsBuilt opens the real preview and reports each check as **Pass**, **Fail**, or **Not verified**, with screenshots and a fix prompt.
 
 AsBuilt is free and open source (MIT). There is no account, subscription, or hosted service.
 
@@ -51,7 +51,7 @@ You can also run AsBuilt on your own computer and check a site from there. Setup
 
 ## Limits
 
-"Not verified" means AsBuilt couldn't collect evidence (a login wall, an error page, an unclear check); it's never counted as a pass. Automated checks don't prove backend behavior, full accessibility compliance, or that a whole product is correct. Cart, checkout and payment steps run only on a test site and only if you approve them; payments use Stripe's public test card, which can't charge real money. It won't take actions on production. Only test with test accounts and test data.
+"Not verified" means AsBuilt couldn't collect evidence (a login wall, an error page, an unclear check); it's never counted as a pass. AsBuilt works with anything that opens in a browser at a web address (web apps, stores, dashboards, sites); it doesn't test native mobile apps or APIs directly. Automated checks don't prove backend behavior, full accessibility compliance, or that a whole product is correct. Cart, checkout and payment steps run only on a test site and only if you approve them; payments use Stripe's public test card, which can't charge real money. It won't take actions on production. Only test with test accounts and test data.
 
 ## Support and removal
 

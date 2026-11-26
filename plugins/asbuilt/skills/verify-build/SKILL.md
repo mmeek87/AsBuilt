@@ -1,6 +1,6 @@
 ---
 name: verify-build
-description: Use when the user asks to verify a website, check whether a build matches their intent, test a preview, map what their app does, set up or review AsBuilt checks on GitHub pull requests, or review an AsBuilt report. Draft observable checks, obtain approval, and collect evidence with the AsBuilt GitHub Action or the local AsBuilt service.
+description: Use when the user asks to verify a website or web app, check whether a build matches their intent, test a preview, map what their app does, set up or review AsBuilt checks on GitHub pull requests, or review an AsBuilt report. Draft observable checks, obtain approval, and collect evidence with the AsBuilt GitHub Action or the local AsBuilt service.
 ---
 
 # Verify a build with AsBuilt
