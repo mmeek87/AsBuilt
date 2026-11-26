@@ -41,6 +41,7 @@ Choose **Sample project → Use an example → Create review plan**, review the 
 | 2. Browser capability    | Actual Playwright desktop/mobile checks for visible text, headings, buttons and native required fields. Static mode plus approved click/fill/select interactions with JavaScript. Local sample validated; Docker worker fixture checks validated; real external preview acceptance pending. See [Phase 2 setup](docs/phase2.md).                                                                       |
 | 3. Reports/history       | Per-check expected/observed results, reproducible steps, screenshots, suggested prompts, JSON export and local persisted run history.                                                                                                                                     |
 | 4. MCP                   | One authenticated shared service with Streamable HTTP and a stdio bridge. Tested with the MCP SDK client. HTTP and stdio tested end-to-end; Codex and Claude Desktop configurations installed on this workstation. Host activation and hosted ChatGPT remain unverified.                                                                 |
+| Product coverage (0.5.0) | Whole-product requirement maps with cited sources, frozen scenarios and revisions. Coverage only counts a pass from a fresh, complete, plan-matching run with both viewports and screenshots. Usable from the **Product coverage** screen and 7 MCP tools. |
 | 5. Deployment automation | Not implemented. Future work must bind a deployment to its exact commit and approved preview origin, validate signed events and prevent duplicate runs.                                                                                                                   |
 
 This is a single-operator internal MVP, not a hosted multi-tenant product, a general autonomous testing agent, or a full release certification service.
@@ -78,7 +79,7 @@ GITHUB_ALLOW_COMMENTS=false
 
 Find the installation ID in the installation settings URL. The private key signs a short-lived app JWT; tokens are minted with explicit permissions and narrowed to a selected repository when reading its source. Tokens stay in process memory and never appear in API responses or browser storage. The connection lists the first 100 installed repositories and explicitly reports truncation.
 
-Paste a URL such as `https://github.com/OWNER/REPO/pull/12` or a commit URL ending in the full 40-character SHA. Source files are read from Git blobs at the resolved immutable commit. The agent currently inspects selected files from that snapshot; it does **not** perform comprehensive diff analysis, infer all regression impact, or prove the preview is running the same commit.
+Paste a URL such as `https://github.com/OWNER/REPO/pull/12` or a commit URL ending in the full 40-character SHA. Source files are read from Git blobs at the resolved immutable commit. For a pull request, the agent also receives the list of changed files (first 100; no extra permission needed) to find journeys the change might affect, and the plan screen shows that list. A changed file is never treated as evidence. The agent reads at most 8 files; it does **not** analyze full diffs, infer all regression impact, or prove the preview is running the same commit.
 
 ### Optional report comments
 
@@ -106,7 +107,7 @@ Omitting `network` retains legacy restricted loading: same-origin brokered reads
 
 ## MCP: one service, multiple hosts
 
-For the key-free local setup, six tools, connection check and host-specific limitations, use the [Phase 4 guide](docs/phase4.md). Run `pnpm mcp:check` while AsBuilt is running. The older explicit-token configurations below remain supported.
+For the key-free local setup, connection check and host-specific limitations, use the [Phase 4 guide](docs/phase4.md). While AsBuilt is running, `pnpm mcp:check` confirms the connection and lists the tools, and `pnpm mcp:check-flow` drives a full product review over MCP against the bundled sample (baseline, refused unapproved run, approved run, coverage). The older explicit-token configurations below remain supported.
 
 Start the local web server first. All interfaces use the same planning service, runner and report store.
 
@@ -118,6 +119,11 @@ Start the local web server first. All interfaces use the same planning service, 
 | `start_verification` | Start a user-approved sample or allowlisted preview run with reviewed criteria.                                          |
 | `check_verification` | Poll run status.                                                                                                         |
 | `get_report`         | Read results and evidence paths.                                                                                         |
+| `establish_product_baseline` | Save a whole-product understanding (requirements, cited sources, discovered functions, journeys, gaps). No browser run. |
+| `save_product_review` | Save a product-wide requirement map with frozen scenarios. No browser run. |
+| `get_product_context` / `revise_product_baseline` | Read a saved baseline, then apply a later request as a new revision that starts untested. |
+| `list_product_reviews` / `get_product_review` | List reviews; read coverage (verified, observed mismatch, partial, not tested, unclear). |
+| `run_product_scenario` | Run one frozen scenario after the user approves it. Approval is required as `approved:true` and is never read from the saved review. |
 
 MCP bearer authentication uses `ASBUILT_TOKEN`, or the generated `.data/token` value. It is a shared local operator credential, not per-user OAuth. Tool approval flags represent host/user consent; a hostile authenticated host can assert them. Keep approvals enabled in the host and never provide the token to an untrusted client. Browser screenshot URLs additionally require an authenticated local session or bearer header.
 
@@ -173,6 +179,8 @@ Do not commit a credential-bearing `.mcp.json`. A stdio-capable Claude desktop h
 
 ### ChatGPT and hosted Claude
 
+**What works today:** Claude Desktop and Claude Code (local stdio or HTTP, configured above) and Codex. **What doesn't:** ChatGPT on the web and Claude custom connectors connect to MCP servers *from their own cloud*, so they need a public HTTPS URL. They cannot reach `127.0.0.1` on your computer (checked against Claude's and OpenAI's connector documentation, November 2026). ChatGPT developer-mode apps also expect OAuth or no authentication. AsBuilt's shared bearer key is not a supported option there (reported by developers; not independently verified).
+
 This MVP is **not yet a deployed ChatGPT/Claude connector**. It intentionally binds to loopback and rejects unknown hosts/origins. ChatGPT remote MCP setup depends on your account/workspace permissions and requires a reachable supported transport, with appropriate authentication. A plain localhost URL and our arbitrary bearer token are not a finished hosted integration.
 
 Before hosted use: implement or deploy a compatible OAuth authorization boundary, per-user access and ownership, TLS, a narrowly configured MCP gateway or supported secure tunnel, separate browser workers with egress restrictions, report storage controls and host-specific onboarding. Forward only authenticated MCP traffic to the local service; do not expose the UI/admin API or remove origin checks to make a tunnel work. OAuth and this deployment layer are **remaining work**, not delivered placeholders claimed as connected.
@@ -180,10 +188,14 @@ Before hosted use: implement or deploy a compatible OAuth authorization boundary
 ## Validation
 
 ```sh
-pnpm build
-pnpm test
-pnpm test:e2e
+pnpm exec playwright install chromium   # once
+pnpm build        # the e2e suite serves the built UI; run this first
+pnpm test         # 62 unit/integration tests (some launch a real headless browser)
+pnpm test:e2e     # 19 browser + MCP tests, including axe on desktop and mobile
+pnpm eval         # verification-quality eval, 8 controlled builds (about 2.5 min); see EVALS.md
 ```
+
+Results, coverage and known gaps are in [LAUNCH_READINESS.md](LAUNCH_READINESS.md). The security model is in [SECURITY.md](SECURITY.md).
 
 Unit tests cover target/SSRF policy, explicit approval, criterion bounds, immutable GitHub URL parsing, agent tool/path restrictions, citation validation and failure handling. Browser tests cover authentication, cross-origin rejection, keyboard access, desktop/mobile layouts, automated axe checks, actual sample evidence, report retrieval, and MCP initialize/list/call.
 
@@ -191,18 +203,18 @@ Tests use only the fictional local sample and mocked model/GitHub responses. The
 
 Reports and screenshots are in `.data/`; browser-test screenshots are in `test-results/`. These are ignored by Git. Reports persist across restarts; interrupted runs are marked as interrupted and need a new run. The MVP allows one browser run and one planning request at a time, with a 200-report cap. Use Past reviews → Delete to permanently remove a review and its screenshots after confirmation. Running reviews cannot be deleted. There is no automatic retention policy.
 
-## Push to a separate repository
+## Troubleshooting
 
-Create a new **empty private** GitHub repository named `AsBuilt` under your account. Do not initialize it with another README. From this project's folder:
-
-```sh
-git add .
-git commit -m "Build AsBuilt agent-first verification MVP"
-git remote add origin https://github.com/YOUR_ACCOUNT/AsBuilt.git
-git push -u origin main
-```
-
-The local repository is initialized on `main`. No author identity was configured on this workstation, so the first commit is left to you: set your Git name and verified or GitHub-provided private email if Git prompts. Do not substitute a made-up identity. If a remote already exists, inspect it before changing it. Never run these commands from eBarrel. Publishing the repository and registering the GitHub App are separate actions: the App is how AsBuilt gains controlled access to repositories it reviews.
+| Symptom | Likely cause and fix |
+| --- | --- |
+| `Build AsBuilt first: pnpm build` at the root URL | The UI hasn't been built. Run `pnpm build`, then `pnpm start`. |
+| Every run ends **Interrupted** with "Install the selected engine" | Playwright's browser is missing: `pnpm exec playwright install chromium`. If browsers live elsewhere, set `PLAYWRIGHT_BROWSERS_PATH`. |
+| "This preview is not approved" | Add the site's exact origin (for example `https://preview.example.com`) to `ASBUILT_PREVIEW_ORIGINS`, then restart. |
+| Results say **Not verified: this page asks for a password** | AsBuilt never signs in. Use a preview that doesn't need sign-in, or check that step manually with a test account. |
+| Results say **Not verified: the page returned HTTP 5xx** | The site was down or erroring during the run. Retry when it's available; this isn't a confirmed defect. |
+| `pnpm mcp:check` says "Start AsBuilt first" | Start the service. For a custom data folder, set `ASBUILT_TOKEN_FILE` to its `token` file. |
+| GitHub errors mention an expired key or missing access | Check `GITHUB_APP_ID` and the private key, and that the app is installed on that repository (private repositories need explicit selection). |
+| "Interactive previews require the isolated Docker worker" | External interactive runs need Docker and the worker image; see [Phase 2](docs/phase2.md). The bundled sample works without Docker. |
 
 ## Architecture and sources
 
