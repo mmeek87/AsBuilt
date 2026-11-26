@@ -9,6 +9,7 @@ import { cloudConfig } from "./config.ts";
 import * as defaultStorage from "./database.ts";
 import { runCloud } from "./worker.ts";
 import { makeMcp } from "../mcp.ts";
+import { publicError } from "../errors.ts";
 import { productService } from "../product-review.ts";
 import {
   planSchema,
@@ -336,16 +337,9 @@ export function createCloudApp(
       res: express.Response,
       _next: express.NextFunction,
     ) => {
-      const message =
-        error instanceof z.ZodError
-          ? "Review the fields and try again."
-          : error instanceof Error &&
-              /^(Online browser|Another verification|Today’s|The report limit|Source changed|Report not found|Wait for|This preview|Use an HTTPS)/.test(
-                error.message,
-              )
-            ? error.message
-            : "The online service could not complete this request. Check its setup and logs.";
-      res.status(400).json({ error: message });
+      const { status, error: message } = publicError(error);
+      if (status >= 500) console.error(error);
+      res.status(status).json({ error: message });
     },
   );
   return app;

@@ -22,6 +22,7 @@ import {
 import { preparePlan, agentConfigured } from "./agent.ts";
 import { makeMcp, dispatch } from "./mcp.ts";
 import { commentBody as renderComment } from "./pr-comment.ts";
+import { publicError } from "./errors.ts";
 import { localProducts } from "./product-review-store.ts";
 const app = express();
 const port = Number(process.env.PORT || 4310);
@@ -265,13 +266,9 @@ app.use(
     res: express.Response,
     _next: express.NextFunction,
   ) => {
-    const message =
-      error instanceof z.ZodError
-        ? "Some fields are missing or invalid. Review the plan and try again."
-        : error instanceof Error
-          ? error.message
-          : "The request could not be completed.";
-    res.status(400).json({ error: message });
+    const { status, error: message } = publicError(error);
+    if (status >= 500) console.error(error);
+    res.status(status).json({ error: message });
   },
 );
 app.listen(port, "127.0.0.1", () =>
