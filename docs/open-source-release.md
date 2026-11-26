@@ -26,9 +26,9 @@ Official references checked 2026-11-24:
 
 Name: AsBuilt
 
-Tagline: Check what your AI built actually does
+Tagline: Make sure what AI builds works as intended
 
-Description: AsBuilt checks whether your web app does what you meant to build. Your assistant reads your code and maps every feature in plain words; you correct the list and approve checks. A free GitHub Action opens every preview deployment in a real browser on desktop and mobile and posts one pull request comment: Pass, Fail or Not verified, with screenshots, coverage of your feature map, and a fix prompt. On a test site you approve, it can also run your full order flow: sign in with test accounts, check out and pay with Stripe's test card. Free and open source; no account, no hosted service, no telemetry.
+Description: Bridge the gap between what you asked AI to build and what it actually delivers. Your assistant reads your code and maps every feature in plain words; you correct the list and approve checks. A free GitHub Action opens every preview deployment in a real browser on desktop and mobile and posts one pull request comment: Pass, Fail or Not verified, with screenshots, coverage of your feature map, and a fix prompt. On a test site you approve, it can also run your full order flow: sign in with test accounts, check out and pay with Stripe's test card. Free and open source; no account, no hosted service, no telemetry.
 
 Suggested prompts:
 
