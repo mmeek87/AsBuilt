@@ -38,14 +38,22 @@ Suggested prompts:
 
 ## Before publication
 
-- Confirm public publisher name and support email. Do not infer these from account credentials.
-- Review listing text and publish a factual privacy/support page. The bundled README describes data flow but is not a substitute for required directory fields.
-- Audit the repository and full Git history for credentials/private artifacts before making it public. No visibility change is included in this preparation.
-- Merge the reviewed release branch, make the repository accessible for installation, and tag the tested revision.
-- Test fresh installations inside both target hosts. Include the host/environment, version, commands, and actual outcomes. Do not treat local CLI success as in-host certification.
-- Verify a fictional sample, report retrieval, failure/Not verified handling, and uninstall. Do not run paid cloud tests or use eBarrel.
-- Confirm the host has local execution and can reach the service. In an isolated VM/container, localhost may refer to that environment rather than the user's computer. Never bypass isolation or expose the service to work around this.
-- Complete each vendor's eligibility/identity steps and submit the exact tested archive. User completes legal attestations and publisher identity verification.
+Status as of 2026-11-26 (requirements re-checked against the Claude and OpenAI docs that day).
+
+Done:
+- Repository is public; history audited (no credentials; old commits show a local folder path and the author email, accepted by the maintainer).
+- Publisher shown as Mel Meek (`author` in both manifests, `developerName` for OpenAI). Support is GitHub Issues.
+- Privacy and support page: https://mmeek87.github.io/AsBuilt/privacy/
+- Plugin README describes GitHub mode first and lists everything the plugin and Action run, send and store (the Claude security scan checks for undisclosed behavior).
+- `claude plugin validate` passes for the plugin folder and the marketplace.
+- Package includes the workflow template and the product-review reference.
+
+Maintainer steps:
+- Merge the release branch to `main` and tag the tested revision (for example `v0.4.0`). The Claude directory follows a branch or tag.
+- Claude: on a Pro or Max plan, open https://claude.ai/directory/manage, choose Submit new > Plugin bundle, repository `mmeek87/AsBuilt`, folder `plugins/asbuilt`, then Validate and fix anything marked Blocking.
+- OpenAI: complete individual verification in the OpenAI Platform organization settings, then upload `release/asbuilt.zip` as a Skills only plugin and choose a category in the portal.
+- Test a fresh install in Claude (Customize > Plugins > Upload plugin) and in the ChatGPT desktop app. Record host, version, prompt and outcome. Try "set up AsBuilt on my repo" against a throwaway repository, then uninstall.
+- Accept each directory's policy attestations yourself.
 
 ## Packaging
 
