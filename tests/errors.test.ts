@@ -6,7 +6,7 @@ import { publicError } from "../server/errors.ts";
 test("system errors never reveal paths or internals", () => {
   const enoent = Object.assign(
     Error(
-      "ENOENT: no such file or directory, open '/Users/mel/AsBuilt/.data/product-x.json'",
+      "ENOENT: no such file or directory, open '/Users/someone/AsBuilt/.data/product-x.json'",
     ),
     { code: "ENOENT" },
   );

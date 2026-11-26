@@ -1,0 +1,56 @@
+name: Live acceptance
+
+# Runs this repository's Action against the live test shop on GitHub Pages:
+# a real external HTTPS site, the isolated Docker worker, a 6-step journey,
+# test-account sign-in, and a control check that must fail.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find the test shop
+        id: site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          url=$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq .html_url 2>/dev/null || true)
+          if [ -z "$url" ]; then
+            echo "::notice::GitHub Pages isn't enabled yet, so the live acceptance check was skipped. Enable it in Settings → Pages (Source: GitHub Actions)."
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+      - name: Write plans for the live site
+        if: steps.site.outputs.url != ''
+        run: node scripts/acceptance-plans.mjs "${{ steps.site.outputs.url }}" "$RUNNER_TEMP/plans"
+      - id: asbuilt
+        if: steps.site.outputs.url != ''
+        uses: ./
+        with:
+          url: ${{ steps.site.outputs.url }}
+          plan: ${{ runner.temp }}/plans
+          comment: "false"
+          fail-on-mismatch: "false"
+          # Public demo account for the fictional shop. Real projects pass
+          # their test account from repository secrets instead.
+          test-email: demo@asbuilt.test
+          test-password: maple-demo-only
+      - name: Expect 14 passes, 2 control failures, nothing unverified
+        if: steps.site.outputs.url != ''
+        env:
+          STATUS: ${{ steps.asbuilt.outputs.status }}
+          PASSED: ${{ steps.asbuilt.outputs.passed }}
+          FAILED: ${{ steps.asbuilt.outputs.failed }}
+          UNVERIFIED: ${{ steps.asbuilt.outputs.not-verified }}
+        run: |
+          echo "status=$STATUS passed=$PASSED failed=$FAILED not-verified=$UNVERIFIED"
+          test "$STATUS" = complete && test "$PASSED" = 14 && test "$FAILED" = 2 && test "$UNVERIFIED" = 0

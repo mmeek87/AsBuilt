@@ -11,7 +11,7 @@ Keep AsBuilt running with `pnpm start`. The bridge reads `.data/token` relative 
 Verify without calling a model or testing a real site:
 
 ```sh
-cd /Users/mel/Documents/ChatGPT/AsBuilt
+cd /absolute/path/to/AsBuilt
 pnpm mcp:check
 ```
 
@@ -45,8 +45,8 @@ Use an absolute installed Node executable, absolute tsx loader and absolute serv
       "command": "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node",
       "args": [
         "--import",
-        "/Users/mel/Documents/ChatGPT/AsBuilt/node_modules/tsx/dist/loader.mjs",
-        "/Users/mel/Documents/ChatGPT/AsBuilt/server/stdio.ts"
+        "/absolute/path/to/AsBuilt/node_modules/tsx/dist/loader.mjs",
+        "/absolute/path/to/AsBuilt/server/stdio.ts"
       ]
     }
   }

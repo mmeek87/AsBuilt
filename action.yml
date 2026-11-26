@@ -78,12 +78,21 @@ runs:
         ASBUILT_TEST_PASSWORD: ${{ inputs.test-password }}
       run: node --import "$GITHUB_ACTION_PATH/node_modules/tsx/dist/loader.mjs" "$GITHUB_ACTION_PATH/server/action.ts"
     - name: Save screenshots and report
+      id: upload
       if: always() && steps.verify.outputs.results-dir != ''
+      # Best effort: a full storage quota must never hide or fail the results.
+      continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
         name: asbuilt-evidence
         path: ${{ steps.verify.outputs.results-dir }}
         retention-days: 14
+    - name: Note missing screenshots
+      if: always() && steps.upload.outcome == 'failure'
+      shell: bash
+      run: |
+        echo "::warning::Screenshots couldn't be saved to this run (often because the account's Actions artifact storage is full; delete old artifacts or wait for usage to recalculate). The results above are unaffected."
+        printf '\n> **Screenshots weren'\''t saved for this run.** GitHub refused the upload, usually because Actions artifact storage is full. Results are unaffected. Delete old artifacts in your repositories to free space.\n' >> "$GITHUB_STEP_SUMMARY"
     - name: Fail on observed mismatch
       if: steps.verify.outputs.mismatch == 'true' && inputs.fail-on-mismatch == 'true'
       shell: bash
