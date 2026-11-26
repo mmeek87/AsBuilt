@@ -205,3 +205,14 @@ details.block ul { margin: 0; padding-left: 20px; color: var(--ink-2); font-size
 .transcript summary { cursor: pointer; font-weight: 600; color: var(--ink); }
 .transcript ol { margin: 12px 0 0; padding-left: 20px; max-width: 70ch; }
 .transcript li + li { margin-top: 6px; }
+/* Phones get a readable step-by-step instead of a shrunken desktop video. */
+.story, .story-video { display: none; }
+@media (max-width: 640px) {
+  .demo video { display: none; }
+  .story { display: grid; gap: 28px; margin: 0; padding: 0; list-style: none; counter-reset: step; }
+  .story li { counter-increment: step; }
+  .story img { display: block; width: 100%; height: auto; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); }
+  .story p { margin: 10px 0 0; color: var(--ink-2); font-size: 16px; }
+  .story p::before { content: counter(step) "  "; font-weight: 600; color: var(--ink); }
+  .story-video { display: block; margin: 24px 0 0; font-size: 16px; color: var(--ink-2); }
+}
