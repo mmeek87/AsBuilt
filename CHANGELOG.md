@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.1.0 (November 26, 2026)
+
+Get to a first real result faster, and make the deeper checks easier to set up. Same check files and reports; nothing to rewrite. Use `mmeek87/AsBuilt@v1`.
+
+### Faster first result
+- **Start with checks that only look.** Your assistant's first checks need no test account, secrets or test site: what visitors see, and whether private pages (account, settings, admin) stay private, raised as questions.
+- **Any host:** `examples/asbuilt-any-url.yml` checks one saved address (repository variable `ASBUILT_URL`) on every pull request and push, or any address from the Actions tab.
+
+### Easier deep setup
+- **Needs setup instead of a failed run.** A check that signs in without a test account, uses a second account without one, or takes cart and checkout steps without `allow-test-actions` is skipped and listed under **Needs setup** with the exact fix (including `gh secret set` commands). It no longer fails the run.
+- **Test sites and branches, explained.** The skill finds out what you have, explains test sites, branches and secrets in plain words, and helps set them up; new help sections [Needs setup](https://mmeek87.github.io/AsBuilt/help/#needs-setup) and [Why you want a test site](https://mmeek87.github.io/AsBuilt/help/#test-site).
+- **Local app unlocks from a link.** `pnpm start` prints a one-time unlock link (single use, 15 minutes) and the access key, so you don't have to find `.data/token`.
+
+### Clearer results
+- **Failures say what the page was doing.** After a step, a failure quotes busy signs it saw, for example "button “Verifying…” was disabled", so a stuck step reads as stuck.
+- **Closest wording.** When exact text isn't found, the result quotes the closest heading, button, link or text it did see, so a reworded page is obvious.
+
+### More you can check
+- **Two-step sign-in for test accounts** (for example a test admin): `codeLabel` and `codeSubmit` in `signIn`, with the account's authenticator setup key as `test-totp-secret` / `second-totp-secret`.
+- **A second account that only looks** (for example a store opening its Payouts page) no longer needs a test-action approval.
+
+### Safer
+- **Never on Production:** cart, checkout and order steps are refused when GitHub's deployment event says the deployment is Production, in addition to the page's test-site marker.
+- **Pre-flight look at the site:** a Vercel preview behind Deployment Protection with no bypass secret is reported once under Needs setup (with the fix) instead of every check failing; a test-site marker missing from the page is flagged as a heads-up.
+- **Approvals as buttons:** the skill asks for approvals as clickable choices where the assistant supports them, with cart, checkout and order steps asked separately.
+
+### Changed
+- Up to **60 check files** per run (was 10). The run's time limit now defaults to about two minutes per check file, at least 10 (set `timeout-minutes` to override).
+- A standing approval in `.asbuilt/settings.json` now applies only where the workflow sets `allow-test-actions: true`. Before, it could turn ordinary checks into test-action checks in a workflow without the switch, which then couldn't run.
+
 ## 1.0.0 (November 26, 2026)
 
 First release. Use `mmeek87/AsBuilt@v1`.

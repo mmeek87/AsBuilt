@@ -13,7 +13,9 @@ plugin = root / 'plugins' / 'asbuilt'
 openai = root / 'packaging' / 'openai'
 shared = ['README.md', 'LICENSE', 'skills/verify-build/SKILL.md',
           'skills/verify-build/references/product-review.md',
-          'templates/asbuilt-workflow.yml']
+          'skills/verify-build/references/test-site-and-branches.md',
+          'templates/asbuilt-workflow.yml',
+          'templates/asbuilt-any-url.yml']
 claude = [(plugin / n, n) for n in ['.claude-plugin/plugin.json', '.claude-plugin/icon.png', *shared]]
 chatgpt = [(plugin / n, n) for n in shared] + [
     (openai / 'plugin.json', 'plugin.json'),

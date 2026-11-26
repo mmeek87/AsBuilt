@@ -9,8 +9,12 @@ export function signIn(
     signedInText: string;
     signedInPath?: string;
     dismiss?: string;
+    codeLabel?: string;
+    codeSubmit?: string;
   },
-  credentials: { email: string; password: string } | undefined,
+  credentials:
+    | { email: string; password: string; totp?: string }
+    | undefined,
   origin: string,
 ): Promise<{ ok: true } | { ok: false; reason: string }>;
 export function alreadySignedIn(

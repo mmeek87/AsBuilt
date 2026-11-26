@@ -249,3 +249,26 @@ test('"must not be visible" fails when shown, passes only when really absent, ne
     await browser.close();
   }
 });
+
+test("a failure says what the page was doing: still busy, and the closest wording it did see", async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`<main><h1>Verify a pickup</h1><form><input aria-label="Pickup code"><button disabled>Verifying...</button></form><h2>Recent pickups</h2></main>`);
+    const stuck = await observe(page, { id: "ok", expected: "Pickup verified", kind: "text", value: "Pickup Verified!" } as any);
+    assert.equal(stuck.status, "fail", "context never turns a failure into a pass or a Not verified");
+    assert.match(stuck.observed, /still looked busy: button “Verifying\.\.\.” was disabled; “Verifying\.\.\.” was showing/);
+
+    await page.setContent(`<main><h1>Stores in the Dominican Republic</h1><h2>Shop by store type</h2></main>`);
+    const reworded = await observe(page, { id: "h", expected: "Stores page", kind: "heading", value: "Stores in Dominican Republic" } as any);
+    assert.equal(reworded.status, "fail");
+    assert.match(reworded.observed, /Closest visible heading: “Stores in the Dominican Republic”/);
+    assert.doesNotMatch(reworded.observed, /busy/);
+
+    await page.setContent(`<main><p>Nothing related</p></main>`);
+    const plain = await observe(page, { id: "x", expected: "x", kind: "heading", value: "Order total" } as any);
+    assert.doesNotMatch(plain.observed, /Closest|busy/, "no context when nothing relevant is on the page");
+  } finally {
+    await browser.close();
+  }
+});

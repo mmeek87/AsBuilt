@@ -88,13 +88,15 @@ Also available with test actions:
 
 3. Open a pull request. When Vercel's preview is ready, the **AsBuilt** check runs.
 
-Not on Vercel? Call the Action from any workflow and pass the preview address:
+Not on Vercel? Use [`examples/asbuilt-any-url.yml`](../examples/asbuilt-any-url.yml): it checks one address you save as the repository variable `ASBUILT_URL` on every pull request and push, and you can run it any time from the Actions tab with any address. Or call the Action from your own workflow:
 
 ```yaml
 - uses: mmeek87/AsBuilt@v1
   with:
     url: https://your-preview.example.com
 ```
+
+**Start with checks that only look.** Your first checks don't need a test account, secrets or a test site: what signed-out visitors see, and whether private pages (account, settings, admin) stay private. Ask your assistant for "a first AsBuilt run with no secrets". Sign-in, cart and checkout come next, on a [test site](https://mmeek87.github.io/AsBuilt/help/#test-site), using the same files.
 
 ## What the check status means
 
@@ -112,7 +114,7 @@ Not on Vercel? Call the Action from any workflow and pass the preview address:
 | `plan`             | `.asbuilt`           | Folder of reviewed check files, or a single file.                  |
 | `comment`          | `true`               | Post one PR comment and update it on each run.                     |
 | `fail-on-mismatch` | `true`               | Fail the check when a mismatch is observed.                        |
-| `timeout-minutes`  | `10`                 | Stop and report "interrupted" (never "passed").                    |
+| `timeout-minutes`  | about 2 per check file, at least 10 | Stop and report "interrupted" (never "passed").                    |
 
 Outputs: `status`, `passed`, `failed`, `not-verified`, `results-dir`.
 
@@ -152,7 +154,7 @@ AsBuilt types the account only into the sign-in page on your preview, checks tha
 
 ## One file per feature
 
-Put each feature's checks in its own file: `.asbuilt/browse.json`, `.asbuilt/checkout.json`, and so on (up to 10). Every PR rechecks all of them, so a change to checkout that breaks browsing is caught. A broken plan file is reported by name without stopping the others.
+Put each feature's checks in its own file: `.asbuilt/browse.json`, `.asbuilt/checkout.json`, and so on (up to 60). Every PR rechecks all of them, so a change to checkout that breaks browsing is caught. A broken plan file is reported by name without stopping the others. A check that's missing a setup step (a test account secret, or `allow-test-actions` for cart and checkout steps) is skipped and listed under **Needs setup** with the exact fix; it doesn't fail the run.
 
 ## Limits
 

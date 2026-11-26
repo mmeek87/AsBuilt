@@ -10,7 +10,7 @@ inputs:
     description: The https preview address to check (for example from a Vercel deployment), or "sample" for the bundled demo page.
     required: true
   plan:
-    description: A reviewed plan file, or a folder of them (one JSON file per feature, up to 10). Every PR rechecks every feature, so earlier features are protected from regressions.
+    description: A reviewed plan file, or a folder of them (one JSON file per feature, up to 60). Every PR rechecks every feature, so earlier features are protected from regressions.
     default: .asbuilt
   comment:
     description: Post (and update) one summary comment on the pull request. Needs "pull-requests write" permission.
@@ -19,8 +19,8 @@ inputs:
     description: Mark the check as failed when AsBuilt observes a mismatch. "Not verified" results never fail the check; they show as warnings.
     default: "true"
   timeout-minutes:
-    description: Stop and report "interrupted" after this long. Nothing is marked passed on timeout.
-    default: "10"
+    description: Stop and report "interrupted" after this many minutes. Nothing is marked passed on timeout. Leave empty for about two minutes per check file (at least 10).
+    default: ""
   vercel-bypass-secret:
     description: For Vercel previews with Deployment Protection. Store the project's "Protection Bypass for Automation" secret as a repository secret and pass it here. Sent only to the preview's own address.
     default: ""
@@ -29,6 +29,12 @@ inputs:
     default: ""
   test-password:
     description: Password of that test account, from a repository secret. Typed only into the preview's own sign-in page and masked in screenshots.
+    default: ""
+  test-totp-secret:
+    description: Only for a test account with two-step sign-in (for example a test admin). The authenticator setup key (the text key shown when adding the account to an authenticator app), from a repository secret. AsBuilt makes the current code from it; use it only for a dedicated test account.
+    default: ""
+  second-totp-secret:
+    description: The same, for the second test account.
     default: ""
   second-email:
     description: For check files with a secondSignIn (for example a store that fulfills the order). Email of a second dedicated test account, from a repository secret.
@@ -88,6 +94,8 @@ runs:
         ASBUILT_ALLOW_TEST_ACTIONS: ${{ inputs.allow-test-actions }}
         ASBUILT_SECOND_EMAIL: ${{ inputs.second-email }}
         ASBUILT_SECOND_PASSWORD: ${{ inputs.second-password }}
+        ASBUILT_TEST_TOTP: ${{ inputs.test-totp-secret }}
+        ASBUILT_SECOND_TOTP: ${{ inputs.second-totp-secret }}
       run: node --import "$GITHUB_ACTION_PATH/node_modules/tsx/dist/loader.mjs" "$GITHUB_ACTION_PATH/server/action.ts"
     - name: Save screenshots and report
       id: upload

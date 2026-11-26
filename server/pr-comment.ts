@@ -1,6 +1,7 @@
 import type { Report } from "./schema.ts";
 import { helpLink, HELP_URL } from "./help.ts";
 import type { Coverage } from "./feature-map.ts";
+import type { SetupNeed } from "./preflight.ts";
 
 const label = { pass: "Pass", fail: "Fail", not_verified: "Not verified" };
 
@@ -27,6 +28,7 @@ export function commentBody(
     marker?: string;
     broken?: string[];
     coverage?: Coverage;
+    setup?: SetupNeed[];
   } = {},
 ) {
   if (r.status !== "complete" || r.mode === "sample" || !r.plan.source?.pr)
@@ -51,6 +53,7 @@ export function commentBody(
     `Target: ${inert(r.plan.target, 200)}`,
     "",
     ...brokenLines(options.broken ?? []),
+    ...setupLines(options.setup ?? []),
     ...r.results.map(
       (x) =>
         `- **${label[x.status]} · ${x.viewport}** Expected: ${inert(x.criterion.expected)}\n  Observed: ${inert(x.observed)}` +
@@ -128,12 +131,42 @@ function brokenLines(broken: string[]) {
 }
 
 /**
+ * Checks skipped because a setup step is missing (a test account, the
+ * test-site switch). Setup steps, not findings, so they read as a to-do list.
+ * Fix text is AsBuilt's own; only the feature name comes from the repository.
+ */
+export function setupLines(setup: SetupNeed[]) {
+  if (!setup.length) return [];
+  const byFix = new Map<string, { problem: string; features: string[] }>();
+  for (const n of setup) {
+    const entry = byFix.get(n.fix) ?? { problem: n.problem, features: [] };
+    if (!entry.features.includes(n.feature)) entry.features.push(n.feature);
+    byFix.set(n.fix, entry);
+  }
+  const features = new Set(setup.map((n) => n.feature)).size;
+  return [
+    `**Needs setup: ${features} check${features === 1 ? "" : "s"} skipped.** Nothing is wrong with your app; ${features === 1 ? "this check needs" : "these checks need"} one more setup step first.`,
+    ...[...byFix.entries()].map(
+      ([fix, { problem, features: f }]) =>
+        `- ${problem} Checks: ${f.map((x) => inert(x, 60)).join(", ")}.
+  **Fix:** ${fix}`,
+    ),
+    "",
+  ];
+}
+
+/**
  * Posted when no check file could run, so the pull request shows why
  * instead of only a failed workflow.
  */
 export function brokenCommentBody(
   broken: string[],
-  options: { sha?: string; runUrl?: string; marker?: string } = {},
+  options: {
+    sha?: string;
+    runUrl?: string;
+    marker?: string;
+    setup?: SetupNeed[];
+  } = {},
 ) {
   return [
     ...(options.marker ? [options.marker] : []),
@@ -142,6 +175,7 @@ export function brokenCommentBody(
     "**Nothing was checked yet.** This is a problem with the check files or setup, not a finding about your app.",
     "",
     ...brokenLines(broken),
+    ...setupLines(options.setup ?? []),
     ...(options.sha && /^[a-f0-9]{40}$/.test(options.sha)
       ? [`Commit: ${options.sha}`, ""]
       : []),

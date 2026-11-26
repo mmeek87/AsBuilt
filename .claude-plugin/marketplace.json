@@ -10,7 +10,7 @@
       "name": "asbuilt",
       "source": "./plugins/asbuilt",
       "description": "Make sure what AI builds works as intended: your assistant maps the features, you approve checks, and every pull request gets Pass, Fail or Not verified with screenshots.",
-      "version": "1.0.0"
+      "version": "1.1.0"
     }
   ]
 }

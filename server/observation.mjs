@@ -141,7 +141,7 @@ async function observeSingle(page, c, { staticMode = false, waitMs = 0 } = {}) {
     }
     return {
       status: staticMode ? "not_verified" : "fail",
-      observed: `${hidden ? `Found ${hidden} matching element(s), but none are visible.` : `No visible ${mode} ${c.kind} match found for “${c.value}”.`}${staticMode ? " This is a static observation with JavaScript disabled; the cause is unknown. Review the matching rule or use a separately approved JavaScript-enabled test." : ""}`,
+      observed: `${hidden ? `Found ${hidden} matching element(s), but none are visible.` : `No visible ${mode} ${c.kind} match found for “${c.value}”.`}${staticMode ? " This is a static observation with JavaScript disabled; the cause is unknown. Review the matching rule or use a separately approved JavaScript-enabled test." : await failureContext(page, c)}`,
     };
   }
   if ((c.occurrence ?? "unique") === "unique" && count !== 1)
@@ -173,6 +173,125 @@ async function observeSingle(page, c, { staticMode = false, waitMs = 0 } = {}) {
     status: "pass",
     observed: `Found ${count} visible ${c.kind} match(es) for “${c.value}” (${mode}; ${(c.occurrence ?? "unique") === "unique" ? "exactly one required" : "at least one required"}).`,
   };
+}
+
+/**
+ * What the page was doing when an expected outcome didn't show, so a failure
+ * points at its likely cause instead of only "not found":
+ *  - still busy: disabled buttons, aria-busy regions, progress bars, or
+ *    loading text such as “Verifying…”, so a stuck step reads as stuck;
+ *  - closest match: visible headings, buttons, links or text close to the
+ *    expected wording, so a reworded heading is obvious and quick to fix.
+ * Facts only, quoted from the page, never a diagnosis. Best effort: any error
+ * here leaves the plain failure unchanged.
+ */
+export async function failureContext(page, c) {
+  try {
+    const seen = await page.evaluate(
+      ({ kind }) => {
+        const visible = (el) => {
+          const r = el.getBoundingClientRect();
+          const st = getComputedStyle(el);
+          return (
+            r.width > 0 &&
+            r.height > 0 &&
+            st.visibility !== "hidden" &&
+            st.display !== "none"
+          );
+        };
+        const name = (el) =>
+          (el.getAttribute("aria-label") || el.textContent || "")
+            .replace(/\s+/g, " ")
+            .trim();
+        const disabled = [
+          ...document.querySelectorAll(
+            "button, [role=button], input[type=submit]",
+          ),
+        ]
+          .filter(
+            (el) =>
+              visible(el) &&
+              (el.disabled || el.getAttribute("aria-disabled") === "true"),
+          )
+          .map(name)
+          .filter(Boolean);
+        const busy = [
+          ...document.querySelectorAll("[aria-busy=true], [role=progressbar]"),
+        ].filter(visible).length;
+        const loading = [];
+        const walker = document.createTreeWalker(
+          document.body,
+          NodeFilter.SHOW_TEXT,
+        );
+        const lines = [];
+        while (walker.nextNode()) {
+          const t = walker.currentNode.textContent.replace(/\s+/g, " ").trim();
+          const el = walker.currentNode.parentElement;
+          if (!t || !el || !visible(el)) continue;
+          lines.push(t);
+          if (
+            /^(loading|verifying|saving|processing|sending|submitting|please wait|working)\b.{0,30}(…|\.\.\.)?$/i.test(
+              t,
+            ) ||
+            (/(…|\.\.\.)$/.test(t) && t.length < 40 && /ing\b/i.test(t))
+          )
+            loading.push(t);
+        }
+        const sel = {
+          heading: "h1,h2,h3,h4,h5,h6,[role=heading]",
+          button: "button,[role=button],input[type=submit]",
+          link: "a[href],[role=link]",
+        }[kind];
+        const names = sel
+          ? [...document.querySelectorAll(sel)]
+              .filter(visible)
+              .map(name)
+              .filter(Boolean)
+          : lines;
+        return { disabled, busy, loading, names };
+      },
+      { kind: c.kind },
+    );
+    const q = (t) => `“${t.length > 80 ? t.slice(0, 79) + "…" : t}”`;
+    const parts = [];
+    const busyBits = [
+      ...[...new Set(seen.disabled)]
+        .slice(0, 3)
+        .map((n) => `button ${q(n)} was disabled`),
+      ...[...new Set(seen.loading)]
+        .slice(0, 2)
+        .map((t) => `${q(t)} was showing`),
+      ...(seen.busy ? [`${seen.busy} region(s) were marked busy`] : []),
+    ];
+    if (busyBits.length)
+      parts.push(
+        `The page still looked busy: ${busyBits.join("; ")}. A step may not have finished, or may be stuck.`,
+      );
+    const want = c.value.toLowerCase().replace(/\s+/g, " ").trim();
+    const words = new Set(want.split(" ").filter((w) => w.length > 2));
+    const score = (t) => {
+      const l = t.toLowerCase();
+      if (l === want) return 100;
+      if (l.includes(want) || want.includes(l)) return 50;
+      return [...words].filter((w) => l.includes(w)).length;
+    };
+    const close = [...new Set(seen.names)]
+      .map((t) => [t, score(t)])
+      .filter(
+        ([t, n]) =>
+          n >= Math.max(1, Math.ceil(words.size / 2)) && t.length < 200,
+      )
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([t]) => t);
+    if (close.length)
+      parts.push(
+        `Closest visible ${c.kind === "text" ? "text" : c.kind + (close.length > 1 ? "s" : "")}: ${close.map(q).join(", ")}.${close.some((t) => t.toLowerCase() === want) ? " Same words with different capitals; if that's intended, update the check." : ""}`,
+      );
+    return parts.length ? " " + parts.join(" ") : "";
+  } catch {
+    return "";
+  }
 }
 
 /**
