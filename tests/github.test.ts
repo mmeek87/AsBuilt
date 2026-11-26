@@ -46,6 +46,15 @@ test("GitHub App narrows read tokens, reads immutable blobs, and refuses unappro
         total_count: 1,
         repositories: [{ id: 42, full_name: "team/sample" }],
       };
+    else if (url.pathname.endsWith("/pulls/12/files"))
+      body = [
+        {
+          filename: "src/page.tsx",
+          status: "modified",
+          additions: 1,
+          deletions: 0,
+        },
+      ];
     else if (url.pathname.endsWith("/pulls/12"))
       body = { head: { sha }, title: "Example change" };
     else if (url.pathname.includes("/git/trees/")) {
@@ -81,6 +90,7 @@ test("GitHub App narrows read tokens, reads immutable blobs, and refuses unappro
     assert.equal(source.sha, sha);
     const reader = await repositoryReader(source);
     assert.deepEqual(reader.tree.paths, ["src/page.tsx"]);
+    assert.equal(reader.changed?.files[0].path, "src/page.tsx");
     assert.equal(await reader.read("src/page.tsx"), "<h1>Welcome</h1>");
     await assert.rejects(
       () => reader.read("credentials.json"),

@@ -40,11 +40,22 @@ async function api(path: string, token: string, body?: unknown) {
     signal: AbortSignal.timeout(15000),
     redirect: "error",
   });
-  if (!r.ok)
-    throw Error(
-      `GitHub returned ${r.status}. Check the app installation and permissions.`,
-    );
+  if (!r.ok) throw Error(githubError(r.status));
   return await r.json();
+}
+/** Plain-language GitHub failures. Never includes tokens or response bodies. */
+export function githubError(status: number) {
+  if (status === 401)
+    return "GitHub rejected AsBuilt's credentials. The app key may be expired or replaced. Check GITHUB_APP_ID and the private key, then retry.";
+  if (status === 403 || status === 429)
+    return "GitHub refused the request. The app may lack permission for this repository, or GitHub's rate limit was reached. Check the installation's repository access, or wait a few minutes.";
+  if (status === 404)
+    return "GitHub could not find this. The pull request or commit may not exist, or the AsBuilt app is not installed on this (possibly private) repository.";
+  if (status === 422)
+    return "GitHub could not process this request. The pull request may be closed or locked.";
+  if (status >= 500)
+    return "GitHub is temporarily unavailable. Nothing was changed. Try again shortly.";
+  return `GitHub returned ${status}. Check the app installation and permissions.`;
 }
 async function installationToken(write = false, repositoryId?: number) {
   if (!githubConfigured())
@@ -114,6 +125,10 @@ export async function postComment(url: string, sha: string, body: string) {
     );
   const repos = await listRepositories();
   const repo = repos.repositories.find((r: any) => r.name === p.repository);
+  if (!repo)
+    throw Error(
+      "AsBuilt no longer has access to this repository. Reinstall the GitHub App on it, then retry.",
+    );
   const token = await installationToken(true, repo.id);
   const result = await api(
     `/repos/${p.repository}/issues/${p.ref}/comments`,
@@ -123,9 +138,34 @@ export async function postComment(url: string, sha: string, body: string) {
   return { url: result.html_url };
 }
 
+/**
+ * Files changed by a pull request, for spotting potentially affected user
+ * journeys. Changed code is context for planning, never evidence that the
+ * behavior works. Capped at the first 100 files.
+ */
+export async function changedFiles(
+  repository: string,
+  pr: number,
+  token: string,
+) {
+  const files = await api(
+    `/repos/${repository}/pulls/${pr}/files?per_page=100`,
+    token,
+  );
+  return {
+    files: (files as any[]).map((f) => ({
+      path: String(f.filename),
+      status: String(f.status),
+      additions: Number(f.additions) || 0,
+      deletions: Number(f.deletions) || 0,
+    })),
+    truncated: files.length >= 100,
+  };
+}
 export async function repositoryReader(source: {
   repository: string;
   sha: string;
+  pr?: number;
 }) {
   const list = await listRepositories();
   const repo = list.repositories.find((r: any) => r.name === source.repository);
@@ -147,11 +187,16 @@ export async function repositoryReader(source: {
     )
     .slice(0, 500)
     .map((x: any) => ({ path: x.path, sha: x.sha }));
+  const changed = source.pr
+    ? await changedFiles(source.repository, source.pr, token)
+    : undefined;
   let readCount = 0;
   return {
+    changed,
     tree: {
       paths: paths.map((x: any) => x.path),
       truncated: Boolean(tree.truncated) || tree.tree.length > 500,
+      ...(changed ? { changedInPullRequest: changed } : {}),
     },
     read: async (path: string) => {
       if (++readCount > 8) throw Error("Repository reading budget reached.");

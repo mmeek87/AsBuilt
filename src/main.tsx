@@ -23,6 +23,15 @@ type Draft = {
   gaps: string[];
   activity: string[];
   evidence: { path: string; line: number; quote: string }[];
+  changedFiles?: {
+    files: {
+      path: string;
+      status: string;
+      additions: number;
+      deletions: number;
+    }[];
+    truncated: boolean;
+  };
   source?: {
     url: string;
     sha: string;
@@ -901,6 +910,27 @@ function App() {
                               {draft.source.sha.slice(0, 7)}
                             </summary>
                             <p>{draft.source.title}</p>
+                            {draft.changedFiles && (
+                              <>
+                                <h4>
+                                  Files this pull request changed (
+                                  {draft.changedFiles.files.length}
+                                  {draft.changedFiles.truncated ? "+" : ""})
+                                </h4>
+                                <p className="hint">
+                                  Used to find features the change might affect.
+                                  A changed file is not proof that anything
+                                  works.
+                                </p>
+                                <ul>
+                                  {draft.changedFiles.files.map((f) => (
+                                    <li key={f.path}>
+                                      <code>{f.path}</code> · {f.status}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </>
+                            )}
                             <ul>
                               {draft.activity.map((a, i) => (
                                 <li key={i}>{a}</li>

@@ -21,6 +21,7 @@ import {
 } from "./github.ts";
 import { preparePlan, agentConfigured } from "./agent.ts";
 import { makeMcp, dispatch } from "./mcp.ts";
+import { commentBody as renderComment } from "./pr-comment.ts";
 import { localProducts } from "./product-review-store.ts";
 const app = express();
 const port = Number(process.env.PORT || 4310);
@@ -194,14 +195,7 @@ app.delete("/api/runs/:id", (req, res) => {
 app.post("/api/tools/:name", async (req, res) =>
   res.json(await dispatch(req.params.name, req.body)),
 );
-function commentBody(id: string) {
-  const r = getReport(id);
-  if (r.status !== "complete" || r.mode === "sample" || !r.plan.source?.pr)
-    throw Error(
-      "Only a completed preview report attached to a pull request can be posted.",
-    );
-  return `## AsBuilt verification\n\nCommit: ${r.plan.source.sha}\nTarget: ${r.plan.target}\n\n${r.results.map((x) => `- **${x.status.toUpperCase()} · ${x.viewport}** ${x.criterion.expected}\n  Observed: ${x.observed}`).join("\n")}\n\nLimitations: ${r.limitations.join(" ")}\n\nReport ID: ${r.id}. Screenshots are stored locally and are not uploaded to GitHub.`;
-}
+const commentBody = (id: string) => renderComment(getReport(id));
 const approvals = new Map<
   string,
   { id: string; hash: string; expires: number }
