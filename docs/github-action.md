@@ -51,7 +51,12 @@ AsBuilt refuses steps that could change real data, such as adding to a cart, che
 - The workflow must opt in with `allow-test-actions: true`. Add it only to a workflow that never checks your live site.
 - Don't want to approve steps one by one? Save a standing approval in `.asbuilt/settings.json`: `{"testSite": {"siteMarker": "TEST SITE", "approveAllTestActions": true}}`. It covers every step except sign-in in checks with `environment: "test"`. The workflow switch and the on-page marker still apply.
 
-Not supported yet: typing a card inside a payment provider's frame, and journeys that need two accounts.
+Also available with test actions:
+- `{"type": "testPayment", "name": "Pay with the Stripe test card", "value": ""}` pays inside Stripe's frame with Stripe's public test card. Card details never come from the check file. Only Stripe is supported.
+- `{"type": "check", "name": "Refund"}` ticks a radio button or checkbox.
+- A second test account: add `secondSignIn` (same shape as `signIn`), mark checkpoints `"as": "second"`, and pass `second-email` / `second-password` from secrets.
+- Open a new record: navigate with a value ending in `/*` and a link name to match; AsBuilt opens the first visible matching link under that address on the preview.
+- `{"type": "reload", "name": "page"}` reloads the page.
 
 ## Setup (about 5 minutes)
 

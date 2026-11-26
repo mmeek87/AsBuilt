@@ -136,7 +136,7 @@
         <li><strong>The page has to prove it's a test site.</strong> The check names text that only your test site shows, like a “TEST SITE” banner. Before every step AsBuilt looks for it, and if it isn't there, nothing is clicked.</li>
         <li><strong>The workflow has to allow it.</strong> Add <code>allow-test-actions: true</code> to the AsBuilt step, only in a workflow that never checks your live site.</li>
       </ul>
-      <p><strong>Not supported yet:</strong> typing a card inside a payment provider's secure frame, and steps that need two accounts (like a shopper paying and a store marking the order ready).</p>
+      <p><strong>Payments and a second account:</strong> a check can pay with Stripe's public test card (live Stripe declines it, so it can't charge real money), and can use a second test account, like a store, for steps such as marking the order ready. Only Stripe is supported for payments today.</p>
     </section>
     <section class="help-item" id="ask" aria-labelledby="ask-h">
       <h2 id="ask-h">Still stuck?</h2>
