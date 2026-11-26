@@ -398,6 +398,7 @@ function App() {
           <>
             {view === "products" && (
               <ProductReviews
+                heading={heading}
                 openRun={(id) =>
                   void action("Opening evidence…", async () => {
                     setReport(await api(`/api/runs/${id}`));

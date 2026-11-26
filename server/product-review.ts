@@ -464,7 +464,10 @@ export function summarizeCoverage(
     scenarios: review.spec.scenarios,
     runs: review.runs,
     counts,
-    observedMismatches: requirements.filter((r) => r.observedMismatch).length,
+    // Failures not already reported as "mismatch" (i.e. behind "unclear").
+    observedMismatches: requirements.filter(
+      (r) => r.observedMismatch && r.status !== "mismatch",
+    ).length,
     limitations: [
       "Each baseline revision requires fresh evidence. Earlier runs remain available on their original revision and are not carried forward as passes.",
       "The discovered function inventory is supplied by the host; it is not proof that every feature was discovered. Journey groupings are not end-to-end passes.",

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { summarizeCoverage } from "../server/product-review.ts";
 type Coverage = ReturnType<typeof summarizeCoverage>;
 const labels = {
@@ -7,6 +7,22 @@ const labels = {
   partial: "Partial evidence",
   not_tested: "Not tested",
   unclear: "Unclear expectation",
+};
+const sourceKinds: Record<string, string> = {
+  user_request: "Your request",
+  user_correction: "Your correction",
+  specification: "Specification",
+  documentation: "Documentation",
+  code: "Code (context only)",
+  existing_test: "Existing test (context only)",
+  historical_result: "Earlier test result (context only)",
+  agent_claim: "AI builder's claim (not evidence)",
+  runtime_observation: "Observation",
+};
+const priorities: Record<string, string> = {
+  critical: "Must work",
+  important: "Important",
+  supporting: "Supporting",
 };
 async function request(path: string, body?: unknown) {
   const r = await fetch(path, {
@@ -18,7 +34,15 @@ async function request(path: string, body?: unknown) {
   if (!r.ok) throw Error(v.error || "Request failed");
   return v;
 }
-export function ProductReviews({ openRun }: { openRun: (id: string) => void }) {
+export function ProductReviews({
+  openRun,
+  heading,
+}: {
+  openRun: (id: string) => void;
+  heading?: React.Ref<HTMLHeadingElement>;
+}) {
+  const title = useRef<HTMLHeadingElement>(null);
+  const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<
     { id: string; title: string; createdAt: string; revision?: number }[]
   >([]);
@@ -28,11 +52,19 @@ export function ProductReviews({ openRun }: { openRun: (id: string) => void }) {
   const [approved, setApproved] = useState<string | null>(null);
   async function load(id?: string) {
     setError("");
+    setLoading(true);
     try {
       setReviews(await request("/api/products"));
-      if (id) setReview(await request(`/api/products/${id}`));
+      if (id) {
+        setReview(await request(`/api/products/${id}`));
+        requestAnimationFrame(() => title.current?.focus());
+      }
     } catch (e) {
-      setError((e as Error).message);
+      setError(
+        `${(e as Error).message} Your saved reviews are unchanged; use Refresh coverage to try again.`,
+      );
+    } finally {
+      setLoading(false);
     }
   }
   useEffect(() => {
@@ -40,20 +72,28 @@ export function ProductReviews({ openRun }: { openRun: (id: string) => void }) {
   }, []);
   return (
     <section className="utility-page product-coverage">
-      <h1>Product coverage</h1>
+      <h1 ref={heading} tabIndex={-1}>
+        Product coverage
+      </h1>
       <p className="intro">
         What you asked for, what was checked, and what still needs evidence.
       </p>
       <button className="secondary small" onClick={() => void load(review?.id)}>
         Refresh coverage
       </button>
+      <p role="status" className="hint">
+        {loading ? "Loading coverage…" : ""}
+      </p>
       {error && <p role="alert">{error}</p>}
-      {!reviews.length && (
-        <p>
-          Ask your connected assistant to review the original build requests,
-          documentation and end-to-end tests, then save a product review. It
-          gathers the context for you; missing access stays visible.
-        </p>
+      {!loading && !reviews.length && !error && (
+        <div className="empty-state">
+          <h2>No product reviews yet</h2>
+          <p>
+            Ask your connected assistant to review the original build requests,
+            documentation and end-to-end tests, then save a product review. It
+            gathers the context for you; missing access stays visible.
+          </p>
+        </div>
       )}
       <ul className="review-list">
         {reviews.map((r) => (
@@ -72,7 +112,10 @@ export function ProductReviews({ openRun }: { openRun: (id: string) => void }) {
       </ul>
       {review && (
         <>
-          <h2>{review.title}</h2>
+          <h2 ref={title} tabIndex={-1}>
+            {review.title}
+          </h2>
+          <Attention review={review} />
           <p>{review.understanding}</p>
           <p>Baseline revision {review.revision}</p>
           {review.parentId && (
@@ -169,25 +212,6 @@ export function ProductReviews({ openRun }: { openRun: (id: string) => void }) {
             </section>
           )}
           <p>
-            {Object.entries(review.counts)
-              .map(
-                ([key, count]) =>
-                  `${count} ${labels[key as keyof typeof labels].toLowerCase()}`,
-              )
-              .join(" · ")}
-          </p>
-          {review.observedMismatches > 0 && (
-            <p role="note">
-              <strong>
-                {review.observedMismatches === 1
-                  ? "1 unclear requirement also failed a check."
-                  : `${review.observedMismatches} unclear requirements also failed checks.`}
-              </strong>{" "}
-              Confirm the intended behavior, then decide whether to fix the app
-              or the check.
-            </p>
-          )}
-          <p>
             This covers the recorded requirements. It does not certify the whole
             site.
           </p>
@@ -219,7 +243,7 @@ export function ProductReviews({ openRun }: { openRun: (id: string) => void }) {
                   : ""}
               </h3>
               <p>
-                {r.actor} · {r.priority}
+                {r.actor} · {priorities[r.priority] ?? r.priority}
                 {r.basis === "inferred" ? " · inferred expectation" : ""}
               </p>
               {r.uncertainty && <p>Needs clarification: {r.uncertainty}</p>}
@@ -253,6 +277,7 @@ export function ProductReviews({ openRun }: { openRun: (id: string) => void }) {
                         {e.runId && (
                           <button
                             className="secondary small"
+                            aria-label={`View run evidence for: ${o.expected}`}
                             onClick={() => openRun(e.runId!)}
                           >
                             View run evidence
@@ -349,7 +374,7 @@ export function ProductReviews({ openRun }: { openRun: (id: string) => void }) {
             <ul>
               {review.sources.map((s) => (
                 <li key={s.id}>
-                  <strong>{s.title}</strong> — {s.kind}
+                  <strong>{s.title}</strong> — {sourceKinds[s.kind] ?? s.kind}
                   <p>
                     {s.reference}
                     {s.revision ? ` · ${s.revision}` : ""}
@@ -371,6 +396,37 @@ export function ProductReviews({ openRun }: { openRun: (id: string) => void }) {
             </ul>
           </details>
         </>
+      )}
+    </section>
+  );
+}
+
+/** Lead with what needs a decision, in plain language, before the detail. */
+function Attention({ review }: { review: Coverage }) {
+  const c = review.counts as Record<string, number>;
+  const total = review.requirements.length;
+  const items = [
+    c.mismatch &&
+      `${c.mismatch} didn’t behave as described. Review the evidence.`,
+    review.observedMismatches &&
+      `${review.observedMismatches} unclear ${review.observedMismatches === 1 ? "requirement" : "requirements"} also failed a check.`,
+    c.unclear && `${c.unclear} need you to confirm what should happen.`,
+    c.partial && `${c.partial} have only some of their evidence.`,
+    c.not_tested && `${c.not_tested} haven’t been checked yet.`,
+  ].filter(Boolean) as string[];
+  return (
+    <section className="attention" aria-labelledby="attention-title">
+      <h3 id="attention-title">
+        {c.verified === total
+          ? `All ${total} recorded requirements were verified`
+          : `${c.verified} of ${total} requirements verified`}
+      </h3>
+      {items.length > 0 && (
+        <ul>
+          {items.map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </ul>
       )}
     </section>
   );
