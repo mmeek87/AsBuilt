@@ -46,7 +46,7 @@ Done:
 - Privacy and support page: https://mmeek87.github.io/AsBuilt/privacy/
 - Plugin README describes GitHub mode first and lists everything the plugin and Action run, send and store (the Claude security scan checks for undisclosed behavior).
 - `claude plugin validate` passes for the plugin folder and the marketplace.
-- Package includes the workflow template and the product-review reference.
+- The Claude plugin folder (`plugins/asbuilt`) holds instructions and the workflow template only: no scripts (the directory accepts scripts only from Verified organizations). The local command helper lives at `scripts/asbuilt-helper.mjs` in the repository, and the OpenAI manifest and icon live in `packaging/openai/`; `scripts/package-plugin.py` builds `release/asbuilt.plugin` (Claude) and `release/asbuilt.zip` (ChatGPT).
 
 Maintainer steps:
 - Merge the release branch to `main` and tag the tested revision (for example `v0.4.0`). The Claude directory follows a branch or tag.

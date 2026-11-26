@@ -10,9 +10,8 @@ Watch the [50-second demo](https://mmeek87.github.io/AsBuilt/#demo), or see it o
 
 - One skill, `verify-build`, that teaches your assistant how to draft checks, ask for your approval, and read results honestly.
 - A GitHub workflow template (`templates/asbuilt-workflow.yml`) that the skill can add to your repository.
-- A small Node.js helper (`scripts/asbuilt.mjs`) for the optional local mode. It has no dependencies and only talks to `127.0.0.1`.
 
-It bundles no MCP server and no hooks, and installing it never starts a test.
+It bundles no MCP server, no scripts and no hooks, and installing it never starts a test.
 
 ## Install
 
@@ -41,23 +40,12 @@ Only you can do these GitHub steps, and the assistant will walk you through them
 
 ## Local mode (optional)
 
-For checking a site from your own computer, run the AsBuilt service from the repository (Node.js 24 and pnpm):
-
-```sh
-git clone https://github.com/mmeek87/AsBuilt.git
-cd AsBuilt
-pnpm install --frozen-lockfile
-pnpm exec playwright install chromium
-pnpm build
-pnpm start
-```
-
-Open `http://127.0.0.1:4310`. The helper reads the local access key from `.data/token` itself, so you never paste it into chat. Don't expose this service to the internet. Local mode needs an assistant that can run commands on your computer, such as Claude Code, Claude in the desktop app, or Codex.
+You can also run AsBuilt on your own computer and check a site from there. Setup is in the [AsBuilt repository's README](https://github.com/mmeek87/AsBuilt#local-app-optional-for-development). Local mode needs an assistant that can run commands on your computer, such as Claude Code, Claude in the desktop app, or Codex. The local service authenticates your assistant by itself, so you never paste an access key into chat. Don't expose it to the internet.
 
 ## What it runs, sends and stores
 
-- **GitHub mode:** the Action runs on your GitHub runner. It opens only your preview's address, reads the `.asbuilt` files in your repository, posts or updates one comment on the pull request with your workflow's `GITHUB_TOKEN`, and uploads screenshots as a workflow artifact in your repository. Secrets you add are sent only to your preview's own address. Nothing goes to the maintainer.
-- **Local mode:** the helper connects only to your local AsBuilt service. Reports and screenshots stay in that service's `.data` folder.
+- **GitHub mode:** the Action runs on your GitHub runner. It opens only your preview's address, reads the `.asbuilt` files in your repository, posts or updates one comment on the pull request using the workflow's own GitHub permissions, and uploads screenshots as a workflow artifact in your repository. Secrets you add are sent only to your preview's own address. Nothing goes to the maintainer.
+- **Local mode:** your assistant talks only to the AsBuilt service on your own computer. Reports and screenshots stay in that service's `.data` folder.
 - **Your assistant** sees your prompts and the results you share with it, under that assistant's own terms.
 - No telemetry, analytics, or tracking is added.
 
