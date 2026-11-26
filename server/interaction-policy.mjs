@@ -210,7 +210,8 @@ export async function perform(
       `Target is not a permitted field or non-submitting button (${details.tag}; type=${details.type ?? "implicit"}; associated form=${details.form}).`,
     );
   }
-  if (action.type === "click") await locator.click({ timeout: 3000 });
+  // A toast or animation can briefly cover a control; allow it to clear.
+  if (action.type === "click") await locator.click({ timeout: 8000 });
   else if (action.type === "fill")
     await locator.fill(action.value, { timeout: 3000 });
   else await locator.selectOption({ label: action.value }, { timeout: 3000 });

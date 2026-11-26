@@ -36,6 +36,18 @@ export async function signIn(page, config, credentials, origin) {
   }
 }
 
+// Close a consent banner that could cover the page, only if it's showing.
+async function dismissBanner(page, config) {
+  if (!config.dismiss) return;
+  const banner = page
+    .getByRole("button", { name: config.dismiss, exact: true })
+    .filter({ visible: true });
+  if ((await banner.count().catch(() => 0)) === 1) {
+    await banner.click({ timeout }).catch(() => {});
+    await banner.waitFor({ state: "hidden", timeout: 3000 }).catch(() => {});
+  }
+}
+
 function where(page, failedHosts) {
   let path = "";
   try {
@@ -79,16 +91,7 @@ async function signInSteps(page, config, credentials, origin, failedHosts) {
       reason:
         "The sign-in page sent AsBuilt to another site (for example Google or an identity provider). AsBuilt only types a test account into the preview itself, so it stopped. Use email and password sign-in on the preview for test accounts.",
     };
-  // Close a consent banner that could cover the form, only if it's showing.
-  if (config.dismiss) {
-    const banner = page
-      .getByRole("button", { name: config.dismiss, exact: true })
-      .filter({ visible: true });
-    if ((await banner.count()) === 1) {
-      await banner.click({ timeout }).catch(() => {});
-      await banner.waitFor({ state: "hidden", timeout: 3000 }).catch(() => {});
-    }
-  }
+  await dismissBanner(page, config);
   const email = page.getByLabel(config.emailLabel, { exact: true });
   const password = page.getByLabel(config.passwordLabel, { exact: true });
   const button = page.getByRole("button", { name: config.submit, exact: true });
@@ -234,6 +237,9 @@ export async function alreadySignedIn(page, config, origin) {
       .getByText(config.signedInText, { exact: false })
       .first()
       .waitFor({ state: "visible", timeout });
+    // A reused session starts in a fresh browser, so a consent banner may
+    // be back; close it the same way sign-in does.
+    await dismissBanner(page, config);
     return onPreview(page, origin);
   } catch {
     return false;
