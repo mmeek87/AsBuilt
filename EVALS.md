@@ -28,29 +28,32 @@ Run it with `pnpm eval` (one pass, about 2.5 minutes) or `pnpm eval --repeat 3` 
 | unavailable | Unavailable environment | Every page returns HTTP 503 | First check Not verified; nothing passes |
 | misleading-content | Misleading website content | Visible wrong seller, plus a *hidden* "Sold by Maple Market", an HTML comment with the right text, and an off-screen instruction telling AsBuilt to mark everything passed | Seller fails; hidden text and injected instructions are ignored |
 | flaky-first-load | Interrupted environment | Store page returns 502 once (desktop), then recovers (mobile) | Desktop store Not verified (HTTP 502); mobile all pass |
+| slow-render | Correctly implemented (slow) | Product details appear 1.5 s after the page loads | All pass; faster waiting must not cause false failures |
 
 "Ambiguous requirements" are handled one layer up, in product coverage. A requirement marked uncertain stays "Unclear expectation" and is never Verified, and a failed check on it is now surfaced, not hidden. That's covered by `tests/product-review.test.ts` rather than this browser eval.
 
 ## Results (November 26, 2026)
 
-**Baseline, before this release's fixes:** 93/96 correct. 0 false passes, **3 blockers reported as defects**. The login wall (desktop and mobile) and the temporary 502 produced "Fail: no visible heading 'Maple Market'", which tells a founder their store page is broken when AsBuilt simply couldn't see it.
+**Baseline, before this release's fixes (8 scenarios):** 93/96 correct. 0 false passes, **3 blockers reported as defects**. The login wall (desktop and mobile) and the temporary 502 produced "Fail: no visible heading 'Maple Market'", which tells a founder their store page is broken when AsBuilt simply couldn't see it.
 
-**After the fix** (`blocker()` in `server/observation.mjs`), 3 repetitions:
+**After the fixes** (`blocker()` in `server/observation.mjs`, then settle-then-grace waiting in the journey worker), 9 scenarios, 3 repetitions:
 
 | Scenario | Correct verdicts | False passes | False fails | Blockers as defects | Inconclusive on known defect | Time |
 | --- | --- | --- | --- | --- | --- | --- |
-| correct | 12/12 | 0 | 0 | 0 | 0 | 1.7s |
-| wrong-seller | 12/12 | 0 | 0 | 0 | 0 | 21.9s |
-| lost-region | 12/12 | 0 | 0 | 0 | 0 | 21.6s |
-| missing-stock | 12/12 | 0 | 0 | 0 | 0 | 21.7s |
-| login-wall | 12/12 | 0 | 0 | 0 | 0 | 21.5s |
-| unavailable | 12/12 | 0 | 0 | 0 | 0 | 1.0s |
-| misleading-content | 12/12 | 0 | 0 | 0 | 0 | 21.7s |
-| flaky-first-load | 12/12 | 0 | 0 | 0 | 0 | 11.5s |
+| correct | 12/12 | 0 | 0 | 0 | 0 | 1.8s |
+| wrong-seller | 12/12 | 0 | 0 | 0 | 0 | 6.5s |
+| lost-region | 12/12 | 0 | 0 | 0 | 0 | 6.4s |
+| missing-stock | 12/12 | 0 | 0 | 0 | 0 | 6.5s |
+| login-wall | 12/12 | 0 | 0 | 0 | 0 | 6.6s |
+| unavailable | 12/12 | 0 | 0 | 0 | 0 | 1.1s |
+| misleading-content | 12/12 | 0 | 0 | 0 | 0 | 6.6s |
+| flaky-first-load | 12/12 | 0 | 0 | 0 | 0 | 4.1s |
+| slow-render | 12/12 | 0 | 0 | 0 | 0 | 4.6s |
 
-- 96/96 verdicts correct, identical across all 3 repetitions.
+- 108/108 verdicts correct, identical across all 3 repetitions.
 - Plan SHA-256 `51310dfa48e3b07cf1bf1f4580eac1f11b4a0fbb17f63f3ff3b4fa87deea0063`.
-- Cost: $0; no model calls. Time: about 2 seconds for a passing journey and about 22 seconds for one that fails. A missing outcome waits up to 10 seconds per viewport before AsBuilt concludes it isn't there, which avoids false failures on slow pages.
+- Cost: $0; no model calls.
+- Speed: a passing journey takes about 1.8 seconds, a failing one about 6.5 seconds (it was 22 seconds). AsBuilt looks first. If something is missing, it waits for the page's network to go quiet, then gives 2 more seconds for late rendering (8 seconds if the page never goes quiet). The slow-render scenario confirms this doesn't create false failures.
 
 Example of what a user now sees for the login wall:
 

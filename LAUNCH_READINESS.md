@@ -1,123 +1,108 @@
 # Launch readiness report
 
-**Assessment: Ready for a limited private beta.** That means you can dogfood it on eBarrel now. Invite other builders once the three pre-beta items below are done. **Not ready for a public launch.**
+**Assessment: Ready for a limited private beta**, as a free, open-source GitHub Action. It moves to **ready for an initial open-source launch** once the live acceptance check passes against a real external site (blocked only on two GitHub settings; see section 8) and you've used it on a few real eBarrel PRs.
 
-Branch `launch-readiness` (11 commits on top of `main` at 5055372). Reviewed November 26, 2026.
+Branch `launch-readiness`, draft PR #7. Reviewed and updated November 26, 2026.
 
 ## 1. Initial findings
 
-**What I reviewed.** The full repository on GitHub (`main`, 0.4.1), the local 0.5.0 project you supplied, the 0.3.2 plugin package, all docs, and your original intent in the ChatGPT conversation: find gaps between what you meant to build and what actually works, as a Claude and ChatGPT plugin with GitHub integration, usable by nontechnical people.
+**Baseline:** type checks, 40/40 unit tests and the build passed; 15/18 browser tests passed. The 0.5.0 product coverage work existed only on the maintainer's Mac, with no tests, and parts of that copy were older than `main`.
 
-**Baseline before changes.**
-
-| Check | Result |
-| --- | --- |
-| Type check (client + server) | Pass |
-| Unit tests | 40/40 pass |
-| Production build | Pass |
-| Browser e2e | 15/18 pass. 3 interactive and journey tests ended "interrupted" (finding A) |
-
-**Key findings, by priority.**
-
-| # | Finding | Priority |
-| --- | --- | --- |
-| — | The 0.5.0 product coverage feature (7 MCP tools, a screen, ~1,000 lines) existed only on your Mac and was never pushed. It also had **zero tests**. Your upload was built on an older base for 8 shared files, which would have reverted shipped work, including relaxing an exact eBarrel seller check to "contains" (the exact anti-pattern AsBuilt forbids). | P0 (data integrity, repo state) |
-| A | Interactive sample runs always "interrupted" when browsers are installed in a custom location: the worker's environment dropped `PLAYWRIGHT_BROWSERS_PATH`. | P0 (broken core flow in CI and containers) |
-| B | A sign-in wall or temporary 502 was reported as **Fail**, i.e. "your feature is broken", when AsBuilt simply couldn't see the page. Found by the new eval suite. | P0 (inaccurate results) |
-| C | Product coverage hid failed checks behind "Unclear expectation". | P0 (inaccurate results) |
-| D | API errors leaked absolute local file paths, with wrong status codes. | P1 (security) |
-| E | Untrusted page text was pasted into GitHub PR comments as live Markdown. | P1 (security) |
-| F | GitHub errors were generic ("GitHub returned 404"), and PR planning ignored which files changed. | P1 (GitHub) |
-| G | Product coverage screen: no focus management, no loading state, didn't lead with what needs attention. | P1 (UX, a11y) |
-| H | MCP e2e tests out of date for 13 tools; `mcp:check` ignored custom config. | P1 (MCP) |
-| I | One high dependency advisory (Zod < 4.6.6). | P1, open |
-
-**What was already strong:** SSRF defense (pinned DNS, exact allowlist), Docker isolation, the approval model (approval can't come from saved files), GitHub least-privilege tokens, approval-nonce PR comments, honest limitation text throughout, and a calm, accessible UI with axe checks on most screens.
+| # | Finding | Priority | Status |
+| --- | --- | --- | --- |
+| — | Unpushed 0.5.0 work; the upload would have reverted shipped files, including a relaxed eBarrel assertion | P0 | **Fixed**: imported, regressions kept out, 12 tests added |
+| A | Interactive runs always "interrupted" with custom browser paths | P0 | **Fixed** |
+| B | Sign-in walls and outages reported as Fail ("your feature is broken") | P0 | **Fixed**: Not verified with the reason; eval-verified |
+| C | Product coverage hid failures behind "Unclear" | P0 | **Fixed** |
+| D | API errors leaked local file paths | P1 | **Fixed** |
+| E | Page text injected into PR comments | P1 | **Fixed**: inert rendering; tested with hostile content |
+| F | Vague GitHub errors; PR changes ignored in planning | P1 | **Fixed** |
+| G | Product coverage screen: focus, loading, summary | P1 | **Fixed**; axe clean on desktop and mobile |
+| H | MCP tests out of date; `mcp:check` ignored config | P1 | **Fixed** |
+| I | High Zod advisory | P1 | **Fixed**: Zod 4.6.7; `pnpm audit`: no known vulnerabilities |
 
 ## 2. Changes implemented
 
-| Commit | Change |
-| --- | --- |
-| 30ba219 | Import local 0.5.0 product coverage; keep `main`'s newer versions of 8 regressed files |
-| 9992fc2 | Fix A (worker browser path; secrets still never forwarded) |
-| f17c40a | 12 product coverage tests; fix C |
-| 47a7381 | Fix E and F: inert PR comments, changed files for planning, plain-language GitHub errors |
-| fe3e539 | Fix D: `publicError()` for local and hosted servers |
-| 48f550f | Fix G: product coverage leads with attention items; focus, loading, labels; new e2e test |
-| b1fe032 | Helper size messages and usage text; hosted review cap |
-| d553d9d | Fix `mcp:check`; add `mcp:check-flow` |
-| 6fb3e62 | MCP e2e asserts all 13 tools and safety annotations |
-| 36827ea | Fix B: blocker detection in all runners; eval suite |
-| (docs) | SECURITY, EVALS, ARCHITECTURE, CHANGELOG, this report, README, `.env.example` |
+**Direction change, at the maintainer's request:** AsBuilt is now GitHub-only, open source and free. The hosted Vercel version (the only part that could cost money, and which had never run a check) was removed.
+
+- **GitHub Action** (`uses: mmeek87/asbuilt`): runs on every preview deployment, on desktop and mobile, with screenshots, a job summary, one updated PR comment, and a copy-ready fix prompt.
+- **Checks stack up:** one plan file per feature in `.asbuilt/`; every PR rechecks every feature.
+- **Test-account sign-in** for pages behind a login.
+- **Protected Vercel previews** via Vercel's automation bypass.
+- **Faster failures:** about 6.5 s per failing journey instead of 22 s, verified with no accuracy loss.
+- **One-step setup** through the assistant skill.
+- **CI on real GitHub runners**, plus a live acceptance check against a fictional test shop on GitHub Pages.
+- Earlier in the day: the P0 and P1 fixes above, the eval suite, and the documentation set.
 
 ## 3. Product and design improvements
 
-- Results speak plain language about blockers: "This page asks for a password. AsBuilt never signs in…" instead of "No visible heading."
-- Product coverage opens with "1 of 3 requirements verified" and a short list: didn't behave as described, needs your confirmation, not checked yet.
-- Source labels a founder understands: "AI builder's claim (not evidence)" and "Must work".
-- PR comments lead with "1 fail · 1 not verified" and explain that Not verified is not a pass.
-- PR plans show which files changed, collapsed by default.
-
-**Not changed, but worth deciding (product):** installation needs a terminal, Node 24, pnpm, `git clone`, and Docker for interactive previews. That's a real barrier for the stated audience of nontechnical founders. See section 7.
+- **No install for users:** no terminal, Node, pnpm, Docker, `.env`, GitHub App, OpenAI key or MCP setup. One workflow file and one plan file, which the skill can add with permission.
+- **Results where people already look:** the PR comment leads with "1 passed · 1 failed", shows each check, and offers "Fix prompt for Claude or ChatGPT" in one click. Reruns update the same comment instead of adding noise.
+- **Plain explanations for every Not verified:** protected preview, needs sign-in, site down, sign-in didn't work and why.
+- **Works with any assistant,** ChatGPT included, because the assistant only edits files.
+- **Screenshots** organized as `screenshots/<feature>/desktop.png` and `mobile.png`.
+- In the local app, Product coverage leads with what needs attention, with full keyboard and screen-reader support.
 
 ## 4. Architecture and security improvements
 
-See [SECURITY.md](SECURITY.md) and [ARCHITECTURE.md](ARCHITECTURE.md). In short: error responses can't leak internals; PR comments can't be hijacked by page content; blockers can't masquerade as defects; the hosted product store is bounded; and the worker environment is allow-listed and tested to exclude secrets. No architecture was rewritten. The existing design is sound for its single-operator scope.
+See [ARCHITECTURE.md](ARCHITECTURE.md) and [SECURITY.md](SECURITY.md). Highlights:
 
-## 5. Test execution results (final run)
+- The preview address comes only from the workflow. Plans can't redirect or pre-approve themselves.
+- Test accounts and the bypass secret come only from secrets. They're never written anywhere, typed only on the preview (re-checked against late redirects), and masked in screenshots.
+- Screenshot upload failures can't change results.
+- Runtime dependencies are down from 11 to 7, with no known vulnerabilities.
 
-| Suite | Result |
-| --- | --- |
-| `tsc` client and server | Pass |
-| `pnpm test` (unit and integration, some in real Chromium) | **62/62 pass** (was 40) |
-| `pnpm test:e2e` (UI, auth, MCP HTTP and stdio, axe desktop and mobile) | **19/19 pass** (was 15/18) |
-| `pnpm build` | Pass |
-| `pnpm mcp:check` | Ready, 13 tools, service 0.5.0 |
-| `pnpm mcp:check-flow` | Baseline saved; invented citation refused; unapproved run refused; approved run complete; coverage correct; screenshots on both viewports |
-| `pnpm eval --repeat 3` | 96/96 correct, 0 false passes, reproducible |
-| `pnpm audit --prod` | 1 high (Zod), open |
+## 5. Test execution results
 
-**Mocked vs live.** GitHub (App tokens, PR files, comments) is tested **only with mocked API responses**. The planning agent is tested **only with model fixtures**. Browser verification is **real** (Chromium) against local fixtures. MCP is **real** (SDK client over HTTP and stdio), and your Claude desktop app is connected to your local service and answering (confirmed by a live status call during this review). No live preview site was contacted during this review.
+| Suite | Local | GitHub runner (PR #7) |
+| --- | --- | --- |
+| Type checks, build | Pass | Pass |
+| Unit and integration tests | **71/71** | Pass |
+| Browser e2e (UI, MCP, axe desktop and mobile) | **19/19** | **19/19** |
+| Action self-test (sample: 2 pass, 2 expected fail) | Pass | **Pass** |
+| Action vs real HTTPS site (example.com) | Pass, with screenshots | — |
+| PR comment create and update (stub API) | Pass | — |
+| Live acceptance (external site, Docker, journey, sign-in) | — | Skipped until Pages is on |
+| `pnpm audit --prod` | No known vulnerabilities | — |
 
-**Accessibility.** Automated: axe reports zero violations on every exercised screen at desktop and 390 px. Plus keyboard reachability, focus order, no horizontal overflow, and reduced motion in CSS. Manual: product coverage screenshots reviewed (this caught a wrong count, now fixed). **Not done:** screen-reader testing with VoiceOver or NVDA, 200% zoom review, and a full WCAG 2.2 AA audit. Don't claim conformance yet.
+**Mocked vs live:** the PR lookup and comment API is tested against a stub, not real GitHub. Sign-in is tested in real Chromium against a simulated shop. Vercel bypass is unit-tested for scoping; it hasn't been run against a real protected deployment.
+
+**Accessibility:** axe finds zero violations on every exercised local screen at desktop and 390 px, plus keyboard, focus and reflow checks. Not done: a VoiceOver or NVDA pass and a 200% zoom review. Don't claim WCAG conformance yet. The PR comment uses GitHub's own accessible rendering, with text labels as well as emoji.
 
 ## 6. AI evaluation results
 
-See [EVALS.md](EVALS.md). The executor scored 93/96 before this release, with 3 blockers reported as defects, and **96/96 after**, with zero false passes across 3 identical repetitions and $0 model cost. It ignored hidden text and an injected "mark everything passed" instruction. **Unmeasured:** plan quality from a fresh Claude or ChatGPT session with defects withheld, and planning-agent quality and cost.
+[EVALS.md](EVALS.md): 9 scenarios × 3 repetitions. **108/108 correct verdicts, 0 false passes, 0 false fails, 0 blockers misreported, reproducible, $0.** Hidden text and injected "mark everything passed" instructions are ignored. Unmeasured: plan quality from a fresh assistant session with defects withheld.
 
 ## 7. Remaining issues and limitations
 
-**Pre-beta (do before inviting others):**
-1. **Verify GitHub live.** Install the App on a throwaway test repo, plan from a real PR, and post one approved comment. The integration is only mock-tested.
-2. **Upgrade Zod to v4** (high advisory) and rerun all suites.
-3. **Push this branch** and decide whether the 0.5.0 import is the version of record. Your Mac's running service is still the old 0.5.0 code without these fixes.
+**Before calling it launched:**
+1. **Live acceptance must pass.** It needs the repository public and Pages on (section 8). It's the first end-to-end test of the Docker worker and sign-in on GitHub's runners.
+2. **Try it on 2 or 3 real eBarrel PRs,** including a protected preview and a signed-in page, and note what was confusing.
+3. **Accessibility pass** with a screen reader on the local app.
 
-**Known limitations:**
-- **ChatGPT web isn't supported.** ChatGPT and Claude custom connectors call MCP servers from their own cloud and need a public HTTPS URL, and ChatGPT expects OAuth. Works today: Claude Desktop, Claude Code and Codex.
-- **Single operator, single project list.** One key, one GitHub installation, a shared 200-report history, and sites added by editing config and restarting.
-- Interactive external previews need Docker. No sign-in flows, checkout or form submission (by design).
-- A genuine defect on a page with a visible password field is reported Not verified (conservative).
-- A failing journey takes about 22 seconds because of a 10-second wait per viewport.
-- Real external preview acceptance relies on earlier runs recorded in `docs/navigation-baseline.md`. It wasn't re-run here.
+**Known limitations (by design or later):**
+- No one-time codes, CAPTCHAs, outside identity providers, real payments or order submission.
+- Checks run after a preview deploys, not live while you build.
+- Up to 10 feature files and 12 checks per feature per run.
+- Your account's Actions artifact storage was full during testing. Results still post, but screenshots won't save until space frees up.
+- Netlify and Cloudflare protected previews aren't supported (Vercel only).
 
-**P3 opportunities (not built, by design):** project grouping for multiple apps; one-click install (desktop extension or hosted beta) for nontechnical users; OAuth hosted connector for ChatGPT; scheduled re-verification on PR updates; run-to-run comparison. No billing, org management or analytics.
+**P3 opportunities:** a "watch mode" re-run when a PR's description changes; before-and-after screenshot comparison between runs; an optional GitHub check annotation per failed check; a gallery of example plans for common app types (store, booking, SaaS signup).
 
 ## 8. Required manual configuration
 
-- `.env` from `.env.example`: `ASBUILT_PREVIEW_ORIGINS` (your staging site), optional `ASBUILT_PUBLIC_READONLY_ORIGINS`.
-- GitHub App: Contents read and Pull requests read (README → "Register a least-privilege GitHub App"); `GITHUB_*` vars; PEM file outside the repo.
-- Optional: `OPENAI_API_KEY` and `ASBUILT_MODEL` for the planning agent; `GITHUB_ALLOW_COMMENTS=true` plus write permission for PR comments.
-- Docker image `asbuilt-browser:local` for interactive previews (docs/phase2.md).
-- MCP host config for Claude Desktop or Claude Code (README → MCP).
+**This repository (once):**
+1. Settings → General → Danger Zone → **Change visibility → Public**.
+2. Settings → Pages → Source → **GitHub Actions**. After the next push to `main`, the test shop deploys and live acceptance runs on every PR.
 
-## 9. Deployment instructions
+**Each project using AsBuilt:** add `.github/workflows/asbuilt.yml` and a plan (or ask your assistant to). Optional: `VERCEL_AUTOMATION_BYPASS_SECRET`, `ASBUILT_TEST_EMAIL` and `ASBUILT_TEST_PASSWORD` as repository secrets. On private repositories, set the Actions budget to $0 so it can never charge.
 
-Local (recommended): `pnpm install --frozen-lockfile && pnpm exec playwright install chromium && pnpm build && pnpm start`, then open `http://127.0.0.1:4310` with the key in `.data/token`. To update your Mac, pull this branch into your checkout, rerun the same commands, and restart the service. Your `.data` folder is untouched. Hosted (single operator, optional): [docs/vercel.md](docs/vercel.md). Nothing was deployed or pushed during this review.
+**Vercel:** delete the old `as-built` project and its Neon database and Blob store, so nothing keeps running or billing.
+
+## 9. Deployment
+
+There's nothing to deploy. Merging PR #7 makes `uses: mmeek87/asbuilt@main` available. Before announcing it, tag a release (`v1`) so users can pin a stable version.
 
 ## 10. Final assessment
 
-**Ready for a limited private beta.**
-
-Evidence for: the complete core loop (intent → reviewable checks → approved run → evidence → coverage → rerun) works end to end in the UI and over MCP, and is tested. Results are grounded in real execution, and evals show zero false passes, including adversarial content. Failures and blockers are reported accurately. All automated suites and the production build pass.
-
-Evidence against a public launch: GitHub is only mock-verified; a high-severity dependency advisory is open; ChatGPT web can't connect; setup needs developer tools; and there's no screen-reader audit.
+**Ready for a limited private beta.** Evidence: every automated suite passes on GitHub's runners; the Action works end to end on a real runner; the evals show zero false passes across adversarial cases; the main pain points (cost, install burden, ChatGPT access, single operator, sign-in, protected previews, slow failures) are addressed. It's not yet "launched" because the live external test, sign-in on a real deployment, and real-world use on eBarrel haven't happened yet. Each of those is a short step away.

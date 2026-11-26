@@ -1,51 +1,50 @@
 # Architecture
 
-AsBuilt is one small Node service with three front doors (a web UI, an MCP server and a plugin helper) over one verification engine. Detailed rationale for the original design is in [docs/architecture.md](docs/architecture.md). This page is the current map, including the product coverage layer added in 0.5.0.
+AsBuilt has one verification engine and two ways to run it: **the GitHub Action** (the main product, free, nothing to host) and **the local app** (a review UI and MCP server for development). Detailed rationale for the original design is in [docs/architecture.md](docs/architecture.md).
+
+## The GitHub version
 
 ```mermaid
 flowchart LR
-  subgraph Hosts
-    UI[Web UI<br/>src/main.tsx]
-    MCP[MCP: HTTP /mcp<br/>or stdio bridge]
-    Helper[Plugin helper<br/>plugins/asbuilt]
-  end
-  UI --> API[Express service<br/>server/index.ts]
-  MCP --> API
-  Helper --> API
-  API --> Plan[Planning<br/>agent.ts · schema.ts]
-  Plan -. optional, read-only .-> GH[GitHub App<br/>github.ts]
-  API --> Product[Product coverage<br/>product-review.ts]
-  Product --> Runner
-  API --> Runner[Runner<br/>runner.ts · interactive.ts]
-  Runner --> Worker[Browser worker<br/>local sample or<br/>Docker, no network]
-  Worker <-->|broker: allowlist,<br/>pinned DNS| Web[(Approved preview)]
-  Runner --> Store[(.data: reports,<br/>screenshots, reviews)]
-  Product --> Store
-  API -. approved, opt-in .-> PR[PR comment<br/>pr-comment.ts]
+  You[You] -- "what the feature should do" --> Assistant[Your assistant<br/>Claude · ChatGPT · Codex<br/>+ AsBuilt skill]
+  Assistant -- "reviewed plan,<br/>.asbuilt/feature.json" --> Repo[(Your repository)]
+  Repo --> Vercel[Vercel preview]
+  Vercel -- deployment_status --> Action[AsBuilt Action<br/>on GitHub runner]
+  Repo -- plans --> Action
+  Action --> Browser[Real Chromium<br/>desktop + mobile]
+  Browser <-- "only the preview,<br/>pinned DNS" --> Vercel
+  Action -- "summary, screenshots" --> Run[Workflow run]
+  Action -- "one updated comment<br/>+ fix prompt" --> PR[Pull request]
+  PR -- "paste fix prompt" --> Assistant
 ```
+
+**The agent is split on purpose.** Your assistant does the part that needs judgment: understanding intent, reading the PR, drafting checks. AsBuilt does the part that needs independence: observing the real preview with fixed rules and no AI. The assistant can't grade its own work, and AsBuilt's verdicts are reproducible and free.
 
 ## Layers
 
 | Layer | Files | Responsibility |
 | --- | --- | --- |
-| Interfaces | `src/`, `server/mcp.ts`, `server/stdio.ts`, `plugins/asbuilt/` | Collect intent, show plans for approval, show evidence. No verification logic. |
-| Service | `server/index.ts` (local), `server/cloud/` (hosted) | Auth, routing, error mapping (`errors.ts`). |
-| Planning | `server/agent.ts`, `server/schema.ts` | Turn intent into bounded, reviewable checks. Output is always `not_run`. |
-| Product coverage | `server/product-review.ts`, `product-review-store.ts`, `src/product-reviews.tsx` | Requirement maps with cited sources, frozen scenarios, revisions, coverage computed from evidence. |
-| Execution | `server/runner.ts`, `interactive.ts`, `*-worker.mjs`, `observation.mjs`, `interaction-policy.mjs` | Drive the browser, observe, decide pass / fail / not verified. |
-| Safety | `server/safety.ts`, `browser-network.ts`, `tunnel-proxy.mjs` | Target allowlist, SSRF defense, request budgets. |
-| Integrations | `server/github.ts`, `pr-comment.ts` | Read PRs and commits; optional approved comment. |
+| GitHub entry point | `action.yml`, `server/action.ts` | Read plan files, run them against the workflow's preview URL, write summary, screenshots and the PR comment. |
+| Local interfaces | `src/`, `server/index.ts`, `server/mcp.ts`, `server/stdio.ts` | Review UI, HTTP API and MCP tools for development. Same engine. |
+| Assistant plugin | `plugins/asbuilt/` | Skill and template: plan, set up, explain. |
+| Planning | `server/schema.ts` (plan rules), `server/agent.ts` (optional OpenAI planner, local only) | Plans are bounded and validated; output is always unverified until run. |
+| Product coverage | `server/product-review*.ts`, `src/product-reviews.tsx` | Requirement maps, frozen scenarios and coverage from evidence (local app). |
+| Execution | `server/runner.ts`, `interactive.ts`, `*-worker.mjs`, `observation.mjs`, `interaction-policy.mjs`, `sign-in.mjs` | Drive the browser, observe, decide Pass, Fail or Not verified. |
+| Safety | `server/safety.ts`, `browser-network.ts`, `tunnel-proxy.mjs` | Allowlist, SSRF defense, budgets, Vercel bypass scoping. |
+| Reporting | `server/pr-comment.ts`, `server/github.ts` | Inert PR comments, fix prompts, GitHub App reads (local). |
 
 ## Key decisions and tradeoffs
 
-1. **Evidence states are computed, never asserted.** Only the runner produces pass, fail or not verified, and product coverage derives "verified" from linked runs. *Tradeoff:* more "Not verified" results, which is honest but less satisfying.
-2. **The host assistant plans; AsBuilt executes.** Claude or Codex reads the user's context and drafts the requirement map. AsBuilt validates citations, freezes scenarios and runs them. *Tradeoff:* plan quality depends on the host and is unmeasured (see EVALS.md). No second model subscription is needed.
-3. **Frozen scenarios and immutable revisions.** A changed requirement creates a new revision that starts untested; old evidence stays on the old revision. *Tradeoff:* re-running after every revision, but a stale pass can never vouch for a changed build.
-4. **Blockers aren't defects.** A missing outcome on an erroring page, a sign-in wall, or a page with blocked scripts is Not verified with an explanation. *Tradeoff:* a real defect on such a page is reported as "couldn't check" rather than "failed".
-5. **Local, single operator first.** Loopback binding, one key, JSON files. *Tradeoff:* no teams, no ChatGPT web connection (it needs a public HTTPS server), one shared run history. Fast to set up, small attack surface, and right for dogfooding and a private beta.
-6. **Deterministic browser policy over AI browsing.** The browser runs a fixed set of reviewed actions; no model drives it. *Tradeoff:* it can't explore. It also can't be talked into clicking "Buy".
-7. **Docker for untrusted page JavaScript.** External interactive pages run with no network; a parent-process broker fetches only approved resources. *Tradeoff:* Docker is required for interactive previews.
+1. **GitHub-only distribution, no hosted service.** *Why:* zero cost, nothing to operate, works with any assistant that can edit a repo (ChatGPT included), and access control is just GitHub's. *Tradeoff:* checks run on previews after a push, not interactively; screenshots live in workflow artifacts (14 days), not a dashboard.
+2. **Evidence states are computed, never asserted.** Only the browser produces Pass, Fail or Not verified. *Tradeoff:* more "Not verified" results, which is honest but less satisfying.
+3. **Blockers aren't defects.** Sign-in walls, protected previews, HTTP errors and blocked scripts make a missing outcome Not verified, with the reason. *Tradeoff:* a real defect on such a page reads as "couldn't check".
+4. **Plans are code.** One reviewed JSON file per feature, in the repo, rechecked on every PR. *Why:* review happens in the PR diff, and regressions are caught automatically. *Tradeoff:* someone has to keep plans current as features change (the skill helps).
+5. **Test accounts from secrets only, typed only on the preview.** *Tradeoff:* no one-time codes, CAPTCHAs or outside identity providers.
+6. **Deterministic browser policy over AI browsing.** A fixed set of reviewed actions; no model drives the browser. *Tradeoff:* it can't explore. It also can't be talked into clicking "Buy".
+7. **Docker isolation for untrusted page JavaScript**, already available on GitHub's runners. *Tradeoff:* about a minute to build the worker image on the first interactive run.
 
 ## Data
 
-All state lives in `ASBUILT_DATA_DIR` (default `.data/`, git-ignored): `report-<id>.json`, `<id>/*.png`, `product-<id>.json`, `sessions.json`, `token`. Writes are write-then-rename. Limits: 200 reports and 100 product reviews. Hosted mode uses Postgres (Neon) tables of the same shape, plus Vercel Blob for screenshots.
+GitHub version: plans in `.asbuilt/`; results in the run's job summary, one PR comment, and the `asbuilt-evidence` artifact (`report.json`, `screenshots/<feature>/desktop.png` and `mobile.png`, kept 14 days). Nothing is stored anywhere else.
+
+Local app: `ASBUILT_DATA_DIR` (default `.data/`, git-ignored) holds reports, screenshots, product reviews, sessions and the access key. Writes are write-then-rename. Limits: 200 reports and 100 product reviews.
