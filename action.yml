@@ -1,0 +1,80 @@
+name: AsBuilt verify
+description: Check that a preview does what you intended, with desktop and mobile screenshots for every check. No AI calls, no cost.
+author: Mel Meek
+branding:
+  icon: check-square
+  color: green
+
+inputs:
+  url:
+    description: The https preview address to check (for example from a Vercel deployment), or "sample" for the bundled demo page.
+    required: true
+  plan:
+    description: Path to the reviewed plan file in your repository.
+    default: .asbuilt/plan.json
+  comment:
+    description: Post (and update) one summary comment on the pull request. Needs "pull-requests write" permission.
+    default: "true"
+  fail-on-mismatch:
+    description: Mark the check as failed when AsBuilt observes a mismatch. "Not verified" results never fail the check; they show as warnings.
+    default: "true"
+  timeout-minutes:
+    description: Stop and report "interrupted" after this long. Nothing is marked passed on timeout.
+    default: "10"
+  github-token:
+    description: Used only to find the pull request and post the comment.
+    default: ${{ github.token }}
+
+outputs:
+  status:
+    description: complete, interrupted or failed
+    value: ${{ steps.verify.outputs.status }}
+  passed:
+    value: ${{ steps.verify.outputs.passed }}
+    description: Number of passed checks (desktop and mobile counted separately)
+  failed:
+    value: ${{ steps.verify.outputs.failed }}
+    description: Number of observed mismatches
+  not-verified:
+    value: ${{ steps.verify.outputs.not-verified }}
+    description: Number of checks AsBuilt couldn't verify
+  results-dir:
+    value: ${{ steps.verify.outputs.results-dir }}
+    description: Folder with report.json and screenshots
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24
+    - name: Install AsBuilt and its browser
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        corepack enable
+        pnpm install --frozen-lockfile
+        pnpm exec playwright install --with-deps chromium
+    - name: Verify
+      id: verify
+      shell: bash
+      env:
+        INPUT_URL: ${{ inputs.url }}
+        INPUT_PLAN: ${{ inputs.plan }}
+        INPUT_COMMENT: ${{ inputs.comment }}
+        INPUT_TIMEOUT_MINUTES: ${{ inputs.timeout-minutes }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: node --import "$GITHUB_ACTION_PATH/node_modules/tsx/dist/loader.mjs" "$GITHUB_ACTION_PATH/server/action.ts"
+    - name: Save screenshots and report
+      if: always() && steps.verify.outputs.results-dir != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: asbuilt-evidence
+        path: ${{ steps.verify.outputs.results-dir }}
+        retention-days: 14
+    - name: Fail on observed mismatch
+      if: steps.verify.outputs.mismatch == 'true' && inputs.fail-on-mismatch == 'true'
+      shell: bash
+      run: |
+        echo "::error::AsBuilt observed at least one mismatch. See the job summary and screenshots."
+        exit 1

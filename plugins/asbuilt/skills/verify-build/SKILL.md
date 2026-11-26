@@ -1,11 +1,22 @@
 ---
 name: verify-build
-description: Use when the user asks to verify a website, check whether a build matches their intent, test a preview, or review an AsBuilt report. Draft observable checks, obtain approval, and use the local AsBuilt service to collect evidence.
+description: Use when the user asks to verify a website, check whether a build matches their intent, test a preview, set up or review AsBuilt checks on GitHub pull requests, or review an AsBuilt report. Draft observable checks, obtain approval, and collect evidence with the AsBuilt GitHub Action or the local AsBuilt service.
 ---
 
 # Verify a build with AsBuilt
 
 Help the user compare intended behavior with observed website behavior. State clearly what was tested, what failed, and what remains unverified. A coding agent's claim or successful build is not evidence that a user journey works.
+
+## GitHub mode (preferred, no cost)
+
+Use this when the user's repository has `.github/workflows/asbuilt.yml`, or they want AsBuilt on their pull requests. The AsBuilt GitHub Action runs the checks on each preview deployment. It calls no AI model, so you are the planning agent and the Action is the independent observer.
+
+1. Recover intent from what the user says, the PR description, and the files the PR changes. Complete the context review below. Ask when intent is unclear; don't invent requirements.
+2. Draft observable checks and show them in plain language with the exact kinds and values. Get the user's approval of this concrete plan.
+3. Only after approval, write `.asbuilt/plan.json` with `intent`, `criteria` and, if needed, `execution`, `journey`, `actionsApproved` or `network`. Never write `target` or `approved`: the workflow supplies the preview address, and the reviewed file is the approval record. Put wider permissions (clicks, page network traffic) in the file only if the user approved them, so they show up in the PR diff.
+4. Committing, pushing or opening a pull request is a repository write. Do it only when the user asks. Otherwise give them the file and tell them where to put it.
+5. To set up the workflow, copy `examples/asbuilt-vercel.yml` from the AsBuilt repository to `.github/workflows/asbuilt.yml` in their repository, again only with permission. It needs `pull-requests: write` to comment.
+6. Read results from the PR comment or the workflow's job summary. Report passes, failures and Not verified separately, and point to the **asbuilt-evidence** artifact for desktop and mobile screenshots. Never describe a screenshot you haven't seen.
 
 ## Local setup
 

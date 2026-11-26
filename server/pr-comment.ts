@@ -18,7 +18,10 @@ export function inert(text: string, max = 300) {
   return short ? `\`${short}\`` : "_(empty)_";
 }
 
-export function commentBody(r: Report) {
+export function commentBody(
+  r: Report,
+  options: { evidenceUrl?: string; marker?: string } = {},
+) {
   if (r.status !== "complete" || r.mode === "sample" || !r.plan.source?.pr)
     throw Error(
       "Only a completed preview report attached to a pull request can be posted.",
@@ -32,6 +35,7 @@ export function commentBody(r: Report) {
     ? r.plan.source.sha
     : "unknown";
   return [
+    ...(options.marker ? [options.marker] : []),
     "## AsBuilt verification",
     "",
     `**${counts || "No results"}** across desktop and mobile.`,
@@ -48,6 +52,8 @@ export function commentBody(r: Report) {
     "",
     "“Not verified” means AsBuilt could not collect enough evidence; it is not a pass. A failure is an observed mismatch, not a diagnosed root cause.",
     "",
-    `Report ID: ${r.id}. Screenshots are stored locally and are not uploaded to GitHub.`,
+    options.evidenceUrl
+      ? `Report ID: ${r.id}. [Desktop and mobile screenshots](${options.evidenceUrl}) are attached to the workflow run (visible to people with repository access).`
+      : `Report ID: ${r.id}. Screenshots are stored locally and are not uploaded to GitHub.`,
   ].join("\n");
 }
