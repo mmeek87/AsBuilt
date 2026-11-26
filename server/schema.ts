@@ -57,6 +57,21 @@ export const planSchema = z
     environment: z.enum(["test", "production"]).optional(),
     networkApproved: z.literal(true).optional(),
     readUrls: z.array(z.string().url().max(2048)).max(20).optional(),
+    // Sign in with a dedicated test account first. Labels and text only;
+    // the account itself comes from secrets, never from the plan.
+    signIn: z
+      .object({
+        path: z
+          .string()
+          .regex(/^\/[^\s?#]*$/)
+          .max(300),
+        emailLabel: z.string().min(1).max(100),
+        passwordLabel: z.string().min(1).max(100),
+        submit: z.string().min(1).max(100),
+        signedInText: z.string().min(1).max(200),
+      })
+      .strict()
+      .optional(),
     source: z
       .object({
         url: z.string().url(),
@@ -120,6 +135,17 @@ export const sampleIntent =
   'Show a heading called "Plan your visit". The "Email address" field is required. Show a button called "Book a visit". Show the text "Free cancellation". Send a confirmation email after booking.';
 
 export function validateExecution(plan: Plan) {
+  if (
+    plan.signIn &&
+    (plan.target === "sample" ||
+      plan.execution !== "interactive" ||
+      !plan.journey ||
+      plan.network !== "browser" ||
+      plan.environment !== "test")
+  )
+    throw Error(
+      "Signing in needs a journey on a test environment with approved normal browser networking (sign-in sends a form to the preview). Use a dedicated test account, never a real one.",
+    );
   if (
     plan.network === "browser" &&
     (plan.execution !== "interactive" ||

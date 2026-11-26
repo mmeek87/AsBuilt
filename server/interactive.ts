@@ -1,5 +1,9 @@
 import { createBrowserNetwork } from "./browser-network.ts";
-import { journeyResourceAllowed, reviewedDestinations } from "./safety.ts";
+import {
+  journeyResourceAllowed,
+  reviewedDestinations,
+  vercelBypassCookies,
+} from "./safety.ts";
 import {
   recordBlockedResource,
   resourceFailureReason,
@@ -206,7 +210,9 @@ export async function runInteractive(report: Report) {
             new URL(url),
             undefined,
             report.plan.journey
-              ? z.record(z.string(), z.string().max(12000)).parse(message.headers ?? {})
+              ? z
+                  .record(z.string(), z.string().max(12000))
+                  .parse(message.headers ?? {})
               : {},
           );
           totalBytes += fetched.body.length;
@@ -348,7 +354,27 @@ export async function runInteractive(report: Report) {
       });
       child.once("close", resolveExit);
     });
-    send({ type: "start", plan: report.plan });
+    // Secrets travel only on the worker's private channel, never in the
+    // plan, report or logs.
+    const target =
+      report.plan.target === "sample" ? undefined : new URL(report.plan.target);
+    const cookies =
+      target && report.plan.network === "browser"
+        ? await vercelBypassCookies(target).catch(() => [])
+        : [];
+    send({
+      type: "start",
+      plan: report.plan,
+      ...(report.plan.signIn
+        ? {
+            credentials: {
+              email: process.env.ASBUILT_TEST_EMAIL ?? "",
+              password: process.env.ASBUILT_TEST_PASSWORD ?? "",
+            },
+          }
+        : {}),
+      ...(cookies.length ? { cookies } : {}),
+    });
     const code = await exit;
     await chain;
     if (

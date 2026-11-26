@@ -29,3 +29,6 @@ jobs:
           url: ${{ github.event.deployment_status.environment_url }}
           # Only if your previews use Vercel Deployment Protection:
           # vercel-bypass-secret: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          # Only if a plan signs in (use a dedicated test account):
+          # test-email: ${{ secrets.ASBUILT_TEST_EMAIL }}
+          # test-password: ${{ secrets.ASBUILT_TEST_PASSWORD }}

@@ -1,9 +1,17 @@
 import { observe, blocker } from "./observation.mjs";
 import { perform } from "./interaction-policy.mjs";
 import { journeyFixture } from "./journey-fixture.mjs";
+import { signIn } from "./sign-in.mjs";
 
 // One browser context per viewport. Checkpoints run in order and retain only this run's state.
-export async function runJourney(browser, plan, resource, send) {
+export async function runJourney(
+  browser,
+  plan,
+  resource,
+  send,
+  credentials,
+  cookies = [],
+) {
   const destinations = plan.criteria.flatMap((c) =>
     (c.actions ?? [])
       .filter((a) => a.type === "navigate" || (a.type === "menu" && !!a.value))
@@ -20,6 +28,8 @@ export async function runJourney(browser, plan, resource, send) {
       acceptDownloads: false,
       permissions: [],
     });
+    // Vercel bypass cookie (preview origin only), when provided.
+    if (cookies.length) await context.addCookies(cookies);
     let index = 0,
       blocked = 0,
       criticalBlocked = 0,
@@ -108,7 +118,21 @@ export async function runJourney(browser, plan, resource, send) {
       await route.abort();
     });
     let initialError = false;
+    let signInError = "";
+    if (plan.signIn && plan.target !== "sample") {
+      const outcome = await signIn(
+        page,
+        plan.signIn,
+        credentials,
+        new URL(plan.target).origin,
+      ).catch(() => ({
+        ok: false,
+        reason: "Signing in with the test account didn't complete.",
+      }));
+      if (!outcome.ok) signInError = outcome.reason;
+    }
     try {
+      if (signInError) throw Error("sign-in failed");
       const response = await page.goto(
         plan.target === "sample"
           ? "https://sample.asbuilt.invalid/"
@@ -131,6 +155,8 @@ export async function runJourney(browser, plan, resource, send) {
             observed:
               "Not attempted: an earlier journey checkpoint did not pass. No later actions were performed.",
           };
+        else if (signInError)
+          observation = { status: "not_verified", observed: signInError };
         else if (initialError)
           observation = {
             status: "not_verified",
@@ -190,6 +216,8 @@ export async function runJourney(browser, plan, resource, send) {
               fullPage: false,
               animations: "disabled",
               timeout: 10000,
+              // Never show typed passwords in evidence.
+              mask: [page.locator('input[type="password"]')],
             })
           ).toString("base64");
         } catch {

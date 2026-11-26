@@ -24,6 +24,12 @@ inputs:
   vercel-bypass-secret:
     description: For Vercel previews with Deployment Protection. Store the project's "Protection Bypass for Automation" secret as a repository secret and pass it here. Sent only to the preview's own address.
     default: ""
+  test-email:
+    description: Email of a dedicated test account, for plans with a signIn step. Pass it from a repository secret. Never use a real account.
+    default: ""
+  test-password:
+    description: Password of that test account, from a repository secret. Typed only into the preview's own sign-in page and masked in screenshots.
+    default: ""
   github-token:
     description: Used only to find the pull request and post the comment.
     default: ${{ github.token }}
@@ -68,6 +74,8 @@ runs:
         INPUT_TIMEOUT_MINUTES: ${{ inputs.timeout-minutes }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
         ASBUILT_VERCEL_BYPASS_SECRET: ${{ inputs.vercel-bypass-secret }}
+        ASBUILT_TEST_EMAIL: ${{ inputs.test-email }}
+        ASBUILT_TEST_PASSWORD: ${{ inputs.test-password }}
       run: node --import "$GITHUB_ACTION_PATH/node_modules/tsx/dist/loader.mjs" "$GITHUB_ACTION_PATH/server/action.ts"
     - name: Save screenshots and report
       if: always() && steps.verify.outputs.results-dir != ''

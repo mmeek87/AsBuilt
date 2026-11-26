@@ -10,5 +10,6 @@ server/*
 !server/observation.mjs
 !server/journey-worker.mjs
 !server/journey-fixture.mjs
+!server/sign-in.mjs
 
 !server/tunnel-proxy.mjs

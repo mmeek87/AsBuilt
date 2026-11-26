@@ -62,7 +62,13 @@ export async function pinnedGet(
   url: URL,
   lookup = dns.lookup,
   navigationHeaders: Record<string, string> = {},
-): Promise<{ status: number; headers: Record<string, string>; body: Buffer }> {
+  options: { setBypassCookie?: boolean } = {},
+): Promise<{
+  status: number;
+  headers: Record<string, string>;
+  body: Buffer;
+  cookies?: string[];
+}> {
   const addresses = await lookup(url.hostname, { all: true });
   if (!addresses.length || addresses.some((a) => !publicAddress(a.address)))
     throw Error("Preview resolves to a private or reserved network.");
@@ -97,6 +103,10 @@ export async function pinnedGet(
             ),
           ),
           ...previewAuthHeaders(url),
+          ...(options.setBypassCookie &&
+          Object.keys(previewAuthHeaders(url)).length
+            ? { "x-vercel-set-bypass-cookie": "true" }
+            : {}),
         },
         timeout: 8000,
       },
@@ -131,6 +141,9 @@ export async function pinnedGet(
             status: res.statusCode ?? 502,
             headers,
             body: Buffer.concat(chunks),
+            ...(options.setBypassCookie
+              ? { cookies: res.headers["set-cookie"] ?? [] }
+              : {}),
           });
         });
       },
@@ -303,6 +316,46 @@ export function journeyResourceAllowed(
 
 export function reviewedDestinations(plan: import("./schema.ts").Plan) {
   return plan.criteria.flatMap((c) =>
-    (c.actions ?? []).filter((a) => a.type === "navigate" || (a.type === "menu" && !!a.value)).map((a) => a.value),
+    (c.actions ?? [])
+      .filter((a) => a.type === "navigate" || (a.type === "menu" && !!a.value))
+      .map((a) => a.value),
   );
+}
+
+/**
+ * For normal browser networking (end-to-end encrypted, so no header can be
+ * added): ask Vercel for its protection-bypass cookie once, from this
+ * process, and hand only that cookie to the browser for the preview origin.
+ */
+export async function vercelBypassCookies(target: URL, lookup = dns.lookup) {
+  if (!Object.keys(previewAuthHeaders(target)).length) return [];
+  const response = await pinnedGet(
+    new URL("/", target.origin),
+    lookup,
+    {},
+    {
+      setBypassCookie: true,
+    },
+  );
+  return (response.cookies ?? []).flatMap((raw) => {
+    const [pair, ...attributes] = raw.split(";").map((x) => x.trim());
+    const at = pair.indexOf("=");
+    if (at < 1) return [];
+    const flags = attributes.map((a) => a.toLowerCase());
+    const same = flags.find((a) => a.startsWith("samesite="))?.slice(9);
+    return [
+      {
+        name: pair.slice(0, at),
+        value: pair.slice(at + 1),
+        url: target.origin,
+        secure: true,
+        httpOnly: flags.includes("httponly"),
+        sameSite: (same === "none"
+          ? "None"
+          : same === "strict"
+            ? "Strict"
+            : "Lax") as "None" | "Strict" | "Lax",
+      },
+    ];
+  });
 }
