@@ -1,6 +1,6 @@
 # AsBuilt
 
-Check that your AI-built web app works as intended. Your assistant reads your code and lists every feature in plain words, so you don't have to remember them all. You approve checks for what matters, and on every pull request AsBuilt opens the real preview and reports each check as **Pass**, **Fail**, or **Not verified**, with screenshots and a fix prompt.
+Check that what your AI built works as intended. It works with anything that opens in a browser: web apps, stores, dashboards, internal tools and sites. Your assistant reads your code and lists every feature in plain words, so you don't have to remember them all. You approve checks for what matters, and on every pull request AsBuilt opens the real preview and reports each check as **Pass**, **Fail**, or **Not verified**, with screenshots and a fix prompt.
 
 AsBuilt is free and open source (MIT). There is no account, subscription, or hosted service.
 

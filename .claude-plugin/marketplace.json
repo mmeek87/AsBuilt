@@ -1,6 +1,6 @@
 {
   "name": "asbuilt",
-  "description": "AsBuilt: check that your AI-built web app works as intended, on every pull request.",
+  "description": "AsBuilt: check that what your AI built works as intended, on every pull request.",
   "owner": {
     "name": "Mel Meek",
     "url": "https://github.com/mmeek87"
@@ -9,7 +9,7 @@
     {
       "name": "asbuilt",
       "source": "./plugins/asbuilt",
-      "description": "Check that your AI-built web app works as intended: your assistant maps the features, you approve checks, and every pull request gets Pass, Fail or Not verified with screenshots.",
+      "description": "Check that what your AI built works as intended: your assistant maps the features, you approve checks, and every pull request gets Pass, Fail or Not verified with screenshots.",
       "version": "1.0.0"
     }
   ]

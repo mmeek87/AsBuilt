@@ -1,6 +1,6 @@
 # AsBuilt
 
-**Check that your AI-built web app works as intended.**
+**Check that what your AI built works as intended.**
 
 Your assistant (Claude, ChatGPT, Codex) reads your code and maps every feature your app has, in plain language, so you don't have to remember them all. You correct the list and approve checks for what matters. Every time Vercel deploys a preview of a pull request, AsBuilt opens it in a real browser on desktop and mobile, checks each expectation, takes screenshots, and comments on the PR: what passed, what didn't, what it couldn't check and why, plus a prompt you can paste back to your assistant to fix it.
 
