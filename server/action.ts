@@ -13,6 +13,7 @@ import { spawnSync } from "node:child_process";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Report } from "./schema.ts";
+import { fixPrompt as fixPromptFor } from "./pr-comment.ts";
 
 const env = process.env;
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -173,6 +174,16 @@ export function stepSummary(report: Report, evidenceUrl?: string) {
         `| ${label[r.status]} | ${r.viewport} | ${cell(r.criterion.expected)} | ${cell(r.observed)} |`,
     ),
     "",
+    ...(fixPromptFor(report)
+      ? [
+          "### Fix prompt for Claude or ChatGPT",
+          "",
+          "~~~text",
+          fixPromptFor(report),
+          "~~~",
+          "",
+        ]
+      : []),
     evidenceUrl
       ? `Screenshots for every check are in the **asbuilt-evidence** artifact on [this workflow run](${evidenceUrl}).`
       : "Screenshots are in the results folder.",
