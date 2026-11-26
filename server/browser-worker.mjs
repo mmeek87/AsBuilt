@@ -258,7 +258,10 @@ async function run(plan, credentials, cookies = []) {
         }
         try {
           screenshot = (
-            await page.screenshot({ fullPage: true, timeout: 5000 })
+            await page
+              .screenshot({ fullPage: true, timeout: 5000 })
+              // Very long or busy pages: fall back to what's on screen.
+              .catch(() => page.screenshot({ fullPage: false, timeout: 15000 }))
           ).toString("base64");
         } catch {
           observation = {

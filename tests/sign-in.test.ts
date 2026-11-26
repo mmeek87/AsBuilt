@@ -256,3 +256,19 @@ test("sign-in plans require a test environment, a journey and approved browser n
     }),
   );
 });
+
+test("re-types when the page wipes the form while it finishes loading", async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    let posted = "";
+    // Like a client-rendered app hydrating: the first edits are wiped once.
+    const wipe = `<script>let wiped=false;document.addEventListener("input",()=>{if(wiped)return;wiped=true;setTimeout(()=>{document.querySelector("input[name=email]").value=""},0)});</script>`;
+    await shop(page, form(wipe), (b) => (posted = b));
+    const outcome = await signIn(page, config, account, origin);
+    assert.deepEqual(outcome, { ok: true });
+    assert.match(posted, /buyer%40test\.example/);
+  } finally {
+    await browser.close();
+  }
+});
