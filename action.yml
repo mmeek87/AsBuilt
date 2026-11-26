@@ -21,6 +21,9 @@ inputs:
   timeout-minutes:
     description: Stop and report "interrupted" after this long. Nothing is marked passed on timeout.
     default: "10"
+  vercel-bypass-secret:
+    description: For Vercel previews with Deployment Protection. Store the project's "Protection Bypass for Automation" secret as a repository secret and pass it here. Sent only to the preview's own address.
+    default: ""
   github-token:
     description: Used only to find the pull request and post the comment.
     default: ${{ github.token }}
@@ -64,6 +67,7 @@ runs:
         INPUT_COMMENT: ${{ inputs.comment }}
         INPUT_TIMEOUT_MINUTES: ${{ inputs.timeout-minutes }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        ASBUILT_VERCEL_BYPASS_SECRET: ${{ inputs.vercel-bypass-secret }}
       run: node --import "$GITHUB_ACTION_PATH/node_modules/tsx/dist/loader.mjs" "$GITHUB_ACTION_PATH/server/action.ts"
     - name: Save screenshots and report
       if: always() && steps.verify.outputs.results-dir != ''

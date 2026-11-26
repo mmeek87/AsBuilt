@@ -172,7 +172,10 @@ async function run(report: Report) {
           timeout: 25000,
         });
         if (!response || response.status() >= 400)
-          navigationError = `Preview returned HTTP ${response?.status() ?? "unknown"}.`;
+          navigationError =
+            response?.status() === 401 || response?.status() === 403
+              ? `Preview returned HTTP ${response.status()}: it's protected or needs sign-in. For a Vercel preview with Deployment Protection, add the automation bypass secret (docs/github-action.md).`
+              : `Preview returned HTTP ${response?.status() ?? "unknown"}.`;
       } catch {
         navigationError =
           "The preview could not be loaded safely. Check the URL and network policy.";

@@ -351,3 +351,36 @@ test("versioned assets and scoped image CDN do not open API or script access", a
   ])
     assert.equal(allowed(url, target, method, type, prefixes), false, url);
 });
+
+test("the Vercel bypass secret is sent only to the approved preview origin", async () => {
+  const { previewAuthHeaders } = await import("../server/safety.ts");
+  const env = {
+    ASBUILT_VERCEL_BYPASS_SECRET: "s3cret-value",
+    ASBUILT_PREVIEW_ORIGINS: "https://shop-git-pr-7.vercel.app",
+  };
+  assert.deepEqual(
+    previewAuthHeaders(new URL("https://shop-git-pr-7.vercel.app/store?x=1"), env),
+    { "x-vercel-protection-bypass": "s3cret-value" },
+  );
+  for (const other of [
+    "https://evil.example/collect",
+    "https://shop-git-pr-7.vercel.app.evil.example/",
+    "https://other-git-pr-7.vercel.app/",
+    "http://shop-git-pr-7.vercel.app/",
+  ])
+    assert.deepEqual(previewAuthHeaders(new URL(other), env), {}, other);
+  assert.deepEqual(
+    previewAuthHeaders(new URL("https://shop-git-pr-7.vercel.app/"), {
+      ...env,
+      ASBUILT_VERCEL_BYPASS_SECRET: "a\r\nInjected: 1",
+    }),
+    {},
+    "header injection is refused",
+  );
+  assert.deepEqual(
+    previewAuthHeaders(new URL("https://shop-git-pr-7.vercel.app/"), {
+      ASBUILT_PREVIEW_ORIGINS: env.ASBUILT_PREVIEW_ORIGINS,
+    }),
+    {},
+  );
+});

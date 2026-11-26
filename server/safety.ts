@@ -38,6 +38,26 @@ export function validateTarget(raw: string, allowed: string[]): URL {
 }
 // Resolve once, validate every returned address, then pin the actual TLS socket.
 // Redirects are never followed here; the browser re-enters this policy for each hop.
+/**
+ * Vercel "Protection Bypass for Automation" for protected previews. The
+ * secret is sent only to an approved preview origin, checked per request,
+ * so a redirect or third-party resource never receives it. Not available
+ * with normal browser networking (traffic there is end-to-end encrypted).
+ */
+export function previewAuthHeaders(
+  url: URL,
+  env: NodeJS.ProcessEnv = process.env,
+): Record<string, string> {
+  const secret = env.ASBUILT_VERCEL_BYPASS_SECRET?.trim();
+  if (!secret || /[\r\n]/.test(secret) || secret.length > 512) return {};
+  const origins = (env.ASBUILT_PREVIEW_ORIGINS || "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+  return url.protocol === "https:" && origins.includes(url.origin)
+    ? { "x-vercel-protection-bypass": secret }
+    : {};
+}
 export async function pinnedGet(
   url: URL,
   lookup = dns.lookup,
@@ -76,6 +96,7 @@ export async function pinnedGet(
                 !/[\r\n]/.test(value),
             ),
           ),
+          ...previewAuthHeaders(url),
         },
         timeout: 8000,
       },

@@ -165,6 +165,8 @@ async function observeSingle(page, c, { staticMode = false, waitMs = 0 } = {}) {
  *    behind sign-in was not observable.
  */
 export async function blocker(page, documentStatus) {
+  if (documentStatus === 401 || documentStatus === 403)
+    return `The page returned HTTP ${documentStatus}: it's protected or needs sign-in, so this outcome could not be observed. For a Vercel preview with Deployment Protection, add the project's automation bypass secret (see docs/github-action.md). This isn't a confirmed defect.`;
   if (documentStatus && documentStatus >= 400)
     return `The page returned HTTP ${documentStatus}, so this outcome could not be observed. This looks like an environment problem (the site was down or erroring), not a confirmed defect. Retry when the site is available.`;
   try {
