@@ -285,3 +285,31 @@ test("a reused session is trusted only when the signed-in proof is visible on th
     await browser.close();
   }
 });
+
+test("waits for a background sign-in to finish before checking, and reports the site's error", async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    // Signs in with fetch, sets the cookie after a delay, then moves on.
+    const spa = (ok: boolean) => `<!doctype html><label>Email <input id=e type=email></label><label>Password <input id=p type=password></label><button id=b type=button>Sign in</button><div id=msg></div>
+      <script>b.onclick=()=>setTimeout(()=>{ if(${ok}&&p.value==="${account.password}"){document.cookie="s=1;path=/";location.href="/home"} else {msg.setAttribute("role","alert");msg.textContent="Invalid login credentials"} },800)</script>`;
+    let ok = true;
+    await page.route("**/*", (route) => {
+      const u = new URL(route.request().url());
+      if (u.origin !== origin) return route.abort();
+      const signedIn = (route.request().headers().cookie ?? "").includes("s=1");
+      if (u.pathname === "/account")
+        return route.fulfill({ contentType: "text/html", body: signedIn ? "<button>Sign out</button>" : spa(ok) });
+      if (u.pathname === "/home") return route.fulfill({ contentType: "text/html", body: "<h1>Home</h1>" });
+      return route.fulfill({ contentType: "text/html", body: spa(ok) });
+    });
+    assert.deepEqual(await signIn(page, { ...config, signedInPath: "/account" }, account, origin), { ok: true });
+    ok = false;
+    await page.context().clearCookies();
+    const failed = await signIn(page, { ...config, signedInPath: "/account" }, account, origin);
+    assert.equal(failed.ok, false);
+    assert.match((failed as { reason: string }).reason, /The site said: “Invalid login credentials”/);
+  } finally {
+    await browser.close();
+  }
+});
