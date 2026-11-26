@@ -313,3 +313,25 @@ test("waits for a background sign-in to finish before checking, and reports the 
     await browser.close();
   }
 });
+
+test("an empty alert region (a route announcer) doesn't end the wait, and a late app redirect is survived", async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    // Like Next.js: an always-present empty role=alert, sign-in by fetch, then
+    // a client redirect to "/" a moment after the session exists.
+    const app = `<!doctype html><div role=alert style="position:absolute;width:1px;height:1px"></div><label>Email <input id=e type=email></label><label>Password <input id=p type=password></label><button id=b type=button>Sign in</button>
+      <script>b.onclick=()=>setTimeout(()=>{document.cookie="s=1;path=/";setTimeout(()=>location.href="/",400)},700)</script>`;
+    await page.route("**/*", (route) => {
+      const u = new URL(route.request().url());
+      if (u.origin !== origin) return route.abort();
+      const signedIn = (route.request().headers().cookie ?? "").includes("s=1");
+      if (u.pathname === "/account") return route.fulfill({ contentType: "text/html", body: signedIn ? "<button>Sign out</button>" : app });
+      if (u.pathname === "/") return route.fulfill({ contentType: "text/html", body: "<h1>Home</h1>" });
+      return route.fulfill({ contentType: "text/html", body: app });
+    });
+    assert.deepEqual(await signIn(page, { ...config, signedInPath: "/account" }, account, origin), { ok: true });
+  } finally {
+    await browser.close();
+  }
+});

@@ -146,20 +146,19 @@ async function signInSteps(page, config, credentials, origin, failedHosts) {
   // Many apps sign in with a background request and only then move on.
   // Wait for the app to leave the sign-in page (or show an error) before
   // checking, or the session cookie may not exist yet.
+  // (An error message with text also ends the wait. Empty alert regions,
+  // like a framework's route announcer, don't count.)
+  const errorShown = page
+    .getByRole("alert")
+    .filter({ hasText: /\S/, visible: true })
+    .first();
   await Promise.race([
     page.waitForURL((u) => u.pathname !== url.pathname, { timeout: 20000 }),
-    page
-      .getByRole("alert")
-      .filter({ visible: true })
-      .first()
-      .waitFor({ state: "visible", timeout: 20000 }),
+    errorShown.waitFor({ state: "visible", timeout: 20000 }),
   ]).catch(() => {});
   await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
   if (onPreview(page, origin) && new URL(page.url()).pathname === url.pathname) {
-    const said = await page
-      .getByRole("alert")
-      .filter({ visible: true })
-      .first()
+    const said = await errorShown
       .innerText({ timeout: 1000 })
       .catch(() => "");
     const message = said.replace(/\s+/g, " ").trim().slice(0, 160);
@@ -177,7 +176,16 @@ async function signInSteps(page, config, credentials, origin, failedHosts) {
         reason: "The signed-in check page must be on the preview itself.",
       };
     try {
-      await page.goto(proof.href, { waitUntil: "load", timeout: 25000 });
+      // The app may still be redirecting after sign-in; if that interrupts
+      // opening the proof page, let it settle and try once more.
+      await page
+        .goto(proof.href, { waitUntil: "load", timeout: 25000 })
+        .catch(async () => {
+          await page
+            .waitForLoadState("networkidle", { timeout: 5000 })
+            .catch(() => {});
+          await page.goto(proof.href, { waitUntil: "load", timeout: 25000 });
+        });
       await page
         .waitForLoadState("networkidle", { timeout: 5000 })
         .catch(() => {});
