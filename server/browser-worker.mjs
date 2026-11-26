@@ -23,7 +23,7 @@ input.on("line", (line) => {
       resolve?.(message);
     } else if (message.type === "start" && !started) {
       started = true;
-      void run(message.plan, message.credentials, message.cookies)
+      void run(message.plan, message.credentials, message.cookies, message.session)
         .then(() => process.stdout.write("", () => process.exit(0)))
         .catch(() => {
           send({
@@ -64,7 +64,7 @@ async function resource(request, scope) {
   });
   return result;
 }
-async function run(plan, credentials, cookies = []) {
+async function run(plan, credentials, cookies = [], session = []) {
   if (plan.network === "browser") tunnelProxy = await createTunnelProxy(send);
   const engine = { chromium, firefox, webkit }[plan.browser ?? "chromium"];
   const browser = await engine.launch({
@@ -83,7 +83,7 @@ async function run(plan, credentials, cookies = []) {
   });
   try {
     if (plan.journey) {
-      await runJourney(browser, plan, resource, send, credentials, cookies);
+      await runJourney(browser, plan, resource, send, credentials, cookies, session);
       send({ type: "done" });
       return;
     }
