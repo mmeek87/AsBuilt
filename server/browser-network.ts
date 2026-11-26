@@ -94,7 +94,11 @@ export function createBrowserNetwork(
             return;
           }
           sockets.set(m.id, socket);
-          socket.setTimeout(15000);
+          // Browsers keep connections open and reuse them. Closing one after
+          // a short idle period breaks the next request on it (a sign-in POST
+          // can't be retried), so allow long idle connections; the whole run
+          // is time-limited anyway.
+          socket.setTimeout(180000);
           send({ type: "tunnel-ready", id: m.id });
           socket.on("data", (data) => {
             bytes += data.length;
