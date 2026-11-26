@@ -208,7 +208,7 @@ Before hosted use: implement or deploy a compatible OAuth authorization boundary
 ```sh
 pnpm exec playwright install chromium   # once
 pnpm build        # the e2e suite serves the built UI; run this first
-pnpm test         # 62 unit/integration tests (some launch a real headless browser)
+pnpm test         # 72 unit/integration tests (some launch a real headless browser)
 pnpm test:e2e     # 19 browser + MCP tests, including axe on desktop and mobile
 pnpm eval         # verification-quality eval, 8 controlled builds (about 2.5 min); see EVALS.md
 ```

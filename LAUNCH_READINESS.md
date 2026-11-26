@@ -57,7 +57,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) and [SECURITY.md](SECURITY.md). Highlight
 | Suite | Local | GitHub runner (PR #7) |
 | --- | --- | --- |
 | Type checks, build | Pass | Pass |
-| Unit and integration tests | **71/71** | Pass |
+| Unit and integration tests | **72/72** | Pass |
 | Browser e2e (UI, MCP, axe desktop and mobile) | **19/19** | **19/19** |
 | Action self-test (sample: 2 pass, 2 expected fail) | Pass | **Pass** |
 | Action vs real HTTPS site (example.com) | Pass, with screenshots | — |

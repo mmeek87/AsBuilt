@@ -44,7 +44,7 @@
 - Focus management, loading announcements, distinct button names and plain labels.
 
 ### Tests and tooling
-- Added 22 unit tests (now 71 in total after the GitHub work) (product coverage, PR comments, GitHub errors, error mapping, blocker detection, helper) and 1 end-to-end test (product coverage with real runs, axe on desktop and mobile). Updated the MCP e2e tests to the 13-tool surface.
+- Added 22 unit tests (now 72 in total after the GitHub work) (product coverage, PR comments, GitHub errors, error mapping, blocker detection, helper) and 1 end-to-end test (product coverage with real runs, axe on desktop and mobile). Updated the MCP e2e tests to the 13-tool surface.
 - `pnpm mcp:check-flow` drives the full product flow over MCP.
 - Docs: SECURITY.md, EVALS.md, ARCHITECTURE.md, LAUNCH_READINESS.md, troubleshooting and env vars.
 
