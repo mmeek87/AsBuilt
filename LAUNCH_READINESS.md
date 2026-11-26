@@ -25,7 +25,7 @@ Branch `launch-readiness`, draft PR #7. Reviewed and updated November 26, 2026.
 
 **Direction change, at the maintainer's request:** AsBuilt is now GitHub-only, open source and free. The hosted Vercel version (the only part that could cost money, and which had never run a check) was removed.
 
-- **GitHub Action** (`uses: mmeek87/asbuilt`): runs on every preview deployment, on desktop and mobile, with screenshots, a job summary, one updated PR comment, and a copy-ready fix prompt.
+- **GitHub Action** (`uses: mmeek87/AsBuilt@v1`): runs on every preview deployment, on desktop and mobile, with screenshots, a job summary, one updated PR comment, and a copy-ready fix prompt.
 - **Checks stack up:** one plan file per feature in `.asbuilt/`; every PR rechecks every feature.
 - **Test-account sign-in** for pages behind a login.
 - **Protected Vercel previews** via Vercel's automation bypass.
@@ -121,8 +121,8 @@ Dry run on shopebarrel.tech (real site, AsBuilt's own worker and policy, without
 
 ## 9. Deployment
 
-There's nothing to deploy. Merging PR #7 makes `uses: mmeek87/asbuilt@main` available. Before announcing it, tag a release (`v1`) so users can pin a stable version.
+There's nothing to deploy. Version 1.0.0 is tagged as `v1.0.0`, and `v1` points to the latest 1.x release, so workflows use `mmeek87/AsBuilt@v1`.
 
 ## 10. Final assessment
 
-**Ready for a limited private beta.** Evidence: every automated suite passes on GitHub's runners; the Action works end to end on a real runner; the evals show zero false passes across adversarial cases; the main pain points (cost, install burden, ChatGPT access, single operator, sign-in, protected previews, slow failures) are addressed. It's not yet "launched" because the live external test, sign-in on a real deployment, and real-world use on eBarrel haven't happened yet. Each of those is a short step away.
+**Ready for public release (1.0.0).** Evidence: every automated suite passes on GitHub's runners; the evals show zero false passes across adversarial cases; and AsBuilt runs on a real product's test site (eBarrel, shopebarrel.tech) on every deployment: sign-in with test accounts, account privacy, add to cart, and the full order flow (pay with Stripe's test card, store picks and marks ready, pickup code verified), 18/18 on desktop and mobile. It also caught a real gap there (an account page open to signed-out visitors). Still not verified: Vercel Deployment Protection bypass on a real protected deployment, and in-host plugin installs in Claude and ChatGPT (maintainer step before directory submission).

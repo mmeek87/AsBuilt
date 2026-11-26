@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.deployment.sha }}
-      - uses: mmeek87/asbuilt@main # pin to a release tag once one exists
+      - uses: mmeek87/AsBuilt@v1
         with:
           url: ${{ github.event.deployment_status.environment_url }}
           # Only if your previews use Vercel Deployment Protection:
@@ -32,3 +32,8 @@ jobs:
           # Only if a plan signs in (use a dedicated test account):
           # test-email: ${{ secrets.ASBUILT_TEST_EMAIL }}
           # test-password: ${{ secrets.ASBUILT_TEST_PASSWORD }}
+          # Only if these previews use test data and test payments, never live ones:
+          # allow-test-actions: true
+          # Only if a check uses a second test account (for example a store):
+          # second-email: ${{ secrets.ASBUILT_SECOND_EMAIL }}
+          # second-password: ${{ secrets.ASBUILT_SECOND_PASSWORD }}

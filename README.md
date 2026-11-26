@@ -6,14 +6,14 @@ Your assistant (Claude, ChatGPT, Codex) reads your code and maps every feature y
 
 It never takes the AI's word that something works, and it never marks something passed without seeing it.
 
-![AsBuilt catching a missing order total on a real pull request, then passing after the fix](site/assets/demo/asbuilt-demo.gif)
+![AsBuilt mapping a shop's features, catching a redesign that dropped the order total, then passing after the fix](site/assets/demo/asbuilt-demo.gif)
 
-_50-second demo on [a real pull request](https://github.com/mmeek87/asbuilt-demo/pull/1). Try it yourself with the [demo repository](https://github.com/mmeek87/asbuilt-demo)._
+_50-second demo on [a real pull request](https://github.com/mmeek87/asbuilt-demo/pull/3). Try it yourself with the [demo repository](https://github.com/mmeek87/asbuilt-demo)._
 
 - **Free and open source.** Runs on GitHub Actions (free for public repositories). No servers, no AI bills, no accounts. MIT license.
 - **Nothing to install.** Add one workflow file and one plan file, or ask your assistant to do it with the AsBuilt skill.
 - **Honest results.** Pass, Fail, or Not verified with a reason (signed out, site down, protected preview). Measured in [EVALS.md](EVALS.md): 0 false passes across 9 scenarios, including misleading pages.
-- **Safe by design.** Only your preview, only reviewed steps, no purchases or form submissions, test accounts only. See [SECURITY.md](SECURITY.md).
+- **Safe by design.** Only your preview, only reviewed steps, test accounts only. Cart, checkout and payment steps are off unless you approve them for a test site, and then only with Stripe's test card while the page shows your test-site banner. See [SECURITY.md](SECURITY.md).
 
 ## Use it on GitHub (recommended)
 

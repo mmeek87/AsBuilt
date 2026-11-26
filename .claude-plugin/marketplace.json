@@ -10,7 +10,7 @@
       "name": "asbuilt",
       "source": "./plugins/asbuilt",
       "description": "Check what your website actually does: turn your intent into approved checks and get Pass, Fail or Not verified with screenshots on every pull request.",
-      "version": "0.4.0"
+      "version": "1.0.0"
     }
   ]
 }
