@@ -12,5 +12,6 @@ server/*
 !server/journey-fixture.mjs
 !server/sign-in.mjs
 !server/totp.mjs
+!server/test-cards.mjs
 
 !server/tunnel-proxy.mjs

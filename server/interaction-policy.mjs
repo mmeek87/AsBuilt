@@ -1,3 +1,4 @@
+import { TEST_CARDS, TEST_HOLDER } from "./test-cards.mjs";
 const sensitive =
   /\b(cart|favorite|buy|purchase|pay|checkout|order|delete|remove|send|publish|transfer|subscribe|book|confirm|submit|login|password)\b|sign in|log in/i;
 export async function perform(
@@ -8,7 +9,10 @@ export async function perform(
   memory = new Map(),
 ) {
   if (action.type === "remember") return remember(page, action, memory);
-  if (action.type === "fill" && /^\{\{[a-zA-Z][a-zA-Z0-9]{0,30}\}\}$/.test(action.value)) {
+  if (
+    action.type === "fill" &&
+    /^\{\{[a-zA-Z][a-zA-Z0-9]{0,30}\}\}$/.test(action.value)
+  ) {
     const name = action.value.slice(2, -2);
     if (!memory.has(name))
       throw Error(`Nothing was remembered as “${name}”, so nothing was typed.`);
@@ -52,7 +56,9 @@ export async function perform(
       throw Error(
         "Paying with the test card is outside the allowed interaction policy until it's approved as a test action.",
       );
-    return payWithStripeTestCard(page);
+    if (action.value === "" || action.value === "stripe")
+      return payWithStripeTestCard(page);
+    return fillProviderTestCard(page, action.value, action.fields);
   }
   if (action.type === "check") {
     const box = root
@@ -67,7 +73,9 @@ export async function perform(
   }
   if (action.type === "reload") {
     await page.reload({ waitUntil: "load", timeout: 25000 });
-    await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
+    await page
+      .waitForLoadState("networkidle", { timeout: 5000 })
+      .catch(() => {});
     return;
   }
   if (action.type === "navigate" && action.value.endsWith("/*"))
@@ -195,26 +203,29 @@ export async function perform(
   await locator.first().waitFor({ state: "visible", timeout: 3000 });
   if ((await locator.count()) !== 1)
     throw Error("The action target is ambiguous. Use an exact unique label.");
-  const permitted = await locator.evaluate((el, [type, approved]) => {
-    if (type === "click")
+  const permitted = await locator.evaluate(
+    (el, [type, approved]) => {
+      if (type === "click")
+        return (
+          el instanceof HTMLButtonElement &&
+          // An approved test action may submit its form (for example
+          // "Continue to payment"); anything else must not.
+          (approved ||
+            (!el.form && (el.type === "button" || !el.hasAttribute("type"))))
+        );
+      if (type === "select")
+        return el instanceof HTMLSelectElement && !el.disabled;
       return (
-        el instanceof HTMLButtonElement &&
-        // An approved test action may submit its form (for example
-        // "Continue to payment"); anything else must not.
-        (approved ||
-          (!el.form && (el.type === "button" || !el.hasAttribute("type"))))
+        (el instanceof HTMLTextAreaElement ||
+          (el instanceof HTMLInputElement &&
+            ["text", "search", "email", "tel", "number"].includes(el.type))) &&
+        !el.disabled &&
+        !el.readOnly &&
+        !/password|cc-|one-time-code/i.test(el.autocomplete || "")
       );
-    if (type === "select")
-      return el instanceof HTMLSelectElement && !el.disabled;
-    return (
-      (el instanceof HTMLTextAreaElement ||
-        (el instanceof HTMLInputElement &&
-          ["text", "search", "email", "tel", "number"].includes(el.type))) &&
-      !el.disabled &&
-      !el.readOnly &&
-      !/password|cc-|one-time-code/i.test(el.autocomplete || "")
-    );
-  }, [action.type, approvedTest]);
+    },
+    [action.type, approvedTest],
+  );
   if (!permitted) {
     const details = await locator.evaluate((el) => ({
       tag: el.tagName.toLowerCase(),
@@ -230,6 +241,66 @@ export async function perform(
   else if (action.type === "fill")
     await locator.fill(action.value, { timeout: 3000 });
   else await locator.selectOption({ label: action.value }, { timeout: 3000 });
+}
+
+// Another provider's card form, filled with that provider's published test
+// card. The check gives only the fields' labels; the numbers come from
+// test-cards.mjs. Each field must be exactly one visible match across the
+// page and its frames (provider forms often put each field in its own
+// frame), or nothing is typed. This only fills the form: paying is the
+// check's next, separately approved click.
+async function fillProviderTestCard(page, provider, fields) {
+  const card = TEST_CARDS[provider];
+  if (!card || !fields?.number)
+    throw Error(
+      "This test payment has no known provider or card-number field, so AsBuilt didn't type anything.",
+    );
+  const [month, year] = card.expiry.split("/");
+  const plan = [
+    ["number", fields.number, card.number],
+    ...(fields.expiry ? [["expiry", fields.expiry, card.expiry]] : []),
+    ...(fields.expiryMonth
+      ? [["expiry month", fields.expiryMonth, month]]
+      : []),
+    ...(fields.expiryYear ? [["expiry year", fields.expiryYear, year]] : []),
+    ...(fields.cvc ? [["security code", fields.cvc, card.cvc]] : []),
+    ...(fields.name ? [["name", fields.name, TEST_HOLDER.name]] : []),
+    ...(fields.postal
+      ? [["postal code", fields.postal, TEST_HOLDER.postal]]
+      : []),
+  ];
+  // Find every field first; type nothing unless all of them are found.
+  const deadline = Date.now() + 45000;
+  const found = [];
+  for (const [what, label, value] of plan) {
+    let hits = [];
+    while (Date.now() < deadline) {
+      hits = [];
+      for (const frame of page.frames()) {
+        const loc = frame
+          .getByLabel(label, { exact: true })
+          .or(frame.getByPlaceholder(label, { exact: true }))
+          .filter({ visible: true });
+        const n = await loc.count().catch(() => 0);
+        for (let i = 0; i < n; i++) hits.push(loc.nth(i));
+      }
+      if (hits.length) break;
+      await page.waitForTimeout(500);
+    }
+    if (hits.length !== 1)
+      throw Error(
+        hits.length
+          ? `Found ${hits.length} visible “${label}” fields for the ${what}; AsBuilt needs exactly one, so it didn't type anything.`
+          : `No visible “${label}” field for the ${what} appeared (also looked inside payment frames), so AsBuilt didn't type anything. Check the field's label or placeholder in the check.`,
+      );
+    found.push([hits[0], value]);
+  }
+  for (const [field, value] of found) {
+    await field.click({ timeout: 5000 });
+    await field.fill("", { timeout: 5000 }).catch(() => {});
+    // Typing (not pasting) lets the provider's own formatting run.
+    await field.pressSequentially(value, { delay: 40, timeout: 15000 });
+  }
 }
 
 // Stripe's public test card. Live Stripe declines it, so this can never
@@ -275,11 +346,18 @@ async function payWithStripeTestCard(page) {
   }
   if (!stripe)
     throw Error("AsBuilt couldn't find Stripe's card form, so it didn't pay.");
-  const number = stripe.locator('#cardNumber, input[name="cardnumber"], input[name="number"]');
+  const number = stripe.locator(
+    '#cardNumber, input[name="cardnumber"], input[name="number"]',
+  );
   const skipLink = stripe.getByText("Pay without Link");
   if (await skipLink.isVisible().catch(() => false)) await skipLink.click();
   await page.waitForTimeout(1000);
-  if (!(await number.first().isVisible().catch(() => false))) {
+  if (
+    !(await number
+      .first()
+      .isVisible()
+      .catch(() => false))
+  ) {
     // Stripe covers the Card row with an invisible button; click it directly.
     const card = stripe.locator('[data-testid="card-accordion-item-button"]');
     if (await card.count()) await card.first().dispatchEvent("click");
@@ -296,7 +374,10 @@ async function payWithStripeTestCard(page) {
   const optional = [
     ["#email", TEST_CARD.email],
     ["#billingName", TEST_CARD.name],
-    ["#billingPostalCode, input[name=\"postal\"], input[name=\"postalCode\"]", TEST_CARD.postal],
+    [
+      '#billingPostalCode, input[name="postal"], input[name="postalCode"]',
+      TEST_CARD.postal,
+    ],
   ];
   for (const [selector, value] of optional) {
     const field = stripe.locator(selector).first();
@@ -318,16 +399,26 @@ async function payWithStripeTestCard(page) {
   // again if nothing has happened.
   const before = page.url();
   for (let attempt = 0; attempt < 3; attempt++) {
-    await submit.first().click({ timeout: 10000 }).catch(() => {});
+    await submit
+      .first()
+      .click({ timeout: 10000 })
+      .catch(() => {});
     const moved = await page
-      .waitForURL((u) => u.href !== before, { timeout: attempt === 2 ? 60000 : 20000 })
+      .waitForURL((u) => u.href !== before, {
+        timeout: attempt === 2 ? 60000 : 20000,
+      })
       .then(
         () => true,
         () => false,
       );
     if (moved) return;
     // Still processing? Don't press again while Stripe is busy.
-    if (await submit.first().isDisabled().catch(() => false)) {
+    if (
+      await submit
+        .first()
+        .isDisabled()
+        .catch(() => false)
+    ) {
       const done = await page
         .waitForURL((u) => u.href !== before, { timeout: 45000 })
         .then(
@@ -356,12 +447,17 @@ async function openNewestMatching(page, root, action, destinations) {
   if (prefix.origin !== new URL(page.url()).origin)
     throw Error("Navigation destination is outside the reviewed policy.");
   const links = root
-    .getByRole("link", { name: action.name, exact: action.match !== "contains" })
+    .getByRole("link", {
+      name: action.name,
+      exact: action.match !== "contains",
+    })
     .filter({ visible: true });
   try {
     await links.first().waitFor({ state: "visible", timeout: 10000 });
   } catch {
-    throw Error(`No matching link named “${action.name}” is visible, so nothing was opened.`);
+    throw Error(
+      `No matching link named “${action.name}” is visible, so nothing was opened.`,
+    );
   }
   const hrefs = await links.evaluateAll((els) =>
     els.map((el) => (el instanceof HTMLAnchorElement ? el.href : "")),
@@ -382,13 +478,18 @@ async function openNewestMatching(page, root, action, destinations) {
     }
   });
   if (i < 0)
-    throw Error(`No matching link named “${action.name}” points under the reviewed address, so nothing was opened.`);
+    throw Error(
+      `No matching link named “${action.name}” points under the reviewed address, so nothing was opened.`,
+    );
   const target = hrefs[i];
   await links.nth(i).click({ timeout: 8000 });
-  await page.waitForURL((u) => u.href.split(/[?#]/)[0] === target.split(/[?#]/)[0], {
-    timeout: 15000,
-    waitUntil: "domcontentloaded",
-  });
+  await page.waitForURL(
+    (u) => u.href.split(/[?#]/)[0] === target.split(/[?#]/)[0],
+    {
+      timeout: 15000,
+      waitUntil: "domcontentloaded",
+    },
+  );
 }
 
 /**
@@ -404,11 +505,20 @@ async function remember(page, action, memory) {
       const re = new RegExp(source);
       const found = new Set();
       for (const el of body.querySelectorAll("*")) {
-        if (!(el instanceof HTMLElement) || !el.offsetParent && getComputedStyle(el).position !== "fixed") continue;
+        if (
+          !(el instanceof HTMLElement) ||
+          (!el.offsetParent && getComputedStyle(el).position !== "fixed")
+        )
+          continue;
         const text = (el.innerText || "").trim();
         if (!re.test(text)) continue;
         // Only the innermost element holding the value counts.
-        if ([...el.children].some((child) => re.test((child.innerText || "").trim()))) continue;
+        if (
+          [...el.children].some((child) =>
+            re.test((child.innerText || "").trim()),
+          )
+        )
+          continue;
         found.add(text);
       }
       return [...found];

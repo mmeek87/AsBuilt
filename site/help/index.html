@@ -137,7 +137,7 @@
         <li><strong>The workflow has to allow it.</strong> Add <code>allow-test-actions: true</code> to the AsBuilt step, only in a workflow that never checks your live site.</li>
         <li><strong>Never on Production.</strong> When GitHub says the deployment being checked is a Production deployment, AsBuilt takes no cart or checkout steps at all, whatever the banner or switch say.</li>
       </ul>
-      <p><strong>Payments and a second account:</strong> a check can pay with Stripe's public test card (live Stripe declines it, so it can't charge real money), and can use a second test account, like a store, for steps such as marking the order ready. Only Stripe is supported for payments today.</p>
+      <p><strong>Payments and a second account:</strong> a check can pay with your payment provider's published test card: Stripe, Square, Braintree, Adyen, Paddle (not yet proven) or a common test Visa for other sandboxes. The check only names the provider; AsBuilt types the provider's own test card, so a real card can never be entered. A check can also use a second test account, like a store, for steps such as marking the order ready. PayPal-style sandbox logins aren't supported yet.</p>
     </section>
     <section class="help-item" id="needs-setup" aria-labelledby="needs-setup-h">
       <h2 id="needs-setup-h">Needs setup</h2>
@@ -157,7 +157,7 @@
       <ol>
         <li><strong>Its own address</strong>: a preview link per pull request (Vercel and Netlify make these automatically) or one fixed test address.</li>
         <li><strong>Its own database</strong>: for example a second Supabase project, with its keys in your host's <em>Preview</em> settings and your live keys left in <em>Production</em>. Fill it with fake data.</li>
-        <li><strong>Test payment keys</strong>: Stripe's test-mode keys in Preview only. Test mode can't charge real cards.</li>
+        <li><strong>Test payment keys</strong>: your payment provider's test or sandbox keys (Stripe test mode, Square or Braintree sandbox, Adyen test) in Preview only. Test mode can't charge real cards.</li>
         <li><strong>Messages that go nowhere real</strong>: test emails and texts off, or sent to a test inbox.</li>
         <li><strong>A visible banner</strong> like “TEST SITE · test data only”, shown only on the test site. AsBuilt looks for it before every cart or checkout step, and clicks nothing if it isn't there.</li>
         <li><strong>Test accounts</strong> for each role that matters, created on the test database.</li>

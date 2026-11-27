@@ -15,7 +15,7 @@ _50-second demo on [a real pull request](https://github.com/mmeek87/asbuilt-demo
 - **Free and open source.** Runs on GitHub Actions (free for public repositories). No servers, no AI bills, no accounts. MIT license.
 - **Nothing to install.** Add one workflow file and one plan file, or ask your assistant to do it with the AsBuilt skill.
 - **Honest results.** Pass, Fail, or Not verified with a reason (signed out, site down, protected preview). Measured in [EVALS.md](EVALS.md): 0 false passes across 9 scenarios, including misleading pages.
-- **Safe by design.** Only your preview, only reviewed steps, test accounts only. Cart, checkout and payment steps are off unless you approve them for a test site, and then only with Stripe's test card while the page shows your test-site banner. See [SECURITY.md](SECURITY.md).
+- **Safe by design.** Only your preview, only reviewed steps, test accounts only. Cart, checkout and payment steps are off unless you approve them for a test site, and then only with your payment provider's published test card (Stripe, Square, Braintree, Adyen and more), never a real card, while the page shows your test-site banner. See [SECURITY.md](SECURITY.md).
 
 ## Use it on GitHub (recommended)
 
