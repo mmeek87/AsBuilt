@@ -52,7 +52,9 @@ AsBuilt refuses steps that could change real data, such as adding to a cart, che
 - Don't want to approve steps one by one? Save a standing approval in `.asbuilt/settings.json`: `{"testSite": {"siteMarker": "TEST SITE", "approveAllTestActions": true}}`. It covers every step except sign-in in checks with `environment: "test"`. The workflow switch and the on-page marker still apply.
 
 Also available with test actions:
-- `{"type": "testPayment", "name": "Pay with the Stripe test card", "value": ""}` pays inside Stripe's frame with Stripe's public test card. Card details never come from the check file. Only Stripe is supported.
+- `{"type": "testPayment", "name": "Pay with the Stripe test card", "value": ""}` pays inside Stripe's frame with Stripe's public test card.
+- `{"type": "testPayment", "name": "Pay with the Square test card", "value": "square", "fields": {"number": "Card number", "expiry": "MM/YY", "cvc": "CVV"}}` fills another provider's card fields (found by their labels or placeholders, also inside the provider's frames) with that provider's published test card. Providers: `stripe`, `square`, `braintree`, `adyen`, `paddle` (not yet proven: Paddle says its frame may block automation), and `test-visa` for other sandboxes that accept the common 4111 test Visa. It only fills the form; pressing Pay is the next approved step.
+- Card details never come from the check file: a check names the provider, and AsBuilt types that provider's published test card from its own list, so a real card can't be entered. PayPal-style sandbox logins aren't supported yet.
 - `{"type": "check", "name": "Refund"}` ticks a radio button or checkbox.
 - A second test account: add `secondSignIn` (same shape as `signIn`), mark checkpoints `"as": "second"`, and pass `second-email` / `second-password` from secrets.
 - Open a new record: navigate with a value ending in `/*` and a link name to match; AsBuilt opens the first visible matching link under that address on the preview.

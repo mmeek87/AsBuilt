@@ -177,7 +177,75 @@ test("a test payment never takes card details from the check", () => {
         ],
       });
     assert.doesNotThrow(() => validateExecution(p("")));
-    assert.throws(() => validateExecution(p("5555555555554444")), /never takes card details/);
+    assert.throws(() => validateExecution(p("5555555555554444")), /never card details/);
+  } finally {
+    delete process.env.ASBUILT_ALLOW_TEST_ACTIONS;
+  }
+});
+
+test("another provider's form is filled with its published test card, by the labels in the check, even inside its frames", async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const typed: Record<string, string> = {};
+    await page.route("https://shop.asbuilt.invalid/**", (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: `<p>TEST SITE · test payments only</p><h1>Checkout</h1>
+          <iframe src="https://sandbox.web.squarecdn.com/number" style="width:300px;height:60px"></iframe>
+          <iframe src="https://sandbox.web.squarecdn.com/rest" style="width:300px;height:120px"></iframe>
+          <label>ZIP <input id="zip"></label><button>Pay now</button>`,
+      }),
+    );
+    await page.route("https://sandbox.web.squarecdn.com/**", (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: route.request().url().endsWith("/number")
+          ? `<input placeholder="Card number" oninput="parent.postMessage(['number', this.value], '*')">`
+          : `<label>MM/YY <input oninput="parent.postMessage(['expiry', this.value], '*')"></label><label>CVV <input oninput="parent.postMessage(['cvc', this.value], '*')"></label>`,
+      }),
+    );
+    await page.exposeFunction("record", (k: string, v: string) => (typed[k] = v));
+    await page.addInitScript(() => addEventListener("message", (e: any) => (window as any).record?.(e.data[0], e.data[1])));
+    await page.goto("https://shop.asbuilt.invalid/checkout");
+    const approved = { siteMarker: "TEST SITE", approved: ["Pay with the Square test card"] };
+    const pay = {
+      type: "testPayment" as const,
+      name: "Pay with the Square test card",
+      value: "square",
+      fields: { number: "Card number", expiry: "MM/YY", cvc: "CVV", postal: "ZIP" },
+    };
+    await assert.rejects(perform(page, pay), /allowed interaction policy/, "never without approval");
+    await perform(page, pay, [], approved);
+    await page.waitForTimeout(300);
+    assert.equal(typed.number, "4111111111111111", "Square's published sandbox Visa");
+    assert.equal(typed.cvc, "111", "Square's documented sandbox CVV");
+    assert.equal(typed.expiry, "12/34");
+    assert.equal(await page.locator("#zip").inputValue(), "10001");
+
+    const missing = { ...pay, fields: { number: "Card number", cvc: "Security code" } };
+    const before = { ...typed };
+    await assert.rejects(perform(page, missing, [], approved), /No visible “Security code” field/);
+    assert.deepEqual(typed, before, "nothing typed unless every field is found");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("a check names the provider, never a card, and other providers need their field labels", () => {
+  process.env.ASBUILT_ALLOW_TEST_ACTIONS = "true";
+  try {
+    const p = (action: any) =>
+      plan({
+        testActions: { siteMarker: "TEST SITE", approved: ["Add to cart", "Continue to payment", "Pay"] },
+        criteria: [...plan().criteria, { id: "pay", expected: "Paid", kind: "heading", value: "Thank you", actions: [{ type: "testPayment", name: "Pay", ...action }] }],
+      });
+    assert.doesNotThrow(() => validateExecution(p({ value: "adyen", fields: { number: "Card number", expiry: "Expiry date", cvc: "Security code" } })));
+    assert.throws(() => validateExecution(p({ value: "adyen" })), /needs the card fields' labels/);
+    assert.throws(() => validateExecution(p({ value: "4111111111111111", fields: { number: "Card number" } })), /never card details/);
+    assert.throws(() => validateExecution(p({ value: "stripe", fields: { number: "Card number" } })), /Stripe payments find Stripe's own fields/);
+    assert.throws(() => validateExecution(p({ value: "square", fields: { number: "N", expiry: "E", expiryMonth: "M", expiryYear: "Y" } })), /not both/);
+    assert.throws(() => validateExecution(p({ value: "square", fields: { number: "N", expiryMonth: "M" } })), /go together/);
   } finally {
     delete process.env.ASBUILT_ALLOW_TEST_ACTIONS;
   }

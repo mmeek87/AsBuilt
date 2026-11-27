@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.0 (November 26, 2026)
+
+### Payments with your provider, never a real card
+- `testPayment` now works with Square, Braintree, Adyen and Paddle (not yet proven: Paddle says its checkout frame may block automation), plus `test-visa` for other sandboxes that accept the common 4111 test Visa. Stripe works as before.
+- A check names the provider and the card fields' labels; AsBuilt types that provider's **published test card** from its own list (`server/test-cards.mjs`, with each provider's source). A real card can never be entered, because it isn't on the list.
+- Fields are found by label or placeholder on the page and inside the provider's frames; every one must be the only visible match, or nothing is typed. Filling the form and pressing Pay are separate approved steps.
+
+### Built with Lovable, Bolt or Replit
+- The skill recognizes these projects, explains that the published address is the live site (look-only checks there), and offers the upgrade: connect the GitHub repository to Vercel or Netlify for a preview per change, with Preview pointed at test data.
+
 ## 1.1.0 (November 26, 2026)
 
 Get to a first real result faster, and make the deeper checks easier to set up. Same check files and reports; nothing to rewrite. Use `mmeek87/AsBuilt@v1`.
